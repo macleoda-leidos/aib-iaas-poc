@@ -14,14 +14,34 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <div className="max-w-7xl mx-auto px-4 flex items-center justify-between">
             <div>
               <span className="font-bold text-lg">AiB Administration</span>
-              <span className="text-blue-200 text-sm ml-3">IAAS Application Review</span>
+              <span className="text-blue-200 text-sm ml-3">IAAS Portal</span>
             </div>
             <div className="flex items-center gap-4 text-sm">
-              <span className="text-blue-200">Admin User (POC)</span>
+              <span className="text-blue-200">Karen MacLeod (Senior Officer)</span>
               <a href="/" className="text-white underline">Sign out</a>
             </div>
           </div>
         </header>
+
+        {/* Navigation */}
+        <nav className="bg-white border-b border-gray-200 shadow-sm">
+          <div className="max-w-7xl mx-auto px-4">
+            <ul className="flex gap-1 text-sm">
+              {[
+                { href: '/', label: 'Dashboard' },
+                { href: '/organisations', label: 'Organisations' },
+                { href: '/users', label: 'Users & Roles' },
+              ].map(link => (
+                <li key={link.href}>
+                  <a href={link.href} className="inline-block px-4 py-3 text-gray-700 hover:text-gov-blue hover:border-b-2 hover:border-gov-blue no-underline font-medium">
+                    {link.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </nav>
+
         <main className="max-w-7xl mx-auto px-4 py-6">{children}</main>
       </body>
     </html>

@@ -80,6 +80,46 @@ services:
       - PORT=3004
       - MOCK_INTEGRATIONS_URL=http://mock-integrations:3005
 
+  credit-check-service:
+    build:
+      context: ../../
+      dockerfile: infra/docker/Dockerfile.service
+      args:
+        SERVICE_NAME: credit-check-service
+    ports:
+      - "3008:3008"
+    environment:
+      - PORT=3008
+      - CREDIT_CHECK_MODE=sandbox
+    volumes:
+      - app-data:/app/data
+
+  organisation-service:
+    build:
+      context: ../../
+      dockerfile: infra/docker/Dockerfile.service
+      args:
+        SERVICE_NAME: organisation-service
+    ports:
+      - "3009:3009"
+    environment:
+      - PORT=3009
+    volumes:
+      - app-data:/app/data
+
+  user-service:
+    build:
+      context: ../../
+      dockerfile: infra/docker/Dockerfile.service
+      args:
+        SERVICE_NAME: user-service
+    ports:
+      - "3011:3011"
+    environment:
+      - PORT=3011
+    volumes:
+      - app-data:/app/data
+
   payment-service:
     build:
       context: ../../
