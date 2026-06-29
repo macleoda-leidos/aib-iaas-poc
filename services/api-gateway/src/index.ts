@@ -6,7 +6,9 @@ import { initDatabase } from './db';
 import { applicationsRouter } from './routes/applications';
 import { postcodeRouter } from './routes/postcode';
 import { authRouter } from './routes/auth';
+import { reportsRouter } from './routes/reports';
 import { errorHandler } from './middleware/errorHandler';
+import { authenticate, requirePermission } from './middleware/rbac';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -41,6 +43,7 @@ initDatabase();
 app.use('/api/auth', authRouter);
 app.use('/api/applications', applicationsRouter);
 app.use('/api/postcode', postcodeRouter);
+app.use('/api/reports', authenticate, requirePermission('reports.view'), reportsRouter);
 
 // Health check
 app.get('/api/health', (_req, res) => {
