@@ -1,0 +1,30 @@
+{
+  "name": "aib-iaas-poc",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AiB Initial Application Advice Service - Proof of Concept",
+  "workspaces": [
+    "packages/*",
+    "services/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "docker compose -f infra/docker/docker-compose.yml up --build",
+    "dev:services": "concurrently \"npm run dev -w services/mock-integrations\" \"npm run dev -w services/api-gateway\" \"npm run dev -w services/recommendation-service\" \"npm run dev -w services/document-service\" \"npm run dev -w services/integration-orchestrator\" \"npm run dev -w services/payment-service\" \"npm run dev -w services/audit-service\"",
+    "dev:web": "npm run dev -w apps/web",
+    "dev:admin": "npm run dev -w apps/admin",
+    "test": "npm run test --workspaces --if-present",
+    "test:contracts": "npm run test:contracts --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "build": "npm run build --workspaces --if-present",
+    "clean": "rimraf node_modules **/node_modules **/dist **/.next"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.0",
+    "rimraf": "^5.0.0",
+    "typescript": "^5.4.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

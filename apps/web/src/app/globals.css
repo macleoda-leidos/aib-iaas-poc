@@ -1,0 +1,43 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply text-gov-black font-gov;
+  }
+
+  a {
+    @apply text-gov-blue underline hover:text-gov-dark-blue focus:outline-3 focus:outline-gov-yellow focus:outline-offset-0 focus:bg-gov-yellow focus:text-gov-black;
+  }
+
+  h1 { @apply text-3xl font-bold mb-6; }
+  h2 { @apply text-2xl font-bold mb-4; }
+  h3 { @apply text-xl font-bold mb-3; }
+}
+
+@layer components {
+  .gov-header {
+    @apply bg-gov-black text-white py-4;
+  }
+
+  .gov-main {
+    @apply max-w-4xl mx-auto px-4 py-8;
+  }
+
+  .gov-footer {
+    @apply bg-gov-light-grey border-t border-gray-300 py-8 mt-12;
+  }
+
+  .gov-link {
+    @apply text-gov-blue underline hover:text-gov-dark-blue;
+  }
+
+  .gov-warning {
+    @apply border-l-4 border-gov-red pl-4 py-2 mb-4;
+  }
+
+  .gov-inset {
+    @apply border-l-4 border-gov-light-grey pl-4 py-2 mb-4;
+  }
+}

@@ -1,0 +1,16 @@
+node_modules/
+dist/
+.next/
+.env
+.env.local
+*.db
+*.sqlite
+uploads/
+coverage/
+.turbo/
+.DS_Store
+Thumbs.db
+.terraform/
+*.tfstate
+*.tfstate.backup
+.terraform.lock.hcl

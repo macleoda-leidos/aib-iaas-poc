@@ -1,0 +1,111 @@
+version: '3.8'
+
+services:
+  mock-integrations:
+    build:
+      context: ../../
+      dockerfile: infra/docker/Dockerfile.service
+      args:
+        SERVICE_NAME: mock-integrations
+    ports:
+      - "3005:3005"
+    environment:
+      - PORT=3005
+      - MOCK_LATENCY_MIN_MS=50
+      - MOCK_LATENCY_MAX_MS=200
+      - MOCK_FAILURE_RATE=0.02
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3005/api/mock/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  api-gateway:
+    build:
+      context: ../../
+      dockerfile: infra/docker/Dockerfile.service
+      args:
+        SERVICE_NAME: api-gateway
+    ports:
+      - "3001:3001"
+    environment:
+      - PORT=3001
+      - DATABASE_PATH=/app/data/iaas.db
+      - RECOMMENDATION_SERVICE_URL=http://recommendation-service:3002
+      - DOCUMENT_SERVICE_URL=http://document-service:3003
+      - INTEGRATION_SERVICE_URL=http://integration-orchestrator:3004
+      - PAYMENT_SERVICE_URL=http://payment-service:3006
+      - AUDIT_SERVICE_URL=http://audit-service:3007
+    volumes:
+      - app-data:/app/data
+      - uploads:/app/uploads
+    depends_on:
+      mock-integrations:
+        condition: service_healthy
+
+  recommendation-service:
+    build:
+      context: ../../
+      dockerfile: infra/docker/Dockerfile.service
+      args:
+        SERVICE_NAME: recommendation-service
+    ports:
+      - "3002:3002"
+    environment:
+      - PORT=3002
+
+  document-service:
+    build:
+      context: ../../
+      dockerfile: infra/docker/Dockerfile.service
+      args:
+        SERVICE_NAME: document-service
+    ports:
+      - "3003:3003"
+    environment:
+      - PORT=3003
+      - UPLOAD_PATH=/app/uploads
+    volumes:
+      - uploads:/app/uploads
+
+  integration-orchestrator:
+    build:
+      context: ../../
+      dockerfile: infra/docker/Dockerfile.service
+      args:
+        SERVICE_NAME: integration-orchestrator
+    ports:
+      - "3004:3004"
+    environment:
+      - PORT=3004
+      - MOCK_INTEGRATIONS_URL=http://mock-integrations:3005
+
+  payment-service:
+    build:
+      context: ../../
+      dockerfile: infra/docker/Dockerfile.service
+      args:
+        SERVICE_NAME: payment-service
+    ports:
+      - "3006:3006"
+    environment:
+      - PORT=3006
+      - PAYMENT_MODE=sandbox
+
+  audit-service:
+    build:
+      context: ../../
+      dockerfile: infra/docker/Dockerfile.service
+      args:
+        SERVICE_NAME: audit-service
+    ports:
+      - "3007:3007"
+    environment:
+      - PORT=3007
+      - DATABASE_PATH=/app/data/audit.db
+    volumes:
+      - app-data:/app/data
+
+volumes:
+  app-data:
+  uploads:
