@@ -1,91 +1,78 @@
 'use client';
 
 import { useState } from 'react';
+import { useParams } from 'next/navigation';
 
 // Synthetic application detail for POC
-const APP_DETAIL = {
-  id: '1',
-  referenceNumber: 'IAAS-2024-00001',
-  status: 'under_review',
-  createdAt: '2024-03-15T10:30:00Z',
-  submittedAt: '2024-03-15T11:45:00Z',
-  debtor: { title: 'Mr', firstName: 'John', lastName: 'Testerton', dateOfBirth: '1985-03-15', nino: 'AB123456C', maritalStatus: 'Married', dependants: 2, employment: 'Employed' },
-  address: { line1: '42 Example Street', city: 'Edinburgh', postcode: 'EH1 1AA', residenceSince: '2018-06-01' },
-  contact: { email: 'john.testerton@example.com', phone: '07700900001', preferred: 'Email' },
-  debts: {
-    total: 12700,
-    creditors: 3,
-    items: [
-      { creditor: 'Sample Bank PLC', type: 'Bank', outstanding: 7200, monthly: 150, arrears: true },
-      { creditor: 'TestCard Services', type: 'Credit Card', outstanding: 3400, monthly: 85, arrears: false },
-      { creditor: 'QuickLoans Ltd', type: 'Loan', outstanding: 2100, monthly: 80, arrears: true },
-    ],
-  },
-  income: { wages: 1800, benefits: 200, pension: 0, other: 50, total: 2050 },
-  expenditure: { rent: 650, councilTax: 120, utilities: 180, food: 350, transport: 150, insurance: 80, childcare: 200, other: 100, total: 1830 },
-  disposableIncome: 220,
-  creditCheck: { score: 520, band: 'Fair', defaults: 1, ccjs: 0, provider: 'SyntheticCredit Ltd', checkedAt: '2024-03-15T11:50:00Z' },
-  systemChecks: [
-    { system: 'BASYS', found: false, status: 'No record' },
-    { system: 'eDEN/DASH', found: false, status: 'No arrangement' },
-    { system: 'DAS', found: false, status: 'No programme' },
-    { system: 'CFT', found: true, status: '3 providers available' },
-    { system: 'Moratorium', found: false, status: 'No moratorium' },
-    { system: 'RoI', found: false, status: 'No entry' },
-  ],
-  recommendation: { product: 'Debt Arrangement Scheme', confidence: 'High', reasoning: ['Debt within DAS range', 'Has disposable income', 'No existing cases'] },
-  documents: [
-    { name: 'payslip_march_2024.pdf', size: '245 KB', category: 'Income Evidence', status: 'Clean' },
-    { name: 'bank_statement.pdf', size: '1.2 MB', category: 'Income Evidence', status: 'Clean' },
-    { name: 'council_tax_bill.pdf', size: '89 KB', category: 'Debt Evidence', status: 'Clean' },
-  ],
-  staffNotes: [
-    { author: 'James Wilson', date: '2024-03-16 09:15', type: 'Review', content: 'Application complete. All documents verified. Debtor eligible for DAS based on income and debt levels.' },
-  ],
-  auditTrail: [
-    { timestamp: '2024-03-15 10:30', action: 'Application Created', actor: 'John Testerton', actorType: 'Applicant' },
-    { timestamp: '2024-03-15 11:45', action: 'Application Submitted', actor: 'John Testerton', actorType: 'Applicant' },
-    { timestamp: '2024-03-15 11:46', action: 'System Checks Initiated', actor: 'System', actorType: 'System' },
-    { timestamp: '2024-03-15 11:50', action: 'Credit Check Completed', actor: 'System', actorType: 'System' },
-    { timestamp: '2024-03-15 11:51', action: 'Recommendation Generated', actor: 'System', actorType: 'System' },
-    { timestamp: '2024-03-16 09:00', action: 'Assigned to James Wilson', actor: 'Karen MacLeod', actorType: 'Staff' },
-    { timestamp: '2024-03-16 09:15', action: 'Review Note Added', actor: 'James Wilson', actorType: 'Staff' },
-  ],
+const DEMO_APPS: Record<string, any> = {
+  '1': { id: '1', ref: 'IAAS-2024-00001', debtor: { title: 'Mr', firstName: 'John', lastName: 'Testerton', dob: '1985-03-15', nino: 'AB123456C', maritalStatus: 'Married', dependants: 2, employment: 'Employed' }, status: 'under_review', submitted: '2024-03-15', totalDebt: 12700 },
+  '2': { id: '2', ref: 'IAAS-2024-00002', debtor: { title: 'Mrs', firstName: 'Sarah', lastName: 'Lowdebt', dob: '1990-07-22', nino: 'CD789012A', maritalStatus: 'Single', dependants: 0, employment: 'Employed' }, status: 'recommendation_issued', submitted: '2024-03-14', totalDebt: 3200 },
+  '3': { id: '3', ref: 'IAAS-2024-00003', debtor: { title: 'Ms', firstName: 'Margaret', lastName: 'Highdebt', dob: '1978-11-03', nino: 'EF345678B', maritalStatus: 'Divorced', dependants: 1, employment: 'Self-employed' }, status: 'submitted', submitted: '2024-03-13', totalDebt: 45000 },
+  '4': { id: '4', ref: 'IAAS-2024-00004', debtor: { title: 'Mr', firstName: 'David', lastName: 'Minimal', dob: '1995-02-28', nino: 'GH901234C', maritalStatus: 'Single', dependants: 0, employment: 'Unemployed' }, status: 'draft', submitted: null, totalDebt: 8500 },
+  '5': { id: '5', ref: 'IAAS-2024-00005', debtor: { title: 'Mr', firstName: 'James', lastName: 'Midrange', dob: '1982-09-15', nino: 'IJ567890A', maritalStatus: 'Married', dependants: 3, employment: 'Employed' }, status: 'accepted', submitted: '2024-03-10', totalDebt: 15600 },
+};
+
+const STATUS_COLOURS: Record<string, string> = {
+  draft: 'bg-gray-200 text-gray-700',
+  submitted: 'bg-blue-100 text-blue-800',
+  under_review: 'bg-purple-100 text-purple-800',
+  recommendation_issued: 'bg-green-100 text-green-800',
+  accepted: 'bg-green-200 text-green-900',
+  rejected: 'bg-red-100 text-red-800',
+  additional_info_required: 'bg-orange-100 text-orange-800',
 };
 
 export default function ApplicationDetailPage() {
-  const app = APP_DETAIL;
-  const [newNote, setNewNote] = useState('');
+  const params = useParams();
+  const id = params.id as string;
+  const app = DEMO_APPS[id];
   const [activeTab, setActiveTab] = useState('overview');
+  const [newNote, setNewNote] = useState('');
+
+  if (!app) {
+    return (
+      <div className="p-8">
+        <a href="/" className="text-blue-600 underline text-sm mb-4 inline-block">← Back to dashboard</a>
+        <h1 className="text-2xl font-bold mb-4">Application Not Found</h1>
+        <p className="text-gray-600">Application with ID {id} does not exist in the demo dataset.</p>
+        <p className="text-sm text-gray-500 mt-2">Available demo IDs: 1, 2, 3, 4, 5</p>
+      </div>
+    );
+  }
+
+  const tabs = ['overview', 'financial', 'checks', 'documents', 'notes', 'audit'];
 
   return (
     <div>
       {/* Header */}
       <div className="flex justify-between items-start mb-6">
         <div>
-          <a href="/" className="text-gov-blue text-sm underline mb-2 inline-block">← Back to dashboard</a>
-          <h1 className="text-2xl font-bold">{app.referenceNumber}</h1>
-          <p className="text-gray-600">{app.debtor.firstName} {app.debtor.lastName} — Submitted {new Date(app.submittedAt).toLocaleDateString()}</p>
+          <a href="/" className="text-blue-600 underline text-sm mb-2 inline-block">← Back to dashboard</a>
+          <h1 className="text-2xl font-bold">{app.ref}</h1>
+          <p className="text-gray-600">
+            {app.debtor.title} {app.debtor.firstName} {app.debtor.lastName} —
+            {app.submitted ? ` Submitted ${app.submitted}` : ' Draft (not submitted)'}
+          </p>
         </div>
-        <div className="flex gap-2">
-          <span className="bg-purple-100 text-purple-800 px-3 py-1 rounded text-sm font-bold uppercase">{app.status.replace(/_/g, ' ')}</span>
-        </div>
+        <span className={`px-3 py-1 rounded text-sm font-bold uppercase ${STATUS_COLOURS[app.status] || 'bg-gray-100'}`}>
+          {app.status.replace(/_/g, ' ')}
+        </span>
       </div>
 
       {/* Action bar */}
       <div className="bg-white border border-gray-200 rounded p-4 mb-6 flex flex-wrap gap-3">
-        <button className="bg-gov-green text-white text-sm font-bold px-4 py-2 rounded hover:bg-green-800">✓ Approve</button>
-        <button className="bg-gov-red text-white text-sm font-bold px-4 py-2 rounded hover:bg-red-800">✗ Reject</button>
+        <button className="bg-green-700 text-white text-sm font-bold px-4 py-2 rounded hover:bg-green-800">✓ Approve</button>
+        <button className="bg-red-700 text-white text-sm font-bold px-4 py-2 rounded hover:bg-red-800">✗ Reject</button>
         <button className="bg-orange-500 text-white text-sm font-bold px-4 py-2 rounded hover:bg-orange-600">⚠ Request More Info</button>
-        <button className="bg-gov-blue text-white text-sm font-bold px-4 py-2 rounded hover:bg-gov-dark-blue">↗ Reassign</button>
+        <button className="bg-blue-700 text-white text-sm font-bold px-4 py-2 rounded hover:bg-blue-800">↗ Reassign</button>
         <button className="bg-gray-200 text-gray-800 text-sm font-bold px-4 py-2 rounded hover:bg-gray-300">📋 Export PDF</button>
       </div>
 
       {/* Tabs */}
       <div className="border-b border-gray-200 mb-6">
-        {['overview', 'financial', 'checks', 'documents', 'notes', 'audit'].map(tab => (
+        {tabs.map(tab => (
           <button key={tab} onClick={() => setActiveTab(tab)}
-            className={`px-4 py-2 text-sm font-medium border-b-2 mr-1 ${activeTab === tab ? 'border-gov-blue text-gov-blue' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+            className={`px-4 py-2 text-sm font-medium border-b-2 mr-1 ${activeTab === tab ? 'border-blue-600 text-blue-700' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
             {tab.charAt(0).toUpperCase() + tab.slice(1)}
           </button>
         ))}
@@ -94,143 +81,119 @@ export default function ApplicationDetailPage() {
       {/* Tab content */}
       {activeTab === 'overview' && (
         <div className="grid md:grid-cols-2 gap-6">
-          <Section title="Personal Details">
+          <Panel title="Personal Details">
             <Field label="Name" value={`${app.debtor.title} ${app.debtor.firstName} ${app.debtor.lastName}`} />
-            <Field label="Date of Birth" value={app.debtor.dateOfBirth} />
+            <Field label="Date of Birth" value={app.debtor.dob} />
             <Field label="NI Number" value={app.debtor.nino} />
             <Field label="Marital Status" value={app.debtor.maritalStatus} />
             <Field label="Dependants" value={String(app.debtor.dependants)} />
             <Field label="Employment" value={app.debtor.employment} />
-          </Section>
-          <Section title="Address & Contact">
-            <Field label="Address" value={`${app.address.line1}, ${app.address.city}, ${app.address.postcode}`} />
-            <Field label="Resident Since" value={app.address.residenceSince} />
-            <Field label="Email" value={app.contact.email} />
-            <Field label="Phone" value={app.contact.phone} />
-            <Field label="Preferred Contact" value={app.contact.preferred} />
-          </Section>
-          <Section title="Recommendation">
+          </Panel>
+          <Panel title="Financial Summary">
+            <Field label="Total Debt" value={`£${app.totalDebt.toLocaleString()}`} />
+            <Field label="Creditors" value="3" />
+            <Field label="Monthly Income" value="£2,050" />
+            <Field label="Monthly Expenditure" value="£1,830" />
+            <Field label="Disposable Income" value="£220/month" highlight />
+          </Panel>
+          <Panel title="Recommendation">
             <div className="bg-green-50 border border-green-200 rounded p-3 mb-3">
-              <p className="font-bold text-green-800">{app.recommendation.product}</p>
-              <p className="text-sm text-green-700">Confidence: {app.recommendation.confidence}</p>
+              <p className="font-bold text-green-800">Debt Arrangement Scheme (DAS)</p>
+              <p className="text-sm text-green-700">Confidence: High</p>
             </div>
             <ul className="text-sm space-y-1">
-              {app.recommendation.reasoning.map((r, i) => <li key={i}>• {r}</li>)}
+              <li>• Debt within DAS eligibility range</li>
+              <li>• Has sufficient disposable income</li>
+              <li>• No existing insolvency cases</li>
             </ul>
-          </Section>
-          <Section title="Summary">
-            <Field label="Total Debt" value={`£${app.debts.total.toLocaleString()}`} />
-            <Field label="Creditors" value={String(app.debts.creditors)} />
-            <Field label="Monthly Income" value={`£${app.income.total}`} />
-            <Field label="Monthly Expenditure" value={`£${app.expenditure.total}`} />
-            <Field label="Disposable Income" value={`£${app.disposableIncome}/month`} highlight />
-          </Section>
+          </Panel>
+          <Panel title="Application Timeline">
+            <div className="space-y-2 text-sm">
+              <TimelineItem time="15 Mar 10:30" event="Application created" actor="Applicant" />
+              <TimelineItem time="15 Mar 11:45" event="Submitted" actor="Applicant" />
+              <TimelineItem time="15 Mar 11:46" event="System checks run" actor="System" />
+              <TimelineItem time="15 Mar 11:50" event="Credit check complete" actor="System" />
+              <TimelineItem time="16 Mar 09:00" event="Assigned to officer" actor="Karen MacLeod" />
+            </div>
+          </Panel>
         </div>
       )}
 
       {activeTab === 'financial' && (
         <div className="space-y-6">
-          <Section title="Debts">
+          <Panel title="Debts">
             <table className="w-full text-sm">
               <thead><tr className="border-b-2 border-gray-900">
                 <th className="text-left py-2">Creditor</th><th className="text-left py-2">Type</th>
-                <th className="text-right py-2">Outstanding</th><th className="text-right py-2">Monthly</th><th className="text-left py-2">Arrears</th>
+                <th className="text-right py-2">Outstanding</th><th className="text-right py-2">Monthly</th>
               </tr></thead>
               <tbody>
-                {app.debts.items.map((d, i) => (
-                  <tr key={i} className="border-b border-gray-200">
-                    <td className="py-2 font-bold">{d.creditor}</td><td className="py-2">{d.type}</td>
-                    <td className="py-2 text-right">£{d.outstanding.toLocaleString()}</td>
-                    <td className="py-2 text-right">£{d.monthly}</td>
-                    <td className="py-2">{d.arrears ? <span className="text-red-700 font-bold">Yes</span> : 'No'}</td>
-                  </tr>
-                ))}
-                <tr className="font-bold border-t-2 border-gray-900">
-                  <td className="py-2">TOTAL</td><td></td>
-                  <td className="py-2 text-right">£{app.debts.total.toLocaleString()}</td>
-                  <td className="py-2 text-right">£{app.debts.items.reduce((s, d) => s + d.monthly, 0)}</td><td></td>
-                </tr>
+                <tr className="border-b"><td className="py-2">Sample Bank PLC</td><td>Bank</td><td className="text-right">£7,200</td><td className="text-right">£150</td></tr>
+                <tr className="border-b"><td className="py-2">TestCard Services</td><td>Credit Card</td><td className="text-right">£3,400</td><td className="text-right">£85</td></tr>
+                <tr className="border-b"><td className="py-2">QuickLoans Ltd</td><td>Loan</td><td className="text-right">£2,100</td><td className="text-right">£80</td></tr>
+                <tr className="font-bold border-t-2"><td className="py-2">TOTAL</td><td></td><td className="text-right">£{app.totalDebt.toLocaleString()}</td><td className="text-right">£315</td></tr>
               </tbody>
             </table>
-          </Section>
-          <div className="grid md:grid-cols-2 gap-6">
-            <Section title="Monthly Income">
-              <Field label="Wages/Salary" value={`£${app.income.wages}`} />
-              <Field label="Benefits" value={`£${app.income.benefits}`} />
-              <Field label="Pension" value={`£${app.income.pension}`} />
-              <Field label="Other" value={`£${app.income.other}`} />
-              <Field label="TOTAL" value={`£${app.income.total}`} highlight />
-            </Section>
-            <Section title="Monthly Expenditure">
-              <Field label="Rent" value={`£${app.expenditure.rent}`} />
-              <Field label="Council Tax" value={`£${app.expenditure.councilTax}`} />
-              <Field label="Utilities" value={`£${app.expenditure.utilities}`} />
-              <Field label="Food" value={`£${app.expenditure.food}`} />
-              <Field label="Transport" value={`£${app.expenditure.transport}`} />
-              <Field label="TOTAL" value={`£${app.expenditure.total}`} highlight />
-            </Section>
-          </div>
+          </Panel>
         </div>
       )}
 
       {activeTab === 'checks' && (
         <div className="space-y-6">
-          <Section title="Credit Check">
-            <div className="grid md:grid-cols-4 gap-4 mb-4">
-              <div className="text-center p-3 bg-gray-50 rounded"><p className="text-2xl font-bold">{app.creditCheck.score}</p><p className="text-xs text-gray-500">Score (0-999)</p></div>
-              <div className="text-center p-3 bg-gray-50 rounded"><p className="text-2xl font-bold">{app.creditCheck.band}</p><p className="text-xs text-gray-500">Band</p></div>
-              <div className="text-center p-3 bg-gray-50 rounded"><p className="text-2xl font-bold">{app.creditCheck.defaults}</p><p className="text-xs text-gray-500">Defaults</p></div>
-              <div className="text-center p-3 bg-gray-50 rounded"><p className="text-2xl font-bold">{app.creditCheck.ccjs}</p><p className="text-xs text-gray-500">CCJs</p></div>
-            </div>
-            <p className="text-xs text-gray-500">Provider: {app.creditCheck.provider} | Checked: {new Date(app.creditCheck.checkedAt).toLocaleString()}</p>
-          </Section>
-          <Section title="System Integration Checks">
+          <Panel title="System Integration Checks">
             <table className="w-full text-sm">
               <thead><tr className="border-b-2"><th className="text-left py-2">System</th><th className="text-left py-2">Result</th><th className="text-left py-2">Details</th></tr></thead>
               <tbody>
-                {app.systemChecks.map(c => (
-                  <tr key={c.system} className="border-b border-gray-200">
-                    <td className="py-2 font-bold">{c.system}</td>
+                {[
+                  { sys: 'BASYS', found: false, detail: 'No record' },
+                  { sys: 'eDEN/DASH', found: false, detail: 'No arrangement' },
+                  { sys: 'DAS', found: false, detail: 'No programme' },
+                  { sys: 'CFT', found: true, detail: '3 providers available' },
+                  { sys: 'Moratorium', found: false, detail: 'No moratorium' },
+                  { sys: 'RoI', found: false, detail: 'No entry' },
+                ].map(c => (
+                  <tr key={c.sys} className="border-b">
+                    <td className="py-2 font-bold">{c.sys}</td>
                     <td className="py-2"><span className={`px-2 py-0.5 rounded text-xs font-bold ${c.found ? 'bg-orange-100 text-orange-800' : 'bg-green-100 text-green-800'}`}>{c.found ? 'Found' : 'Clear'}</span></td>
-                    <td className="py-2 text-gray-600">{c.status}</td>
+                    <td className="py-2 text-gray-600">{c.detail}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          </Section>
+          </Panel>
+          <Panel title="Credit Check">
+            <div className="grid grid-cols-4 gap-4">
+              <div className="text-center p-3 bg-gray-50 rounded"><p className="text-xl font-bold">520</p><p className="text-xs text-gray-500">Score</p></div>
+              <div className="text-center p-3 bg-gray-50 rounded"><p className="text-xl font-bold">Fair</p><p className="text-xs text-gray-500">Band</p></div>
+              <div className="text-center p-3 bg-gray-50 rounded"><p className="text-xl font-bold">1</p><p className="text-xs text-gray-500">Defaults</p></div>
+              <div className="text-center p-3 bg-gray-50 rounded"><p className="text-xl font-bold">0</p><p className="text-xs text-gray-500">CCJs</p></div>
+            </div>
+          </Panel>
         </div>
       )}
 
       {activeTab === 'documents' && (
-        <Section title="Uploaded Documents">
+        <Panel title="Uploaded Documents">
           <table className="w-full text-sm">
-            <thead><tr className="border-b-2"><th className="text-left py-2">File</th><th className="text-left py-2">Category</th><th className="text-left py-2">Size</th><th className="text-left py-2">Scan Status</th><th className="text-left py-2">Action</th></tr></thead>
+            <thead><tr className="border-b-2"><th className="text-left py-2">File</th><th className="text-left py-2">Category</th><th className="text-left py-2">Size</th><th className="text-left py-2">Scan</th></tr></thead>
             <tbody>
-              {app.documents.map((d, i) => (
-                <tr key={i} className="border-b border-gray-200">
-                  <td className="py-2 font-bold">📄 {d.name}</td>
-                  <td className="py-2">{d.category}</td>
-                  <td className="py-2">{d.size}</td>
-                  <td className="py-2"><span className="bg-green-100 text-green-800 px-2 py-0.5 rounded text-xs font-bold">{d.status}</span></td>
-                  <td className="py-2"><button className="text-gov-blue underline text-xs">Download</button></td>
-                </tr>
-              ))}
+              <tr className="border-b"><td className="py-2">📄 payslip_march.pdf</td><td>Income Evidence</td><td>245 KB</td><td><span className="bg-green-100 text-green-800 px-2 py-0.5 text-xs rounded font-bold">Clean</span></td></tr>
+              <tr className="border-b"><td className="py-2">📄 bank_statement.pdf</td><td>Income Evidence</td><td>1.2 MB</td><td><span className="bg-green-100 text-green-800 px-2 py-0.5 text-xs rounded font-bold">Clean</span></td></tr>
+              <tr className="border-b"><td className="py-2">📄 council_tax_bill.pdf</td><td>Debt Evidence</td><td>89 KB</td><td><span className="bg-green-100 text-green-800 px-2 py-0.5 text-xs rounded font-bold">Clean</span></td></tr>
             </tbody>
           </table>
-        </Section>
+        </Panel>
       )}
 
       {activeTab === 'notes' && (
         <div className="space-y-6">
-          <Section title="Staff Notes">
-            {app.staffNotes.map((note, i) => (
-              <div key={i} className="border-l-4 border-gov-blue pl-4 mb-4">
-                <p className="text-sm font-bold">{note.author} <span className="font-normal text-gray-500">— {note.date}</span></p>
-                <span className="text-xs bg-blue-100 text-blue-800 px-1 rounded">{note.type}</span>
-                <p className="text-sm mt-1">{note.content}</p>
-              </div>
-            ))}
-          </Section>
+          <Panel title="Staff Notes">
+            <div className="border-l-4 border-blue-600 pl-4 mb-4">
+              <p className="text-sm font-bold">James Wilson <span className="font-normal text-gray-500">— 16 Mar 09:15</span></p>
+              <span className="text-xs bg-blue-100 text-blue-800 px-1 rounded">Review</span>
+              <p className="text-sm mt-1">Application complete. All documents verified. Debtor eligible for DAS based on income and debt levels.</p>
+            </div>
+          </Panel>
           <div className="bg-white border border-gray-200 rounded p-4">
             <h3 className="font-bold mb-2">Add Note</h3>
             <textarea value={newNote} onChange={e => setNewNote(e.target.value)} rows={3}
@@ -239,34 +202,40 @@ export default function ApplicationDetailPage() {
               <select className="border border-gray-300 p-2 text-sm rounded">
                 <option>General</option><option>Review</option><option>Decision</option><option>Follow-up</option>
               </select>
-              <button className="bg-gov-blue text-white text-sm px-4 py-2 rounded hover:bg-gov-dark-blue">Add Note</button>
+              <button className="bg-blue-700 text-white text-sm px-4 py-2 rounded hover:bg-blue-800">Add Note</button>
             </div>
           </div>
         </div>
       )}
 
       {activeTab === 'audit' && (
-        <Section title="Audit Trail">
+        <Panel title="Audit Trail">
           <div className="space-y-3">
-            {app.auditTrail.map((event, i) => (
+            {[
+              { time: '15 Mar 10:30', event: 'Application Created', actor: 'John Testerton', type: 'Applicant' },
+              { time: '15 Mar 11:45', event: 'Application Submitted', actor: 'John Testerton', type: 'Applicant' },
+              { time: '15 Mar 11:46', event: 'System Checks Initiated', actor: 'System', type: 'System' },
+              { time: '15 Mar 11:50', event: 'Credit Check Completed', actor: 'System', type: 'System' },
+              { time: '15 Mar 11:51', event: 'Recommendation Generated', actor: 'System', type: 'System' },
+              { time: '16 Mar 09:00', event: 'Assigned to James Wilson', actor: 'Karen MacLeod', type: 'Staff' },
+              { time: '16 Mar 09:15', event: 'Review Note Added', actor: 'James Wilson', type: 'Staff' },
+            ].map((e, i) => (
               <div key={i} className="flex items-start gap-3 text-sm">
-                <span className="text-xs text-gray-400 w-36 flex-shrink-0">{event.timestamp}</span>
-                <span className={`px-1.5 py-0.5 rounded text-xs font-bold flex-shrink-0 ${event.actorType === 'System' ? 'bg-gray-100 text-gray-700' : event.actorType === 'Staff' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}`}>
-                  {event.actorType}
-                </span>
-                <span><strong>{event.action}</strong> — {event.actor}</span>
+                <span className="text-xs text-gray-400 w-28 flex-shrink-0">{e.time}</span>
+                <span className={`px-1.5 py-0.5 rounded text-xs font-bold flex-shrink-0 ${e.type === 'System' ? 'bg-gray-100' : e.type === 'Staff' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}`}>{e.type}</span>
+                <span><strong>{e.event}</strong> — {e.actor}</span>
               </div>
             ))}
           </div>
-        </Section>
+        </Panel>
       )}
     </div>
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Panel({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="bg-white border border-gray-200 rounded p-4 mb-4">
+    <div className="bg-white border border-gray-200 rounded p-4">
       <h3 className="font-bold mb-3 pb-2 border-b border-gray-200">{title}</h3>
       {children}
     </div>
@@ -275,9 +244,18 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 function Field({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
   return (
-    <div className={`flex justify-between py-1 text-sm ${highlight ? 'font-bold border-t border-gray-200 pt-2 mt-2' : ''}`}>
+    <div className={`flex justify-between py-1 text-sm ${highlight ? 'font-bold border-t pt-2 mt-2' : ''}`}>
       <span className="text-gray-600">{label}</span>
       <span>{value}</span>
+    </div>
+  );
+}
+
+function TimelineItem({ time, event, actor }: { time: string; event: string; actor: string }) {
+  return (
+    <div className="flex gap-3">
+      <span className="text-xs text-gray-400 w-24 flex-shrink-0">{time}</span>
+      <span className="text-sm"><strong>{event}</strong> — {actor}</span>
     </div>
   );
 }

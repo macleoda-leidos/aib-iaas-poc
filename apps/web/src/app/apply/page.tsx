@@ -1,20 +1,50 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 
-const STEPS = [
-  { id: 'personal', label: 'Personal Details' },
-  { id: 'address', label: 'Address & Contact' },
-  { id: 'debts', label: 'Debts' },
-  { id: 'income', label: 'Income & Expenditure' },
-  { id: 'documents', label: 'Documents' },
-  { id: 'checks', label: 'System Checks' },
-  { id: 'recommendation', label: 'Recommendation' },
-  { id: 'payment', label: 'Payment' },
+// Section definitions with validation rules
+const SECTIONS = [
+  { id: 'personal', label: 'Personal Details', icon: '👤' },
+  { id: 'address', label: 'Address & Contact', icon: '🏠' },
+  { id: 'debts', label: 'Debts', icon: '💳' },
+  { id: 'income', label: 'Income & Expenditure', icon: '💰' },
+  { id: 'documents', label: 'Documents', icon: '📄' },
+  { id: 'checks', label: 'System Checks', icon: '🔍' },
+  { id: 'recommendation', label: 'Recommendation', icon: '✅' },
+  { id: 'payment', label: 'Payment & Submit', icon: '💳' },
 ];
 
+type SectionStatus = 'not_started' | 'invalid' | 'in_progress' | 'complete';
+
+function getSectionStatusColour(status: SectionStatus): string {
+  switch (status) {
+    case 'not_started': return 'bg-gray-300 border-gray-400';
+    case 'invalid': return 'bg-red-500 border-red-600';
+    case 'in_progress': return 'bg-amber-400 border-amber-500';
+    case 'complete': return 'bg-green-500 border-green-600';
+  }
+}
+
+function getSectionStatusLabel(status: SectionStatus): string {
+  switch (status) {
+    case 'not_started': return 'Not started';
+    case 'invalid': return 'Has errors';
+    case 'in_progress': return 'In progress';
+    case 'complete': return 'Complete';
+  }
+}
+
+function getSectionStatusRing(status: SectionStatus): string {
+  switch (status) {
+    case 'not_started': return 'ring-gray-300';
+    case 'invalid': return 'ring-red-500';
+    case 'in_progress': return 'ring-amber-400';
+    case 'complete': return 'ring-green-500';
+  }
+}
+
 export default function ApplyPage() {
-  const [currentStep, setCurrentStep] = useState(0);
+  const [currentSection, setCurrentSection] = useState(0);
   const [formData, setFormData] = useState<Record<string, any>>({});
 
   const updateField = (section: string, field: string, value: any) => {
@@ -24,379 +54,369 @@ export default function ApplyPage() {
     }));
   };
 
-  const nextStep = () => setCurrentStep(s => Math.min(s + 1, STEPS.length - 1));
-  const prevStep = () => setCurrentStep(s => Math.max(s - 1, 0));
+  // Calculate section statuses based on form data
+  const getSectionStatus = useCallback((sectionId: string): SectionStatus => {
+    const data = formData[sectionId];
+    if (!data || Object.keys(data).length === 0) return 'not_started';
+
+    switch (sectionId) {
+      case 'personal': {
+        const required = ['firstName', 'lastName', 'dateOfBirth', 'maritalStatus', 'employmentStatus'];
+        const filled = required.filter(f => data[f] && String(data[f]).trim() !== '');
+        if (filled.length === 0) return 'not_started';
+        if (filled.length === required.length) return 'complete';
+        // Check for invalid entries
+        if (data.dateOfBirth && !/^\d{4}-\d{2}-\d{2}$/.test(data.dateOfBirth)) return 'invalid';
+        return 'in_progress';
+      }
+      case 'address': {
+        const required = ['line1', 'city', 'postcode', 'email', 'phone'];
+        const filled = required.filter(f => data[f] && String(data[f]).trim() !== '');
+        if (filled.length === 0) return 'not_started';
+        if (filled.length === required.length) return 'complete';
+        if (data.email && !data.email.includes('@')) return 'invalid';
+        if (data.postcode && data.postcode.length < 5) return 'invalid';
+        return 'in_progress';
+      }
+      case 'debts': {
+        const items = data.items || [];
+        if (items.length === 0) return 'not_started';
+        const allValid = items.every((d: any) => d.creditorName && d.outstandingAmount > 0);
+        if (allValid) return 'complete';
+        const hasInvalid = items.some((d: any) => d.creditorName && d.outstandingAmount <= 0);
+        if (hasInvalid) return 'invalid';
+        return 'in_progress';
+      }
+      case 'income': {
+        const hasIncome = data.wages || data.benefits || data.pension || data.other;
+        if (!hasIncome && !formData.expenditure) return 'not_started';
+        const exp = formData.expenditure || {};
+        const hasExp = exp.rent || exp.food || exp.utilities;
+        if (hasIncome && hasExp) return 'complete';
+        return 'in_progress';
+      }
+      case 'documents': {
+        if (data.uploaded && data.uploaded > 0) return 'complete';
+        return 'not_started'; // Documents are optional
+      }
+      case 'checks': {
+        if (data.completed) return 'complete';
+        if (data.started) return 'in_progress';
+        return 'not_started';
+      }
+      case 'recommendation': {
+        if (data.received) return 'complete';
+        return 'not_started';
+      }
+      case 'payment': {
+        if (data.completed) return 'complete';
+        if (data.method) return 'in_progress';
+        return 'not_started';
+      }
+      default: return 'not_started';
+    }
+  }, [formData]);
+
+  const nextSection = () => setCurrentSection(s => Math.min(s + 1, SECTIONS.length - 1));
+  const prevSection = () => setCurrentSection(s => Math.max(s - 1, 0));
 
   return (
-    <div className="gov-main">
-      {/* Step indicator */}
-      <nav aria-label="Application progress" className="mb-8">
-        <ol className="flex flex-wrap gap-1">
-          {STEPS.map((step, i) => (
-            <li key={step.id} className="flex items-center text-sm">
-              <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold mr-1
-                ${i < currentStep ? 'bg-gov-green text-white' : i === currentStep ? 'bg-gov-blue text-white' : 'bg-gray-200 text-gray-500'}`}>
-                {i < currentStep ? '✓' : i + 1}
-              </span>
-              <span className={`hidden md:inline text-xs ${i === currentStep ? 'font-bold' : 'text-gray-500'}`}>
-                {step.label}
-              </span>
-              {i < STEPS.length - 1 && <span className="mx-1 text-gray-300">›</span>}
-            </li>
-          ))}
-        </ol>
-      </nav>
+    <div className="max-w-6xl mx-auto px-4 py-8">
+      <h1 className="text-3xl font-bold mb-2">Apply for Debt Advice</h1>
+      <p className="text-gray-600 mb-6">Complete each section below. You can navigate between sections freely.</p>
 
-      <h1>{STEPS[currentStep].label}</h1>
+      {/* Section navigation with status indicators */}
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-2 mb-8">
+        {SECTIONS.map((section, i) => {
+          const status = getSectionStatus(section.id);
+          const isActive = i === currentSection;
+          return (
+            <button
+              key={section.id}
+              onClick={() => setCurrentSection(i)}
+              className={`relative p-3 rounded border-2 text-center transition-all ${isActive ? 'border-blue-600 bg-blue-50 ring-2 ring-blue-300' : 'border-gray-200 hover:border-gray-400 bg-white'}`}
+            >
+              {/* Status dot */}
+              <div className={`absolute top-1 right-1 w-3 h-3 rounded-full border ${getSectionStatusColour(status)}`}
+                title={getSectionStatusLabel(status)} />
+              <div className="text-lg mb-1">{section.icon}</div>
+              <div className="text-xs font-medium leading-tight">{section.label}</div>
+            </button>
+          );
+        })}
+      </div>
 
-      {/* Step content */}
-      {currentStep === 0 && <PersonalDetailsStep formData={formData} updateField={updateField} />}
-      {currentStep === 1 && <AddressStep formData={formData} updateField={updateField} />}
-      {currentStep === 2 && <DebtsStep formData={formData} updateField={updateField} />}
-      {currentStep === 3 && <IncomeStep formData={formData} updateField={updateField} />}
-      {currentStep === 4 && <DocumentsStep />}
-      {currentStep === 5 && <SystemChecksStep formData={formData} />}
-      {currentStep === 6 && <RecommendationStep formData={formData} />}
-      {currentStep === 7 && <PaymentStep />}
+      {/* Status legend */}
+      <div className="flex gap-4 mb-6 text-xs text-gray-600 bg-gray-50 p-2 rounded">
+        <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-gray-300 inline-block"></span> Not started</span>
+        <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-red-500 inline-block"></span> Has errors</span>
+        <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-amber-400 inline-block"></span> In progress</span>
+        <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-green-500 inline-block"></span> Complete</span>
+      </div>
 
-      {/* Navigation */}
-      <div className="flex justify-between mt-8 pt-6 border-t border-gray-300">
-        {currentStep > 0 && (
-          <button onClick={prevStep} className="bg-gray-200 text-gray-900 font-bold py-3 px-6 border-b-2 border-gray-400 hover:bg-gray-300">
-            Back
-          </button>
-        )}
-        {currentStep < STEPS.length - 1 && (
-          <button onClick={nextStep} className="bg-gov-green text-white font-bold py-3 px-6 border-b-2 border-green-900 hover:bg-green-800 ml-auto">
-            Continue
-          </button>
-        )}
+      {/* Current section content */}
+      <div className={`border-2 rounded-lg p-6 mb-6 ring-2 ${getSectionStatusRing(getSectionStatus(SECTIONS[currentSection].id))}`}>
+        <div className="flex items-center gap-2 mb-4">
+          <span className="text-2xl">{SECTIONS[currentSection].icon}</span>
+          <h2 className="text-xl font-bold">{SECTIONS[currentSection].label}</h2>
+          <span className={`ml-auto px-2 py-0.5 rounded text-xs font-bold text-white ${getSectionStatusColour(getSectionStatus(SECTIONS[currentSection].id))}`}>
+            {getSectionStatusLabel(getSectionStatus(SECTIONS[currentSection].id))}
+          </span>
+        </div>
+
+        {currentSection === 0 && <PersonalSection formData={formData} updateField={updateField} />}
+        {currentSection === 1 && <AddressSection formData={formData} updateField={updateField} />}
+        {currentSection === 2 && <DebtsSection formData={formData} updateField={updateField} />}
+        {currentSection === 3 && <IncomeSection formData={formData} updateField={updateField} />}
+        {currentSection === 4 && <DocumentsSection formData={formData} updateField={updateField} />}
+        {currentSection === 5 && <ChecksSection formData={formData} updateField={updateField} />}
+        {currentSection === 6 && <RecommendationSection formData={formData} updateField={updateField} />}
+        {currentSection === 7 && <PaymentSection formData={formData} updateField={updateField} />}
+      </div>
+
+      {/* Navigation buttons */}
+      <div className="flex justify-between">
+        <button onClick={prevSection} disabled={currentSection === 0}
+          className="bg-gray-200 text-gray-900 font-bold py-3 px-6 border-b-2 border-gray-400 hover:bg-gray-300 disabled:opacity-40 disabled:cursor-not-allowed">
+          ← Previous
+        </button>
+        <div className="text-sm text-gray-500 self-center">
+          Section {currentSection + 1} of {SECTIONS.length}
+        </div>
+        <button onClick={nextSection} disabled={currentSection === SECTIONS.length - 1}
+          className="bg-green-700 text-white font-bold py-3 px-6 border-b-2 border-green-900 hover:bg-green-800 disabled:opacity-40 disabled:cursor-not-allowed">
+          Next →
+        </button>
       </div>
     </div>
   );
 }
 
-function PersonalDetailsStep({ formData, updateField }: { formData: any; updateField: any }) {
+// ============ SECTION COMPONENTS ============
+
+function PersonalSection({ formData, updateField }: { formData: any; updateField: any }) {
   const d = formData.personal || {};
   return (
-    <div className="space-y-6">
-      <div className="mb-6">
-        <label htmlFor="title" className="block font-bold mb-1">Title</label>
-        <select id="title" value={d.title || ''} onChange={e => updateField('personal', 'title', e.target.value)}
-          className="border-2 border-gray-900 p-2 w-32">
-          <option value="">Select</option>
-          {['Mr', 'Mrs', 'Ms', 'Miss', 'Dr'].map(t => <option key={t} value={t}>{t}</option>)}
-        </select>
+    <div className="space-y-4">
+      <div className="grid md:grid-cols-2 gap-4">
+        <div>
+          <label className="block font-bold mb-1 text-sm">Title</label>
+          <select value={d.title || ''} onChange={e => updateField('personal', 'title', e.target.value)}
+            className="border-2 border-gray-900 p-2 w-full">
+            <option value="">Select</option>
+            {['Mr', 'Mrs', 'Ms', 'Miss', 'Dr'].map(t => <option key={t}>{t}</option>)}
+          </select>
+        </div>
+        <div></div>
+        <Input label="First name *" value={d.firstName} onChange={v => updateField('personal', 'firstName', v)} error={d.firstName === '' ? 'Required' : undefined} />
+        <Input label="Last name *" value={d.lastName} onChange={v => updateField('personal', 'lastName', v)} />
       </div>
-
-      <InputField id="firstName" label="First name" required value={d.firstName}
-        onChange={v => updateField('personal', 'firstName', v)} />
-      <InputField id="middleName" label="Middle name (optional)" value={d.middleName}
-        onChange={v => updateField('personal', 'middleName', v)} />
-      <InputField id="lastName" label="Last name" required value={d.lastName}
-        onChange={v => updateField('personal', 'lastName', v)} />
-      <InputField id="dob" label="Date of birth" type="date" required value={d.dateOfBirth}
-        onChange={v => updateField('personal', 'dateOfBirth', v)} hint="For example, 1985-03-15" />
-      <InputField id="nino" label="National Insurance number" value={d.nationalInsuranceNumber}
-        onChange={v => updateField('personal', 'nationalInsuranceNumber', v)}
-        hint="For example, QQ 12 34 56 C" />
-
-      <div className="mb-6">
-        <label htmlFor="maritalStatus" className="block font-bold mb-1">Marital status</label>
-        <select id="maritalStatus" value={d.maritalStatus || ''} onChange={e => updateField('personal', 'maritalStatus', e.target.value)}
-          className="border-2 border-gray-900 p-2 w-full max-w-md">
-          <option value="">Select</option>
-          {[['single','Single'],['married','Married'],['civil_partnership','Civil Partnership'],['divorced','Divorced'],['widowed','Widowed'],['separated','Separated']].map(([v,l]) => (
-            <option key={v} value={v}>{l}</option>
-          ))}
-        </select>
+      <Input label="Date of birth *" type="date" value={d.dateOfBirth} onChange={v => updateField('personal', 'dateOfBirth', v)} hint="YYYY-MM-DD format" />
+      <Input label="National Insurance number" value={d.nationalInsuranceNumber} onChange={v => updateField('personal', 'nationalInsuranceNumber', v)} hint="e.g. QQ 12 34 56 C" />
+      <div className="grid md:grid-cols-2 gap-4">
+        <div>
+          <label className="block font-bold mb-1 text-sm">Marital status *</label>
+          <select value={d.maritalStatus || ''} onChange={e => updateField('personal', 'maritalStatus', e.target.value)}
+            className="border-2 border-gray-900 p-2 w-full">
+            <option value="">Select</option>
+            {['Single','Married','Civil Partnership','Divorced','Widowed','Separated'].map(s => <option key={s} value={s.toLowerCase().replace(' ','_')}>{s}</option>)}
+          </select>
+        </div>
+        <Input label="Number of dependants" type="number" value={d.dependants} onChange={v => updateField('personal', 'dependants', parseInt(v) || 0)} />
       </div>
-
-      <InputField id="dependants" label="Number of dependants" type="number" value={d.dependants}
-        onChange={v => updateField('personal', 'dependants', parseInt(v) || 0)} />
-
-      <div className="mb-6">
-        <label htmlFor="employment" className="block font-bold mb-1">Employment status</label>
-        <select id="employment" value={d.employmentStatus || ''} onChange={e => updateField('personal', 'employmentStatus', e.target.value)}
-          className="border-2 border-gray-900 p-2 w-full max-w-md">
+      <div>
+        <label className="block font-bold mb-1 text-sm">Employment status *</label>
+        <select value={d.employmentStatus || ''} onChange={e => updateField('personal', 'employmentStatus', e.target.value)}
+          className="border-2 border-gray-900 p-2 w-full md:w-1/2">
           <option value="">Select</option>
-          {[['employed','Employed'],['self_employed','Self-employed'],['unemployed','Unemployed'],['retired','Retired'],['student','Student'],['other','Other']].map(([v,l]) => (
-            <option key={v} value={v}>{l}</option>
-          ))}
+          {['Employed','Self-employed','Unemployed','Retired','Student','Other'].map(s => <option key={s} value={s.toLowerCase().replace('-','_')}>{s}</option>)}
         </select>
       </div>
     </div>
   );
 }
 
-function AddressStep({ formData, updateField }: { formData: any; updateField: any }) {
+function AddressSection({ formData, updateField }: { formData: any; updateField: any }) {
   const a = formData.address || {};
-  const [postcodeLookupResult, setPostcodeLookupResult] = useState<any[]>([]);
+  const [lookupResults, setLookupResults] = useState<any[]>([]);
 
   const lookupPostcode = async () => {
     if (!a.postcode) return;
-    try {
-      const res = await fetch(`/api/postcode/${a.postcode}`);
-      const data = await res.json();
-      if (data.success) setPostcodeLookupResult(data.data.addresses);
-    } catch { /* ignore in POC */ }
+    // Simulate postcode lookup
+    setLookupResults([
+      { line1: '1 Sample Street', city: 'Edinburgh' },
+      { line1: '2 Sample Street', city: 'Edinburgh' },
+      { line1: '3 Sample Street, Flat A', city: 'Edinburgh' },
+    ]);
   };
 
   return (
-    <div className="space-y-6">
-      <h2>Current address</h2>
-
+    <div className="space-y-4">
+      <h3 className="font-bold">Current Address</h3>
       <div className="flex gap-2 items-end">
         <div className="flex-1">
-          <InputField id="postcode" label="Postcode" value={a.postcode}
-            onChange={v => updateField('address', 'postcode', v)} hint="Enter postcode to look up address" />
+          <Input label="Postcode *" value={a.postcode} onChange={v => updateField('address', 'postcode', v)} hint="Enter postcode to look up" />
         </div>
-        <button onClick={lookupPostcode} type="button"
-          className="bg-gov-blue text-white py-2 px-4 mb-6 hover:bg-gov-dark-blue">
-          Find address
-        </button>
+        <button onClick={lookupPostcode} type="button" className="bg-blue-700 text-white py-2 px-4 mb-4 text-sm hover:bg-blue-800">Find address</button>
       </div>
-
-      {postcodeLookupResult.length > 0 && (
-        <div className="mb-4 p-4 bg-gray-50 border border-gray-300">
-          <p className="font-bold mb-2">Select an address:</p>
-          {postcodeLookupResult.map((addr: any, i: number) => (
-            <button key={i} type="button" className="block text-left text-gov-blue underline mb-1 hover:text-gov-dark-blue"
-              onClick={() => {
-                updateField('address', 'line1', addr.line1);
-                updateField('address', 'line2', addr.line2 || '');
-                updateField('address', 'city', addr.city);
-                setPostcodeLookupResult([]);
-              }}>
-              {addr.line1}{addr.line2 ? `, ${addr.line2}` : ''}, {addr.city}
+      {lookupResults.length > 0 && (
+        <div className="p-3 bg-gray-50 border border-gray-300 rounded mb-4">
+          <p className="text-sm font-bold mb-2">Select an address:</p>
+          {lookupResults.map((addr, i) => (
+            <button key={i} type="button" className="block text-sm text-blue-700 underline mb-1"
+              onClick={() => { updateField('address', 'line1', addr.line1); updateField('address', 'city', addr.city); setLookupResults([]); }}>
+              {addr.line1}, {addr.city}
             </button>
           ))}
         </div>
       )}
-
-      <InputField id="line1" label="Address line 1" required value={a.line1}
-        onChange={v => updateField('address', 'line1', v)} />
-      <InputField id="line2" label="Address line 2 (optional)" value={a.line2}
-        onChange={v => updateField('address', 'line2', v)} />
-      <InputField id="city" label="City or town" required value={a.city}
-        onChange={v => updateField('address', 'city', v)} />
-      <InputField id="county" label="County (optional)" value={a.county}
-        onChange={v => updateField('address', 'county', v)} />
-
-      <h2 className="mt-8">Contact details</h2>
-      <InputField id="email" label="Email address" type="email" required value={a.email}
-        onChange={v => updateField('address', 'email', v)} />
-      <InputField id="phone" label="Phone number" type="tel" required value={a.phone}
-        onChange={v => updateField('address', 'phone', v)} />
+      <Input label="Address line 1 *" value={a.line1} onChange={v => updateField('address', 'line1', v)} />
+      <Input label="Address line 2" value={a.line2} onChange={v => updateField('address', 'line2', v)} />
+      <div className="grid md:grid-cols-2 gap-4">
+        <Input label="City *" value={a.city} onChange={v => updateField('address', 'city', v)} />
+        <Input label="County" value={a.county} onChange={v => updateField('address', 'county', v)} />
+      </div>
+      <h3 className="font-bold mt-6">Contact Details</h3>
+      <div className="grid md:grid-cols-2 gap-4">
+        <Input label="Email address *" type="email" value={a.email} onChange={v => updateField('address', 'email', v)} error={a.email && !a.email.includes('@') ? 'Invalid email' : undefined} />
+        <Input label="Phone number *" type="tel" value={a.phone} onChange={v => updateField('address', 'phone', v)} />
+      </div>
     </div>
   );
 }
 
-function DebtsStep({ formData, updateField }: { formData: any; updateField: any }) {
+function DebtsSection({ formData, updateField }: { formData: any; updateField: any }) {
   const debts = formData.debts?.items || [];
+  const totalDebt = debts.reduce((s: number, d: any) => s + (parseFloat(d.outstandingAmount) || 0), 0);
 
-  const addDebt = () => {
-    const items = [...debts, { creditorName: '', outstandingAmount: 0, creditorType: 'other', monthlyPayment: 0 }];
-    updateField('debts', 'items', items);
+  const addDebt = () => updateField('debts', 'items', [...debts, { creditorName: '', creditorType: 'other', outstandingAmount: 0, monthlyPayment: 0 }]);
+  const updateDebt = (i: number, field: string, value: any) => {
+    const items = [...debts]; items[i] = { ...items[i], [field]: value }; updateField('debts', 'items', items);
   };
-
-  const updateDebt = (index: number, field: string, value: any) => {
-    const items = [...debts];
-    items[index] = { ...items[index], [field]: value };
-    updateField('debts', 'items', items);
-  };
-
-  const totalDebt = debts.reduce((sum: number, d: any) => sum + (parseFloat(d.outstandingAmount) || 0), 0);
+  const removeDebt = (i: number) => updateField('debts', 'items', debts.filter((_: any, idx: number) => idx !== i));
 
   return (
-    <div className="space-y-6">
-      <p>Enter details of all your debts. Include all creditors you owe money to.</p>
-
-      <div className="bg-yellow-50 border-l-4 border-yellow-600 p-4 mb-4">
-        <p className="text-sm"><strong>Total debt so far: £{totalDebt.toLocaleString()}</strong></p>
-      </div>
-
+    <div className="space-y-4">
+      <p className="text-sm text-gray-600">Enter all debts you currently owe. Include credit cards, loans, overdrafts, council tax arrears, etc.</p>
+      {totalDebt > 0 && (
+        <div className="bg-blue-50 border-l-4 border-blue-600 p-3">
+          <p className="font-bold">Total debt entered: £{totalDebt.toLocaleString()}</p>
+          <p className="text-sm text-gray-600">{debts.length} creditor{debts.length !== 1 ? 's' : ''}</p>
+        </div>
+      )}
       {debts.map((debt: any, i: number) => (
-        <div key={i} className="border border-gray-300 p-4 mb-4">
-          <h3 className="text-base font-bold mb-3">Debt {i + 1}</h3>
-          <InputField id={`cred-${i}`} label="Creditor name" value={debt.creditorName}
-            onChange={v => updateDebt(i, 'creditorName', v)} />
-          <div className="mb-4">
-            <label className="block font-bold mb-1">Debt type</label>
-            <select value={debt.creditorType} onChange={e => updateDebt(i, 'creditorType', e.target.value)}
-              className="border-2 border-gray-900 p-2 w-full max-w-sm">
-              {[['bank','Bank/Building Society'],['credit_card','Credit Card'],['loan_company','Loan Company'],['utility','Utility'],['council_tax','Council Tax'],['hmrc','HMRC'],['other','Other']].map(([v,l]) => (
-                <option key={v} value={v}>{l}</option>
-              ))}
-            </select>
+        <div key={i} className="border border-gray-300 p-4 rounded relative">
+          <button onClick={() => removeDebt(i)} className="absolute top-2 right-2 text-red-600 text-xs hover:underline">Remove</button>
+          <p className="font-bold text-sm mb-2">Debt {i + 1}</p>
+          <div className="grid md:grid-cols-2 gap-3">
+            <Input label="Creditor name *" value={debt.creditorName} onChange={v => updateDebt(i, 'creditorName', v)} />
+            <div>
+              <label className="block font-bold mb-1 text-sm">Type</label>
+              <select value={debt.creditorType} onChange={e => updateDebt(i, 'creditorType', e.target.value)} className="border-2 border-gray-900 p-2 w-full">
+                {[['bank','Bank'],['credit_card','Credit Card'],['loan_company','Loan'],['utility','Utility'],['council_tax','Council Tax'],['hmrc','HMRC'],['other','Other']].map(([v,l]) => <option key={v} value={v}>{l}</option>)}
+              </select>
+            </div>
+            <Input label="Outstanding amount (£) *" type="number" value={debt.outstandingAmount} onChange={v => updateDebt(i, 'outstandingAmount', v)}
+              error={debt.creditorName && parseFloat(debt.outstandingAmount) <= 0 ? 'Must be > 0' : undefined} />
+            <Input label="Monthly payment (£)" type="number" value={debt.monthlyPayment} onChange={v => updateDebt(i, 'monthlyPayment', v)} />
           </div>
-          <InputField id={`amount-${i}`} label="Outstanding amount (£)" type="number" value={debt.outstandingAmount}
-            onChange={v => updateDebt(i, 'outstandingAmount', v)} />
-          <InputField id={`payment-${i}`} label="Monthly payment (£)" type="number" value={debt.monthlyPayment}
-            onChange={v => updateDebt(i, 'monthlyPayment', v)} />
         </div>
       ))}
-
-      <button onClick={addDebt} type="button"
-        className="bg-gray-200 text-gray-900 font-bold py-2 px-4 border-b-2 border-gray-400 hover:bg-gray-300">
-        + Add another debt
-      </button>
+      <button onClick={addDebt} className="bg-gray-200 text-gray-900 font-bold py-2 px-4 border-b-2 border-gray-400 hover:bg-gray-300 text-sm">+ Add a debt</button>
     </div>
   );
 }
 
-function IncomeStep({ formData, updateField }: { formData: any; updateField: any }) {
+function IncomeSection({ formData, updateField }: { formData: any; updateField: any }) {
   const inc = formData.income || {};
   const exp = formData.expenditure || {};
-
-  const totalIncome = (parseFloat(inc.wages) || 0) + (parseFloat(inc.benefits) || 0) +
-    (parseFloat(inc.pension) || 0) + (parseFloat(inc.other) || 0);
-  const totalExpenditure = (parseFloat(exp.rent) || 0) + (parseFloat(exp.councilTax) || 0) +
-    (parseFloat(exp.utilities) || 0) + (parseFloat(exp.food) || 0) + (parseFloat(exp.transport) || 0) +
-    (parseFloat(exp.insurance) || 0) + (parseFloat(exp.childcare) || 0) + (parseFloat(exp.other) || 0);
+  const totalIncome = (parseFloat(inc.wages)||0) + (parseFloat(inc.benefits)||0) + (parseFloat(inc.pension)||0) + (parseFloat(inc.other)||0);
+  const totalExp = (parseFloat(exp.rent)||0) + (parseFloat(exp.councilTax)||0) + (parseFloat(exp.utilities)||0) + (parseFloat(exp.food)||0) + (parseFloat(exp.transport)||0) + (parseFloat(exp.insurance)||0) + (parseFloat(exp.childcare)||0) + (parseFloat(exp.other)||0);
 
   return (
-    <div className="space-y-6">
-      <h2>Monthly Income</h2>
-      <InputField id="wages" label="Wages/Salary (£)" type="number" value={inc.wages} onChange={v => updateField('income', 'wages', v)} />
-      <InputField id="benefits" label="Benefits (£)" type="number" value={inc.benefits} onChange={v => updateField('income', 'benefits', v)} />
-      <InputField id="pension" label="Pension (£)" type="number" value={inc.pension} onChange={v => updateField('income', 'pension', v)} />
-      <InputField id="otherIncome" label="Other income (£)" type="number" value={inc.other} onChange={v => updateField('income', 'other', v)} />
-
-      <div className="bg-blue-50 p-4 border-l-4 border-gov-blue">
-        <p className="font-bold">Total monthly income: £{totalIncome.toLocaleString()}</p>
+    <div className="space-y-4">
+      <h3 className="font-bold">Monthly Income</h3>
+      <div className="grid md:grid-cols-2 gap-3">
+        <Input label="Wages/Salary (£)" type="number" value={inc.wages} onChange={v => updateField('income', 'wages', v)} />
+        <Input label="Benefits (£)" type="number" value={inc.benefits} onChange={v => updateField('income', 'benefits', v)} />
+        <Input label="Pension (£)" type="number" value={inc.pension} onChange={v => updateField('income', 'pension', v)} />
+        <Input label="Other income (£)" type="number" value={inc.other} onChange={v => updateField('income', 'other', v)} />
       </div>
+      <div className="bg-blue-50 p-3 rounded"><strong>Total income: £{totalIncome.toLocaleString()}/month</strong></div>
 
-      <h2 className="mt-8">Monthly Expenditure</h2>
-      <InputField id="rent" label="Rent/Mortgage (£)" type="number" value={exp.rent} onChange={v => updateField('expenditure', 'rent', v)} />
-      <InputField id="councilTax" label="Council Tax (£)" type="number" value={exp.councilTax} onChange={v => updateField('expenditure', 'councilTax', v)} />
-      <InputField id="utilities" label="Utilities (£)" type="number" value={exp.utilities} onChange={v => updateField('expenditure', 'utilities', v)} />
-      <InputField id="food" label="Food & housekeeping (£)" type="number" value={exp.food} onChange={v => updateField('expenditure', 'food', v)} />
-      <InputField id="transport" label="Transport (£)" type="number" value={exp.transport} onChange={v => updateField('expenditure', 'transport', v)} />
-      <InputField id="insurance" label="Insurance (£)" type="number" value={exp.insurance} onChange={v => updateField('expenditure', 'insurance', v)} />
-      <InputField id="childcare" label="Childcare (£)" type="number" value={exp.childcare} onChange={v => updateField('expenditure', 'childcare', v)} />
-      <InputField id="otherExp" label="Other expenditure (£)" type="number" value={exp.other} onChange={v => updateField('expenditure', 'other', v)} />
-
-      <div className="bg-blue-50 p-4 border-l-4 border-gov-blue">
-        <p className="font-bold">Total monthly expenditure: £{totalExpenditure.toLocaleString()}</p>
-        <p className="font-bold mt-2">Disposable income: £{(totalIncome - totalExpenditure).toLocaleString()}/month</p>
+      <h3 className="font-bold mt-6">Monthly Expenditure</h3>
+      <div className="grid md:grid-cols-2 gap-3">
+        <Input label="Rent/Mortgage (£)" type="number" value={exp.rent} onChange={v => updateField('expenditure', 'rent', v)} />
+        <Input label="Council Tax (£)" type="number" value={exp.councilTax} onChange={v => updateField('expenditure', 'councilTax', v)} />
+        <Input label="Utilities (£)" type="number" value={exp.utilities} onChange={v => updateField('expenditure', 'utilities', v)} />
+        <Input label="Food (£)" type="number" value={exp.food} onChange={v => updateField('expenditure', 'food', v)} />
+        <Input label="Transport (£)" type="number" value={exp.transport} onChange={v => updateField('expenditure', 'transport', v)} />
+        <Input label="Insurance (£)" type="number" value={exp.insurance} onChange={v => updateField('expenditure', 'insurance', v)} />
+        <Input label="Childcare (£)" type="number" value={exp.childcare} onChange={v => updateField('expenditure', 'childcare', v)} />
+        <Input label="Other (£)" type="number" value={exp.other} onChange={v => updateField('expenditure', 'other', v)} />
+      </div>
+      <div className="bg-blue-50 p-3 rounded">
+        <p><strong>Total expenditure: £{totalExp.toLocaleString()}/month</strong></p>
+        <p className={`font-bold mt-1 ${totalIncome - totalExp >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+          Disposable income: £{(totalIncome - totalExp).toLocaleString()}/month
+        </p>
       </div>
     </div>
   );
 }
 
-function DocumentsStep() {
-  const [files, setFiles] = useState<File[]>([]);
+function DocumentsSection({ formData, updateField }: { formData: any; updateField: any }) {
+  const [files, setFiles] = useState<string[]>([]);
+  const addFile = (name: string) => { const newFiles = [...files, name]; setFiles(newFiles); updateField('documents', 'uploaded', newFiles.length); };
 
   return (
-    <div className="space-y-6">
-      <p>Upload supporting documents to help with your application. This is optional but may speed up processing.</p>
-
-      <div className="border-2 border-dashed border-gray-400 p-8 text-center bg-gray-50 hover:border-gray-600 cursor-pointer"
-        onClick={() => document.getElementById('file-input')?.click()}>
-        <p className="text-gray-700 mb-2">Drag and drop files here or click to browse</p>
-        <p className="text-sm text-gray-500">Accepted: PDF, JPG, PNG, DOC/DOCX (max 10MB each)</p>
-        <input id="file-input" type="file" className="hidden" multiple accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
-          onChange={e => e.target.files && setFiles(prev => [...prev, ...Array.from(e.target.files!)])} />
+    <div className="space-y-4">
+      <p className="text-sm text-gray-600">Upload supporting documents. This is <strong>optional</strong> but may speed up processing.</p>
+      <div className="border-2 border-dashed border-gray-400 p-8 text-center bg-gray-50 cursor-pointer hover:border-gray-600"
+        onClick={() => addFile(`document_${files.length + 1}.pdf`)}>
+        <p className="text-gray-700 mb-2">Click to add a document (simulated)</p>
+        <p className="text-sm text-gray-500">In the live app: drag & drop, camera capture on mobile, PDF/JPG/PNG</p>
       </div>
-
       {files.length > 0 && (
-        <div className="mt-4">
-          <h3 className="font-bold mb-2">Uploaded files:</h3>
-          <ul className="space-y-2">
-            {files.map((f, i) => (
-              <li key={i} className="flex items-center justify-between bg-gray-50 p-3 border border-gray-200">
-                <span className="text-sm">📄 {f.name} ({(f.size / 1024).toFixed(1)} KB)</span>
-                <button onClick={() => setFiles(prev => prev.filter((_, idx) => idx !== i))} className="text-red-600 text-sm hover:underline">Remove</button>
-              </li>
-            ))}
-          </ul>
-        </div>
+        <ul className="space-y-2">{files.map((f, i) => (
+          <li key={i} className="flex items-center justify-between bg-gray-50 p-3 rounded border">
+            <span className="text-sm">📄 {f}</span>
+            <span className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded font-bold">Uploaded</span>
+          </li>
+        ))}</ul>
       )}
-
-      <div className="gov-inset mt-6">
-        <p className="text-sm">Useful documents include: recent payslips, bank statements, creditor letters, proof of benefits.</p>
-      </div>
     </div>
   );
 }
 
-function SystemChecksStep({ formData }: { formData: any }) {
-  const [checking, setChecking] = useState(false);
-  const [results, setResults] = useState<any>(null);
-
-  const runChecks = async () => {
-    setChecking(true);
-    // Simulate calling the integration orchestrator
-    await new Promise(r => setTimeout(r, 2000));
-    setResults({
-      checks: [
-        { system: 'BASYS', found: false, status: 'No existing sequestration found' },
-        { system: 'eDEN/DASH', found: false, status: 'No DAS arrangement found' },
-        { system: 'DAS', found: false, status: 'No active Debt Payment Programme' },
-        { system: 'CFT', found: true, status: '3 registered providers available in your area' },
-        { system: 'Moratorium', found: false, status: 'No active moratorium' },
-        { system: 'RoI', found: false, status: 'No entry on Register of Insolvencies' },
-      ],
-      creditCheck: { score: 520, status: 'issues_found', defaults: 1, provider: 'SyntheticCredit Ltd (PLACEHOLDER)' },
-    });
-    setChecking(false);
+function ChecksSection({ formData, updateField }: { formData: any; updateField: any }) {
+  const checks = formData.checks || {};
+  const runChecks = () => {
+    updateField('checks', 'started', true);
+    setTimeout(() => updateField('checks', 'completed', true), 2000);
   };
 
   return (
-    <div className="space-y-6">
-      <p>We need to check existing AiB systems to see if you have any current or previous cases.</p>
-
-      <div className="bg-yellow-50 border-l-4 border-yellow-600 p-4">
-        <p className="text-sm"><strong>Note:</strong> These are placeholder integration checks. In the live service, these would connect to actual AiB systems (BASYS, eDEN/DASH, DAS, CFT, Moratorium, RoI).</p>
+    <div className="space-y-4">
+      <p className="text-sm text-gray-600">We check existing AiB systems to see if you have any current or previous cases.</p>
+      <div className="bg-yellow-50 border-l-4 border-yellow-600 p-3 text-sm">
+        <strong>Note:</strong> These are placeholder integration checks for the POC demonstration.
       </div>
-
-      {!results && (
-        <button onClick={runChecks} disabled={checking}
-          className="bg-gov-blue text-white font-bold py-3 px-6 border-b-2 border-blue-900 hover:bg-gov-dark-blue disabled:opacity-50">
-          {checking ? 'Running checks...' : 'Run system checks'}
+      {!checks.completed ? (
+        <button onClick={runChecks} disabled={checks.started} className="bg-blue-700 text-white font-bold py-3 px-6 hover:bg-blue-800 disabled:opacity-50">
+          {checks.started ? '⏳ Running checks...' : '🔍 Run system checks'}
         </button>
-      )}
-
-      {checking && (
-        <div className="flex items-center gap-3 p-4 bg-blue-50">
-          <div className="animate-spin w-5 h-5 border-2 border-gov-blue border-t-transparent rounded-full"></div>
-          <span>Checking existing AiB systems...</span>
-        </div>
-      )}
-
-      {results && (
-        <div className="space-y-4">
-          <h2>System check results</h2>
-          <table className="w-full border-collapse">
-            <thead>
-              <tr className="border-b-2 border-gray-900">
-                <th className="text-left py-2">System</th>
-                <th className="text-left py-2">Result</th>
-                <th className="text-left py-2">Details</th>
-              </tr>
-            </thead>
-            <tbody>
-              {results.checks.map((check: any) => (
-                <tr key={check.system} className="border-b border-gray-300">
-                  <td className="py-2 font-bold">{check.system}</td>
-                  <td className="py-2">
-                    <span className={`inline-block px-2 py-0.5 text-xs font-bold uppercase ${check.found ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}`}>
-                      {check.found ? 'Found' : 'Clear'}
-                    </span>
-                  </td>
-                  <td className="py-2 text-sm text-gray-600">{check.status}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-
-          <div className="mt-6 p-4 border border-gray-300">
-            <h3 className="font-bold mb-2">Credit Check (Placeholder)</h3>
-            <p className="text-sm">Provider: {results.creditCheck.provider}</p>
-            <p className="text-sm">Score: {results.creditCheck.score}/999</p>
-            <p className="text-sm">Defaults: {results.creditCheck.defaults}</p>
-            <p className="text-xs text-gray-500 mt-2 italic">This is a simulated credit check. No real credit data has been accessed.</p>
+      ) : (
+        <div className="space-y-2">
+          {['BASYS', 'eDEN/DASH', 'DAS', 'CFT', 'Moratorium', 'RoI'].map(sys => (
+            <div key={sys} className="flex justify-between items-center p-2 bg-gray-50 rounded">
+              <span className="font-bold text-sm">{sys}</span>
+              <span className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded font-bold">✓ Clear</span>
+            </div>
+          ))}
+          <div className="mt-4 p-3 border rounded">
+            <p className="text-sm font-bold">Credit Check: Score 520 (Fair)</p>
+            <p className="text-xs text-gray-500">Provider: SyntheticCredit Ltd (PLACEHOLDER)</p>
           </div>
         </div>
       )}
@@ -404,179 +424,91 @@ function SystemChecksStep({ formData }: { formData: any }) {
   );
 }
 
-function RecommendationStep({ formData }: { formData: any }) {
-  const [loading, setLoading] = useState(false);
-  const [recommendation, setRecommendation] = useState<any>(null);
-
-  const getRecommendation = async () => {
-    setLoading(true);
-    await new Promise(r => setTimeout(r, 1500));
-    setRecommendation({
-      product: 'Debt Arrangement Scheme (DAS)',
-      productKey: 'debt_arrangement_scheme',
-      confidence: 'high',
-      reasoning: [
-        'Your total debt falls within the DAS eligibility range',
-        'You have sufficient disposable income for structured repayment',
-        'No existing insolvency proceedings found',
-        'DAS provides statutory protection while repaying in full',
-      ],
-      explanation: 'Based on your financial circumstances, the Debt Arrangement Scheme appears to be the most suitable solution. DAS allows you to repay your debts in full over an extended period through a single affordable monthly payment. While in the scheme, your creditors cannot take enforcement action against you, and interest/charges are frozen.',
-    });
-    setLoading(false);
-  };
+function RecommendationSection({ formData, updateField }: { formData: any; updateField: any }) {
+  const rec = formData.recommendation || {};
+  const getRecommendation = () => setTimeout(() => updateField('recommendation', 'received', true), 1500);
 
   return (
-    <div className="space-y-6">
-      {!recommendation && (
+    <div className="space-y-4">
+      {!rec.received ? (
         <>
-          <p>Based on the information you have provided, we can now generate a recommendation for the most suitable debt solution.</p>
-          <button onClick={getRecommendation} disabled={loading}
-            className="bg-gov-green text-white font-bold py-3 px-6 border-b-2 border-green-900 hover:bg-green-800 disabled:opacity-50">
-            {loading ? 'Generating recommendation...' : 'Get my recommendation'}
+          <p className="text-sm text-gray-600">Based on your information, we can recommend the most suitable debt solution.</p>
+          <button onClick={getRecommendation} className="bg-green-700 text-white font-bold py-3 px-6 hover:bg-green-800">
+            Get my recommendation
           </button>
         </>
-      )}
-
-      {loading && (
-        <div className="flex items-center gap-3 p-4 bg-green-50">
-          <div className="animate-spin w-5 h-5 border-2 border-gov-green border-t-transparent rounded-full"></div>
-          <span>Analysing your financial situation...</span>
-        </div>
-      )}
-
-      {recommendation && (
-        <div>
-          <div className="bg-gov-green text-white p-8 text-center mb-6">
-            <h2 className="text-2xl font-bold text-white mb-2">Our Recommendation</h2>
-            <p className="text-3xl font-bold text-white">{recommendation.product}</p>
-            <p className="mt-2 text-green-100">Confidence: {recommendation.confidence}</p>
+      ) : (
+        <>
+          <div className="bg-green-700 text-white p-6 rounded text-center">
+            <h3 className="text-xl font-bold text-white">Recommended: Debt Arrangement Scheme (DAS)</h3>
+            <p className="text-green-100 mt-1">Confidence: High</p>
           </div>
-
-          <div className="bg-blue-50 border-l-4 border-gov-blue p-6 mb-6">
-            <h3 className="font-bold mb-3">Why we recommend this</h3>
-            <ul className="list-disc pl-6 space-y-2">
-              {recommendation.reasoning.map((r: string, i: number) => (
-                <li key={i}>{r}</li>
-              ))}
+          <div className="bg-blue-50 border-l-4 border-blue-600 p-4">
+            <h4 className="font-bold mb-2">Why we recommend this</h4>
+            <ul className="list-disc pl-5 text-sm space-y-1">
+              <li>Your debt level is within the DAS eligibility range</li>
+              <li>You have disposable income for structured repayment</li>
+              <li>No existing insolvency proceedings found</li>
+              <li>DAS provides statutory creditor protection</li>
             </ul>
           </div>
-
-          <div className="border border-gray-300 p-6 mb-6">
-            <h3 className="font-bold mb-3">AI-Assisted Explanation</h3>
-            <p className="text-sm text-gray-600 mb-2 italic">(Generated by placeholder AI service — not real AI advice)</p>
-            <p className="whitespace-pre-line">{recommendation.explanation}</p>
+          <div className="border border-gray-300 p-4 rounded">
+            <p className="text-sm italic text-gray-600">This is an automated recommendation for information only. Speak with a money adviser before making decisions.</p>
           </div>
-
-          <div className="gov-warning">
-            <p className="text-sm"><strong>Important:</strong> This is an automated recommendation for information only.
-            It does not constitute financial or legal advice. We strongly recommend speaking with a qualified
-            money adviser before making any decisions.</p>
-          </div>
-        </div>
+        </>
       )}
     </div>
   );
 }
 
-function PaymentStep() {
-  const [paymentMethod, setPaymentMethod] = useState<string | null>(null);
-  const [paymentComplete, setPaymentComplete] = useState(false);
+function PaymentSection({ formData, updateField }: { formData: any; updateField: any }) {
+  const payment = formData.payment || {};
 
-  const simulatePayment = () => {
-    setTimeout(() => setPaymentComplete(true), 1500);
-  };
-
-  if (paymentComplete) {
+  if (payment.completed) {
     return (
-      <div className="bg-gov-green text-white p-8 text-center">
-        <h2 className="text-2xl font-bold text-white mb-4">Application submitted successfully</h2>
-        <p className="text-xl text-white mb-2">Reference: IAAS-2024-00001</p>
-        <p className="text-green-100">Payment of £90.00 received (SANDBOX)</p>
-        <p className="text-green-200 text-sm mt-4">This is a placeholder payment — no real transaction has occurred.</p>
+      <div className="bg-green-700 text-white p-8 rounded text-center">
+        <h3 className="text-2xl font-bold text-white mb-2">Application Submitted ✓</h3>
+        <p className="text-xl text-white">Reference: IAAS-2026-{String(Math.floor(Math.random()*99999)).padStart(5,'0')}</p>
+        <p className="text-green-200 mt-2">Payment of £90.00 received (SANDBOX)</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <p>An application fee of <strong>£90.00</strong> is required to proceed.</p>
-
-      <div className="bg-yellow-50 border-l-4 border-yellow-600 p-4 mb-4">
-        <p className="text-sm"><strong>Sandbox Mode:</strong> No real payments will be processed. This demonstrates the payment journey only.</p>
+    <div className="space-y-4">
+      <p className="text-sm">Application fee: <strong>£90.00</strong></p>
+      <div className="bg-yellow-50 border-l-4 border-yellow-600 p-3 text-sm"><strong>Sandbox:</strong> No real payment processed.</div>
+      <h3 className="font-bold">Choose payment method</h3>
+      <div className="grid grid-cols-3 gap-3">
+        {[['apple_pay','🍎 Apple Pay'],['google_pay','G Pay'],['card','💳 Card']].map(([id, label]) => (
+          <button key={id} onClick={() => updateField('payment', 'method', id)}
+            className={`p-4 border-2 rounded text-center font-bold text-sm ${payment.method === id ? 'border-blue-600 bg-blue-50' : 'border-gray-300 hover:border-gray-500'}`}>
+            {label}
+          </button>
+        ))}
       </div>
-
-      <h2>Choose payment method</h2>
-
-      <div className="grid md:grid-cols-3 gap-4">
-        <button onClick={() => setPaymentMethod('apple_pay')}
-          className={`p-6 border-2 text-center ${paymentMethod === 'apple_pay' ? 'border-gov-blue bg-blue-50' : 'border-gray-300 hover:border-gray-500'}`}>
-          <div className="text-2xl mb-2">🍎</div>
-          <p className="font-bold">Apple Pay</p>
-        </button>
-        <button onClick={() => setPaymentMethod('google_pay')}
-          className={`p-6 border-2 text-center ${paymentMethod === 'google_pay' ? 'border-gov-blue bg-blue-50' : 'border-gray-300 hover:border-gray-500'}`}>
-          <div className="text-2xl mb-2">G</div>
-          <p className="font-bold">Google Pay</p>
-        </button>
-        <button onClick={() => setPaymentMethod('card')}
-          className={`p-6 border-2 text-center ${paymentMethod === 'card' ? 'border-gov-blue bg-blue-50' : 'border-gray-300 hover:border-gray-500'}`}>
-          <div className="text-2xl mb-2">💳</div>
-          <p className="font-bold">Card Payment</p>
-        </button>
-      </div>
-
-      {paymentMethod === 'card' && (
-        <div className="border border-gray-300 p-6 mt-4">
-          <h3 className="font-bold mb-4">Card Details (Sandbox)</h3>
-          <InputField id="cardName" label="Name on card" onChange={() => {}} />
-          <InputField id="cardNumber" label="Card number" onChange={() => {}} hint="Enter any 16 digits for sandbox" />
-          <div className="grid grid-cols-2 gap-4">
-            <InputField id="expiry" label="Expiry date" onChange={() => {}} hint="MM/YY" />
-            <InputField id="cvv" label="CVV" onChange={() => {}} hint="3 digits" />
-          </div>
-        </div>
-      )}
-
-      {paymentMethod === 'apple_pay' && (
-        <div className="border border-gray-300 p-6 mt-4 text-center">
-          <p className="text-lg mb-4">Apple Pay</p>
-          <p className="text-gray-500 text-sm mb-4">In a real implementation, the Apple Pay sheet would appear here.</p>
-          <div className="bg-black text-white py-3 px-6 inline-block rounded-lg">Pay with  Pay</div>
-        </div>
-      )}
-
-      {paymentMethod === 'google_pay' && (
-        <div className="border border-gray-300 p-6 mt-4 text-center">
-          <p className="text-lg mb-4">Google Pay</p>
-          <p className="text-gray-500 text-sm mb-4">In a real implementation, the Google Pay button and flow would appear here.</p>
-          <div className="bg-white border-2 border-gray-300 py-3 px-6 inline-block rounded-lg font-bold">G Pay</div>
-        </div>
-      )}
-
-      {paymentMethod && (
-        <button onClick={simulatePayment}
-          className="bg-gov-green text-white font-bold py-3 px-8 border-b-2 border-green-900 hover:bg-green-800 mt-4">
-          Complete payment (Sandbox) — £90.00
+      {payment.method && (
+        <button onClick={() => updateField('payment', 'completed', true)}
+          className="bg-green-700 text-white font-bold py-3 px-8 hover:bg-green-800 w-full text-center">
+          Complete Payment & Submit (Sandbox) — £90.00
         </button>
       )}
     </div>
   );
 }
 
-// Reusable input component
-function InputField({ id, label, type = 'text', value, onChange, required, hint }: {
-  id: string; label: string; type?: string; value?: any; onChange: (v: string) => void; required?: boolean; hint?: string;
+// ============ SHARED INPUT COMPONENT ============
+
+function Input({ label, type = 'text', value, onChange, hint, error }: {
+  label: string; type?: string; value?: any; onChange: (v: string) => void; hint?: string; error?: string;
 }) {
   return (
-    <div className="mb-4">
-      <label htmlFor={id} className="block font-bold mb-1">
-        {label} {required && <span className="text-red-700">*</span>}
-      </label>
-      {hint && <p className="text-sm text-gray-600 mb-1">{hint}</p>}
-      <input id={id} type={type} value={value || ''} onChange={e => onChange(e.target.value)}
-        required={required}
-        className="border-2 border-gray-900 p-2 w-full max-w-md focus:outline-2 focus:outline-yellow-400" />
+    <div className="mb-1">
+      <label className="block font-bold mb-1 text-sm">{label}</label>
+      {hint && <p className="text-xs text-gray-500 mb-1">{hint}</p>}
+      {error && <p className="text-xs text-red-600 font-bold mb-1">⚠ {error}</p>}
+      <input type={type} value={value || ''} onChange={e => onChange(e.target.value)}
+        className={`border-2 ${error ? 'border-red-500' : 'border-gray-900'} p-2 w-full text-sm focus:outline-2 focus:outline-yellow-400`} />
     </div>
   );
 }
