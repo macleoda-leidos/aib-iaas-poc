@@ -1,14 +1,19 @@
 name: Deploy to Azure Static Web Apps
 
+# Only deploy AFTER CI pipeline passes (quality gate)
 on:
-  push:
+  workflow_run:
+    workflows: ["CI Pipeline — Build, Test & Quality Gate"]
+    types: [completed]
     branches: [main]
   workflow_dispatch:
 
 jobs:
-  build-and-deploy:
+  deploy:
     runs-on: ubuntu-latest
-    name: Build and Deploy
+    # Only deploy if CI succeeded (not on failure)
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    name: Build and Deploy (after quality gate)
 
     steps:
       - uses: actions/checkout@v4
