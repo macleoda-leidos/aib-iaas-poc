@@ -134,6 +134,9 @@ function AibDashboard({ user }: { user: any }) {
         </div>
       )}
 
+      {/* Cross-System Search */}
+      <CrossSystemSearch />
+
       {/* Quick Actions & Reports */}
       <div className="grid md:grid-cols-2 gap-6">
         <div className="bg-white border border-gray-200 rounded p-4">
@@ -1353,6 +1356,120 @@ function DebtorUploadPanel() {
           <p className="text-sm text-green-800 font-bold">✓ Upload complete. {files.filter(f => f.status === 'clean').length} document(s) added to your application.</p>
         </div>
       )}
+    </div>
+  );
+}
+
+// ===== CROSS-SYSTEM SEARCH =====
+function CrossSystemSearch() {
+  const [mode, setMode] = useState<'basic' | 'advanced'>('basic');
+  const [query, setQuery] = useState('');
+  const [searching, setSearching] = useState(false);
+  const [results, setResults] = useState<any[] | null>(null);
+
+  const runSearch = () => {
+    if (!query.trim()) return;
+    setSearching(true);
+    setTimeout(() => {
+      // Mock cross-system search results
+      const mockResults = [
+        { system: 'BASYS', ref: 'SEQ-2019-004521', name: 'John Smith', dob: '1975-06-20', type: 'Sequestration', status: 'Discharged', match: 'Name match' },
+        { system: 'eDEN', ref: 'DAS-ARR-2022-007834', name: 'Mary Morrison', dob: '1982-04-10', type: 'DAS Arrangement', status: 'Active', match: 'Partial name' },
+        { system: 'IAAS', ref: 'IAAS-2026-00012', name: 'Alistair Morrison', dob: '1988-11-22', type: 'IAAS Application', status: 'Submitted', match: 'Surname match' },
+        { system: 'RoI', ref: 'ROI-2018-012345', name: 'J. Testerton', dob: '1985-03-15', type: 'Register Entry', status: 'Discharged', match: 'Name + DOB' },
+        { system: 'DAS', ref: 'DPP-2023-001234', name: 'David Morrison', dob: '1990-01-05', type: 'Debt Payment Programme', status: 'Active', match: 'Surname match' },
+      ].filter(() => Math.random() > 0.3); // Randomly show 3-5 results
+      setResults(mockResults.length > 0 ? mockResults : [{ system: 'ALL', ref: '—', name: '—', dob: '—', type: '—', status: 'No results', match: 'No matches found across any system' }]);
+      setSearching(false);
+    }, 1500);
+  };
+
+  return (
+    <div className="bg-white border border-gray-200 rounded mb-6">
+      <div className="p-4 border-b border-gray-200">
+        <div className="flex justify-between items-center">
+          <h2 className="text-lg font-bold">🔍 Cross-System Debtor Search</h2>
+          <div className="flex gap-1">
+            <button onClick={() => setMode('basic')} className={`px-3 py-1 rounded-full text-xs font-bold ${mode === 'basic' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'}`}>Basic</button>
+            <button onClick={() => setMode('advanced')} className={`px-3 py-1 rounded-full text-xs font-bold ${mode === 'advanced' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'}`}>Advanced</button>
+          </div>
+        </div>
+        <p className="text-xs text-gray-500 mt-1">Search across BASYS, eDEN/DASH, DAS, CFT, Moratorium, RoI simultaneously</p>
+      </div>
+      <div className="p-4">
+        {mode === 'basic' ? (
+          <div className="flex gap-2">
+            <input value={query} onChange={e => setQuery(e.target.value)} onKeyDown={e => e.key === 'Enter' && runSearch()}
+              placeholder="Search by name, case reference, or NI number..."
+              className="flex-1 border-2 border-gray-900 p-2.5 text-sm min-h-[44px]" />
+            <button onClick={runSearch} disabled={searching} className="bg-blue-700 text-white font-bold px-6 py-2 text-sm hover:bg-blue-800 disabled:opacity-50 min-h-[44px]">
+              {searching ? '⏳' : '🔍'} Search
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <div className="grid md:grid-cols-3 gap-3">
+              <div><label className="block text-xs font-bold mb-1">Last Name</label><input value={query} onChange={e => setQuery(e.target.value)} className="border-2 border-gray-900 p-2 w-full text-sm" placeholder="e.g. Morrison" /></div>
+              <div><label className="block text-xs font-bold mb-1">First Name</label><input className="border-2 border-gray-900 p-2 w-full text-sm" placeholder="e.g. John" /></div>
+              <div><label className="block text-xs font-bold mb-1">Date of Birth</label><input type="date" className="border-2 border-gray-900 p-2 w-full text-sm" /></div>
+            </div>
+            <div className="grid md:grid-cols-3 gap-3">
+              <div><label className="block text-xs font-bold mb-1">Case Reference</label><input className="border-2 border-gray-900 p-2 w-full text-sm" placeholder="e.g. IAAS-2026-00012" /></div>
+              <div><label className="block text-xs font-bold mb-1">NI Number</label><input className="border-2 border-gray-900 p-2 w-full text-sm" placeholder="e.g. AB123456C" /></div>
+              <div><label className="block text-xs font-bold mb-1">Postcode</label><input className="border-2 border-gray-900 p-2 w-full text-sm" placeholder="e.g. EH1 1AA" /></div>
+            </div>
+            <div className="flex gap-2 items-center">
+              <label className="text-xs font-bold">Systems:</label>
+              {['BASYS', 'eDEN', 'DAS', 'CFT', 'Moratorium', 'RoI'].map(sys => (
+                <label key={sys} className="flex items-center gap-1 text-xs"><input type="checkbox" defaultChecked className="rounded" />{sys}</label>
+              ))}
+            </div>
+            <button onClick={runSearch} disabled={searching} className="bg-blue-700 text-white font-bold px-6 py-2 text-sm hover:bg-blue-800 disabled:opacity-50">
+              {searching ? '⏳ Searching 6 systems...' : '🔍 Search All Systems'}
+            </button>
+          </div>
+        )}
+
+        {searching && (
+          <div className="mt-4 flex items-center gap-3 p-3 bg-blue-50 rounded">
+            <div className="animate-spin w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full"></div>
+            <span className="text-sm">Searching across BASYS, eDEN, DAS, CFT, Moratorium, RoI...</span>
+          </div>
+        )}
+
+        {results && !searching && (
+          <div className="mt-4">
+            <p className="text-xs text-gray-500 mb-2">{results.length} result(s) found across 6 systems</p>
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50"><tr>
+                <th className="text-left p-2 text-xs">System</th>
+                <th className="text-left p-2 text-xs">Reference</th>
+                <th className="text-left p-2 text-xs">Name</th>
+                <th className="text-left p-2 text-xs">DOB</th>
+                <th className="text-left p-2 text-xs">Type</th>
+                <th className="text-left p-2 text-xs">Status</th>
+                <th className="text-left p-2 text-xs">Match</th>
+              </tr></thead>
+              <tbody>
+                {results.map((r, i) => (
+                  <tr key={i} className="border-b border-gray-100 hover:bg-yellow-50">
+                    <td className="p-2"><span className="text-xs bg-gray-100 px-1.5 py-0.5 rounded font-bold">{r.system}</span></td>
+                    <td className="p-2 font-mono text-xs">{r.ref}</td>
+                    <td className="p-2 font-bold">{r.name}</td>
+                    <td className="p-2 text-xs">{r.dob}</td>
+                    <td className="p-2 text-xs">{r.type}</td>
+                    <td className="p-2"><span className={`text-xs px-1.5 py-0.5 rounded font-bold ${r.status === 'Active' ? 'bg-green-100 text-green-800' : r.status === 'Discharged' ? 'bg-gray-200 text-gray-700' : 'bg-blue-100 text-blue-800'}`}>{r.status}</span></td>
+                    <td className="p-2 text-xs text-amber-700">{r.match}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div className="mt-3 bg-yellow-50 border border-yellow-200 rounded p-2">
+              <p className="text-xs text-yellow-800">⚠ Potential duplicate or existing case detected. Review matches before proceeding with new application.</p>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
