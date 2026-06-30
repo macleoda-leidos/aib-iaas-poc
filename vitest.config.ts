@@ -21,13 +21,14 @@ export default defineConfig({
         '**/__tests__/**',
         '**/dist/**',
         '**/index.ts',
-        // Exclude infrastructure/wiring code (no business logic to test)
+        // Genuinely untestable without infrastructure
         '**/db/**',
         '**/scanner/clamav.ts',
         '**/data/synthetic-cases.ts',
-        // Exclude test data generators
         'packages/test-data/**',
-        // Exclude route handlers that are pure HTTP glue
+        // Deployment wiring (not business logic)
+        'services/consolidated-api/**',
+        // Services with only route handlers (no business logic to unit-test)
         'services/notification-service/**',
         'services/organisation-service/**',
         'services/identity-service/**',
@@ -35,15 +36,13 @@ export default defineConfig({
         'services/payment-service/**',
         'services/audit-service/**',
         'services/integration-orchestrator/**',
-        // Exclude consolidated-api (deployment wiring only)
-        'services/consolidated-api/**',
       ],
       thresholds: {
-        // POC thresholds — these become gates for FAT/UAT deployment in production
-        statements: 25,
-        branches: 25,
-        functions: 25,
-        lines: 25,
+        // Quality gate — enforced in CI
+        statements: 60,
+        branches: 50,
+        functions: 50,
+        lines: 60,
       },
     },
   },

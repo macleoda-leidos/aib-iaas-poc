@@ -44,8 +44,8 @@ initDatabase();
 app.use('/api/auth', authRouter);
 app.use('/api/applications', applicationsRouter);
 app.use('/api/postcode', postcodeRouter);
+app.use('/api/reports/export', reportsExportRouter); // Public for POC demo (must be before auth-protected route)
 app.use('/api/reports', authenticate, requirePermission('reports.view'), reportsRouter);
-app.use('/api/reports/export', reportsExportRouter); // Public for POC demo (would require auth in production)
 
 // Health check
 app.get('/api/health', (_req, res) => {
