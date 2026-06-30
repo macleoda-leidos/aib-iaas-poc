@@ -24,6 +24,7 @@ jobs:
           npm install
           npm run build
         env:
+          NEXT_OUTPUT: export
           NEXT_PUBLIC_API_URL: ""
 
       - name: Deploy to Azure Static Web Apps
@@ -32,6 +33,6 @@ jobs:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           action: upload
-          app_location: apps/web
-          output_location: .next
+          app_location: apps/web/out
+          output_location: ""
           skip_app_build: true
