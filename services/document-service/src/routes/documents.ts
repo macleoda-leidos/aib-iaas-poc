@@ -100,22 +100,50 @@ documentsRouter.delete('/:id', (req: Request, res: Response) => {
   res.json({ success: true, data: { deleted: true } });
 });
 
-// Trigger virus scan (placeholder)
-documentsRouter.post('/:id/scan', (req: Request, res: Response) => {
+// Trigger virus scan - uses ClamAV if available, else placeholder
+documentsRouter.post('/:id/scan', async (req: Request, res: Response) => {
   const doc = documentRegistry.get(req.params.id);
   if (!doc) {
     res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Document not found' } });
     return;
   }
 
-  // Simulate scan delay then mark clean
   doc.status = 'scanning';
-  setTimeout(() => {
-    doc.status = 'clean';
-  }, 2000);
 
+  try {
+    const { getScanner } = await import('../scanner/index');
+    const scanner = await getScanner();
+    const result = await scanner.scanFile(doc.filePath, doc.id, doc.fileName);
+
+    doc.status = result.infected ? 'quarantined' : 'clean';
+    doc.scanResult = result;
+
+    res.json({
+      success: true,
+      data: {
+        id: doc.id,
+        status: doc.status,
+        scanResult: result,
+      },
+    });
+  } catch (error: any) {
+    doc.status = 'uploaded'; // Reset on failure
+    res.status(500).json({
+      success: false,
+      error: { code: 'SCAN_FAILED', message: `Virus scan failed: ${error.message}` },
+    });
+  }
+});
+
+// Scan status endpoint
+documentsRouter.get('/:id/scan-status', (req: Request, res: Response) => {
+  const doc = documentRegistry.get(req.params.id);
+  if (!doc) {
+    res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Document not found' } });
+    return;
+  }
   res.json({
     success: true,
-    data: { id: doc.id, status: 'scanning', message: 'PLACEHOLDER: Virus scan initiated. In production, this connects to ClamAV or similar.' },
+    data: { id: doc.id, status: doc.status, scanResult: doc.scanResult || null },
   });
 });

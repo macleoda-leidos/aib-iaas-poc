@@ -60,11 +60,17 @@ services:
       dockerfile: infra/docker/Dockerfile.service
       args:
         SERVICE_NAME: document-service
+    depends_on:
+      clamav:
+        condition: service_healthy
     ports:
       - "3003:3003"
     environment:
       - PORT=3003
       - UPLOAD_PATH=/app/uploads
+      - CLAMAV_HOST=clamav
+      - CLAMAV_PORT=3310
+      - SCANNER_MODE=auto
     volumes:
       - uploads:/app/uploads
 
@@ -146,6 +152,22 @@ services:
     volumes:
       - app-data:/app/data
 
+  # ClamAV virus scanner - free open-source antivirus
+  clamav:
+    image: clamav/clamav:latest
+    ports:
+      - "3310:3310"
+    volumes:
+      - clamav-data:/var/lib/clamav
+    healthcheck:
+      test: ["CMD", "clamdscan", "--ping"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 120s  # ClamAV takes time to load virus definitions
+    restart: unless-stopped
+
 volumes:
   app-data:
   uploads:
+  clamav-data:
