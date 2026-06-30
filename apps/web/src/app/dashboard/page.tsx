@@ -712,6 +712,10 @@ function SupplierDashboard({ user }: { user: any }) {
 }
 
 function DebtorDashboard({ user }: { user: any }) {
+  const [activePanel, setActivePanel] = useState<'none' | 'upload' | 'contact' | 'recommendation' | 'adviser'>('none');
+  const [contactSaved, setContactSaved] = useState(false);
+  const [messageSent, setMessageSent] = useState(false);
+
   return (
     <div>
       <h1>My Applications</h1>
@@ -726,18 +730,15 @@ function DebtorDashboard({ user }: { user: any }) {
           </div>
           <StatusBadge status="Recommendation Issued" />
         </div>
-
         <div className="bg-green-50 border border-green-200 rounded p-4 mb-4">
           <p className="font-bold text-green-800 mb-1">Recommendation: Debt Arrangement Scheme (DAS)</p>
           <p className="text-sm text-green-700">Based on your circumstances, DAS allows repayment in full with creditor protection.</p>
         </div>
-
         <div className="grid md:grid-cols-3 gap-4 text-sm">
           <div><span className="text-gray-600">Total Debt:</span> <span className="font-bold">£12,700</span></div>
           <div><span className="text-gray-600">Proposed Payment:</span> <span className="font-bold">£265/month</span></div>
           <div><span className="text-gray-600">Duration:</span> <span className="font-bold">~48 months</span></div>
         </div>
-
         <div className="mt-4 flex gap-3">
           <button className="bg-gov-green text-white font-bold py-2 px-4 text-sm border-b-2 border-green-900">Accept Recommendation</button>
           <button className="bg-gray-200 text-gray-900 font-bold py-2 px-4 text-sm border-b-2 border-gray-400">Request Review</button>
@@ -772,14 +773,14 @@ function DebtorDashboard({ user }: { user: any }) {
       </div>
 
       {/* Actions & Help */}
-      <div className="grid md:grid-cols-2 gap-6">
+      <div className="grid md:grid-cols-2 gap-6 mb-6">
         <div className="bg-white border border-gray-200 rounded p-4">
           <h3 className="font-bold mb-3">Your Actions</h3>
           <div className="space-y-2">
-            <ActionButton label="Upload Additional Documents" icon="📄" />
-            <ActionButton label="Update Contact Details" icon="✏️" />
-            <ActionButton label="View Full Recommendation" icon="📋" />
-            <ActionButton label="Contact Money Adviser" icon="📞" />
+            <ActionButton label="Upload Additional Documents" icon="📄" onClick={() => setActivePanel(activePanel === 'upload' ? 'none' : 'upload')} />
+            <ActionButton label="Update Contact Details" icon="✏️" onClick={() => setActivePanel(activePanel === 'contact' ? 'none' : 'contact')} />
+            <ActionButton label="View Full Recommendation" icon="📋" onClick={() => setActivePanel(activePanel === 'recommendation' ? 'none' : 'recommendation')} />
+            <ActionButton label="Contact Money Adviser" icon="📞" onClick={() => setActivePanel(activePanel === 'adviser' ? 'none' : 'adviser')} />
           </div>
         </div>
         <div className="bg-blue-50 border border-blue-200 rounded p-4">
@@ -792,6 +793,289 @@ function DebtorDashboard({ user }: { user: any }) {
           </ul>
         </div>
       </div>
+
+      {/* Active Panel */}
+      {activePanel !== 'none' && (
+        <div className="mb-6">
+          <div className="flex justify-between items-center mb-3">
+            <h2 className="text-lg font-bold">
+              {activePanel === 'upload' && '📄 Upload Documents'}
+              {activePanel === 'contact' && '✏️ Update Contact Details'}
+              {activePanel === 'recommendation' && '📋 Your Recommendation'}
+              {activePanel === 'adviser' && '📞 Contact Your Adviser'}
+            </h2>
+            <button onClick={() => setActivePanel('none')} className="text-gray-500 hover:text-gray-800 text-sm border border-gray-300 px-2 py-1 rounded">✕ Close</button>
+          </div>
+
+          {/* Upload Documents */}
+          {activePanel === 'upload' && <DebtorUploadPanel />}
+
+          {/* Update Contact Details */}
+          {activePanel === 'contact' && (
+            <div className="bg-white border border-gray-200 rounded p-6">
+              <p className="text-sm text-gray-600 mb-4">Update your contact information below. Changes will take effect within 24 hours.</p>
+              <p className="text-xs text-gray-400 mb-6">Last updated: 15 March 2024</p>
+              <div className="grid md:grid-cols-2 gap-4 mb-4">
+                <div><label className="block text-sm font-bold mb-1">Email address</label><input defaultValue="john.testerton@example.com" className="border-2 border-gray-900 p-2 w-full text-sm" /></div>
+                <div><label className="block text-sm font-bold mb-1">Primary phone</label><input defaultValue="07700900001" className="border-2 border-gray-900 p-2 w-full text-sm" /></div>
+                <div><label className="block text-sm font-bold mb-1">Secondary phone (optional)</label><input defaultValue="" placeholder="e.g. home landline" className="border-2 border-gray-900 p-2 w-full text-sm" /></div>
+                <div>
+                  <label className="block text-sm font-bold mb-1">Preferred contact method</label>
+                  <div className="flex gap-4 mt-2">
+                    {['Email', 'Phone', 'Post'].map(m => (
+                      <label key={m} className="flex items-center gap-1 text-sm"><input type="radio" name="contactPref" defaultChecked={m === 'Email'} /> {m}</label>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <h4 className="font-bold text-sm mt-6 mb-3">Current Address</h4>
+              <div className="grid md:grid-cols-2 gap-4 mb-4">
+                <div><label className="block text-sm font-bold mb-1">Address line 1</label><input defaultValue="42 Example Street" className="border-2 border-gray-900 p-2 w-full text-sm" /></div>
+                <div><label className="block text-sm font-bold mb-1">City</label><input defaultValue="Edinburgh" className="border-2 border-gray-900 p-2 w-full text-sm" /></div>
+                <div><label className="block text-sm font-bold mb-1">Postcode</label>
+                  <div className="flex gap-2"><input defaultValue="EH1 1AA" className="border-2 border-gray-900 p-2 text-sm w-32" /><button className="bg-blue-700 text-white text-xs px-3 py-2 hover:bg-blue-800">Find address</button></div>
+                </div>
+                <div><label className="block text-sm font-bold mb-1">Resident since</label><input type="date" defaultValue="2018-06-01" className="border-2 border-gray-900 p-2 w-full text-sm" /></div>
+              </div>
+              <div className="bg-gray-50 border border-gray-200 rounded p-3 mb-4">
+                <p className="text-sm"><strong>Moving home?</strong> If you are changing address, please provide your new address and move date. Your case officer will be notified.</p>
+              </div>
+              {contactSaved ? (
+                <div className="bg-green-50 border border-green-200 rounded p-3"><p className="text-sm text-green-800 font-bold">✓ Contact details updated successfully. Changes will be reflected within 24 hours.</p></div>
+              ) : (
+                <button onClick={() => setContactSaved(true)} className="bg-gov-green text-white font-bold py-2 px-6 text-sm border-b-2 border-green-900 hover:bg-green-800">Save Changes</button>
+              )}
+            </div>
+          )}
+
+          {/* View Full Recommendation */}
+          {activePanel === 'recommendation' && (
+            <div className="bg-white border border-gray-200 rounded overflow-hidden">
+              <div className="bg-gradient-to-r from-green-700 to-green-900 text-white p-6">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <h3 className="text-xl font-bold text-white">Debt Arrangement Scheme (DAS)</h3>
+                    <p className="text-green-200">Recommended for your circumstances</p>
+                  </div>
+                  <span className="bg-green-500 text-white px-3 py-1 rounded text-sm font-bold">HIGH CONFIDENCE</span>
+                </div>
+              </div>
+              <div className="p-6 space-y-6">
+                <div>
+                  <h4 className="font-bold mb-2">Why we recommend DAS</h4>
+                  <ul className="list-disc pl-5 text-sm space-y-1">
+                    <li>Your total debt of £12,700 falls within the DAS eligibility range</li>
+                    <li>You have disposable income of £220/month for structured repayment</li>
+                    <li>No existing insolvency proceedings found in our system checks</li>
+                    <li>DAS provides statutory protection — creditors cannot take enforcement action</li>
+                    <li>You can repay your debts in full over an extended period</li>
+                  </ul>
+                </div>
+                <div>
+                  <h4 className="font-bold mb-2">What DAS means for you</h4>
+                  <p className="text-sm text-gray-700 mb-3">The Debt Arrangement Scheme allows you to repay your debts in full over an extended period through a Debt Payment Programme (DPP). While in the programme, your creditors cannot take enforcement action against you, and interest and charges are frozen.</p>
+                  <div className="grid md:grid-cols-2 gap-3 text-sm">
+                    <div className="p-3 bg-green-50 rounded">✓ Single affordable monthly payment</div>
+                    <div className="p-3 bg-green-50 rounded">✓ Interest and charges frozen</div>
+                    <div className="p-3 bg-green-50 rounded">✓ Protection from creditor action</div>
+                    <div className="p-3 bg-green-50 rounded">✓ Keep your assets</div>
+                    <div className="p-3 bg-green-50 rounded">✓ No impact on most professions</div>
+                    <div className="p-3 bg-green-50 rounded">✓ Repay in full — no write-off</div>
+                  </div>
+                </div>
+                <div>
+                  <h4 className="font-bold mb-2">How DAS compares</h4>
+                  <table className="w-full text-sm border border-gray-200">
+                    <thead className="bg-gray-50"><tr><th className="p-2 text-left">Feature</th><th className="p-2 text-center">DAS</th><th className="p-2 text-center">Trust Deed</th><th className="p-2 text-center">Sequestration</th></tr></thead>
+                    <tbody>
+                      <tr className="border-t"><td className="p-2">Repay in full</td><td className="p-2 text-center text-green-700 font-bold">Yes</td><td className="p-2 text-center">Partial</td><td className="p-2 text-center">No</td></tr>
+                      <tr className="border-t"><td className="p-2">Keep assets</td><td className="p-2 text-center text-green-700 font-bold">Yes</td><td className="p-2 text-center">Maybe</td><td className="p-2 text-center">No</td></tr>
+                      <tr className="border-t"><td className="p-2">Duration</td><td className="p-2 text-center">~4 years</td><td className="p-2 text-center">4 years</td><td className="p-2 text-center">1 year</td></tr>
+                      <tr className="border-t"><td className="p-2">Public register</td><td className="p-2 text-center text-green-700 font-bold">No</td><td className="p-2 text-center">Yes</td><td className="p-2 text-center">Yes</td></tr>
+                      <tr className="border-t"><td className="p-2">Credit impact</td><td className="p-2 text-center">6 years</td><td className="p-2 text-center">6 years</td><td className="p-2 text-center">6 years</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+                <div>
+                  <h4 className="font-bold mb-2">What happens next</h4>
+                  <ol className="list-decimal pl-5 text-sm space-y-2">
+                    <li><strong>Accept this recommendation</strong> — Click "Accept Recommendation" above</li>
+                    <li><strong>Money adviser assigned</strong> — A qualified adviser will contact you within 3 days</li>
+                    <li><strong>DPP proposal created</strong> — Your adviser prepares a formal payment plan</li>
+                    <li><strong>Creditors notified</strong> — Your creditors are told about the proposed arrangement</li>
+                    <li><strong>DPP approved</strong> — Once approved, you make a single monthly payment</li>
+                  </ol>
+                </div>
+                <div className="flex gap-3 pt-4 border-t">
+                  <button className="bg-gray-200 text-gray-800 font-bold py-2 px-4 text-sm rounded hover:bg-gray-300">📥 Download as PDF</button>
+                  <button onClick={() => setActivePanel('adviser')} className="bg-blue-700 text-white font-bold py-2 px-4 text-sm rounded hover:bg-blue-800">💬 Discuss with Adviser</button>
+                </div>
+                <p className="text-xs text-gray-500 italic">This is an automated recommendation for information purposes only. It does not constitute financial or legal advice. Speak with a qualified money adviser before making any decisions.</p>
+              </div>
+            </div>
+          )}
+
+          {/* Contact Money Adviser */}
+          {activePanel === 'adviser' && (
+            <div className="bg-white border border-gray-200 rounded p-6">
+              {/* Adviser Card */}
+              <div className="flex items-start gap-4 p-4 bg-blue-50 border border-blue-200 rounded mb-6">
+                <div className="w-12 h-12 bg-blue-700 rounded-full flex items-center justify-center text-white font-bold text-lg">FC</div>
+                <div className="flex-1">
+                  <p className="font-bold">Fiona Campbell</p>
+                  <p className="text-sm text-gray-600">Money Adviser — CAS Edinburgh Bureau</p>
+                  <p className="text-xs text-gray-500">Citizens Advice Scotland</p>
+                  <div className="flex items-center gap-2 mt-2">
+                    <span className="w-2 h-2 rounded-full bg-green-500"></span>
+                    <span className="text-xs text-green-700">Available Mon–Fri, 9:00–17:00</span>
+                  </div>
+                </div>
+                <div className="text-right text-sm">
+                  <p>📞 0131 555 0001</p>
+                  <p className="text-xs text-gray-500">adviser@cas.example.org</p>
+                </div>
+              </div>
+
+              {/* Message History */}
+              <h4 className="font-bold text-sm mb-3">Message History</h4>
+              <div className="space-y-3 mb-6 max-h-64 overflow-y-auto">
+                <div className="flex gap-3"><div className="w-8 h-8 bg-blue-700 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0">FC</div><div className="bg-gray-100 rounded-lg p-3 flex-1"><p className="text-xs text-gray-500 mb-1">Fiona Campbell — 16 Mar, 10:30</p><p className="text-sm">Hello John, I have reviewed your application and recommendation. DAS looks like a very suitable option for your circumstances. Would you like to schedule a call to discuss the next steps?</p></div></div>
+                <div className="flex gap-3 justify-end"><div className="bg-blue-50 rounded-lg p-3 max-w-md"><p className="text-xs text-gray-500 mb-1">You — 16 Mar, 14:15</p><p className="text-sm">Hi Fiona, thank you. Yes I would like to discuss this. I am available most mornings next week. Is there anything I should prepare?</p></div><div className="w-8 h-8 bg-green-700 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0">JT</div></div>
+                <div className="flex gap-3"><div className="w-8 h-8 bg-blue-700 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0">FC</div><div className="bg-gray-100 rounded-lg p-3 flex-1"><p className="text-xs text-gray-500 mb-1">Fiona Campbell — 17 Mar, 09:00</p><p className="text-sm">I have booked us a Teams call for Wednesday 2 July at 09:30. Please have your latest bank statement and payslip handy. We will go through the DAS application together. Looking forward to speaking with you.</p></div></div>
+              </div>
+
+              {/* Send Message */}
+              <h4 className="font-bold text-sm mb-2">Send a message</h4>
+              <div className="space-y-3">
+                <select className="border border-gray-300 p-2 text-sm rounded w-full"><option>General enquiry</option><option>About my recommendation</option><option>Upload help needed</option><option>Change appointment</option><option>Urgent matter</option></select>
+                <textarea rows={3} className="border-2 border-gray-900 p-2 text-sm w-full" placeholder="Type your message here..."></textarea>
+                {messageSent ? (
+                  <div className="bg-green-50 border border-green-200 rounded p-3"><p className="text-sm text-green-800 font-bold">✓ Message sent. Your adviser will respond within 1 working day.</p></div>
+                ) : (
+                  <button onClick={() => setMessageSent(true)} className="bg-blue-700 text-white font-bold py-2 px-6 text-sm hover:bg-blue-800">Send Message</button>
+                )}
+              </div>
+
+              {/* Alternative contact */}
+              <div className="mt-6 pt-4 border-t">
+                <h4 className="font-bold text-sm mb-2">Other ways to reach us</h4>
+                <div className="grid md:grid-cols-3 gap-3 text-sm">
+                  <div className="p-3 border rounded"><p className="font-bold">📞 Phone</p><p className="text-gray-600">0131 555 0001</p><p className="text-xs text-gray-400">Mon-Fri 9-5</p></div>
+                  <div className="p-3 border rounded"><p className="font-bold">🏢 Office</p><p className="text-gray-600">1 Advice Square, Edinburgh EH3</p><p className="text-xs text-gray-400">Walk-in available</p></div>
+                  <div className="p-3 border rounded"><p className="font-bold">🚨 Urgent?</p><p className="text-gray-600">National Debtline</p><p className="text-xs text-gray-400">0808 808 4000 (free)</p></div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ===== DEBTOR UPLOAD PANEL =====
+function DebtorUploadPanel() {
+  const [files, setFiles] = useState<Array<{ name: string; size: number; category: string; status: 'pending' | 'uploading' | 'scanning' | 'clean' | 'quarantined' }>>([]);
+
+  const handleFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const newFiles = Array.from(e.target.files).map(f => ({ name: f.name, size: f.size, category: 'other', status: 'pending' as const }));
+      setFiles(prev => [...prev, ...newFiles]);
+    }
+  };
+
+  const updateCategory = (i: number, category: string) => {
+    setFiles(prev => prev.map((f, idx) => idx === i ? { ...f, category } : f));
+  };
+
+  const uploadAll = () => {
+    setFiles(prev => prev.map(f => ({ ...f, status: 'uploading' as const })));
+    setTimeout(() => setFiles(prev => prev.map(f => ({ ...f, status: 'scanning' as const }))), 1200);
+    setTimeout(() => setFiles(prev => prev.map(f => ({
+      ...f, status: (f.name.toLowerCase().includes('virus') || f.name.toLowerCase().includes('eicar')) ? 'quarantined' as const : 'clean' as const,
+    }))), 3500);
+  };
+
+  return (
+    <div className="bg-white border border-gray-200 rounded p-6">
+      <div className="bg-blue-50 border border-blue-200 rounded p-3 mb-4 flex items-center gap-2">
+        <span>📎</span>
+        <p className="text-sm">Uploading for: <strong>Application IAAS-2024-00001</strong></p>
+      </div>
+
+      {/* Previously uploaded */}
+      <h4 className="font-bold text-sm mb-2">Previously uploaded documents</h4>
+      <div className="space-y-1 mb-6">
+        {[
+          { name: 'payslip_march_2024.pdf', cat: 'Income Evidence', date: '15 Mar' },
+          { name: 'bank_statement_feb.pdf', cat: 'Income Evidence', date: '15 Mar' },
+          { name: 'council_tax_bill.pdf', cat: 'Debt Evidence', date: '15 Mar' },
+        ].map((doc, i) => (
+          <div key={i} className="flex items-center justify-between p-2 bg-gray-50 rounded text-sm">
+            <span>📄 {doc.name} <span className="text-xs text-gray-500">({doc.cat})</span></span>
+            <span className="text-xs text-green-700 font-bold">✓ Verified — {doc.date}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Upload zone */}
+      <h4 className="font-bold text-sm mb-2">Add new documents</h4>
+      <div className="border-2 border-dashed border-gray-400 rounded p-6 text-center bg-gray-50 hover:border-blue-500 hover:bg-blue-50 transition-colors cursor-pointer mb-4"
+        onClick={() => document.getElementById('debtor-file-input')?.click()}>
+        <p className="text-lg mb-1">📂 Drop files here or click to browse</p>
+        <p className="text-xs text-gray-500">PDF, JPG, PNG, DOC, DOCX — max 10MB each — multiple files allowed</p>
+        <input id="debtor-file-input" type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" className="hidden" onChange={handleFiles} />
+      </div>
+
+      {/* ClamAV notice */}
+      <div className="bg-green-50 border border-green-200 rounded p-3 mb-4 flex items-center gap-2">
+        <span>🛡️</span>
+        <div>
+          <p className="text-sm font-bold text-green-800">Secure Upload</p>
+          <p className="text-xs text-green-700">All files are automatically virus-scanned (ClamAV) and encrypted at rest. Your documents are stored securely.</p>
+        </div>
+      </div>
+
+      {/* File list */}
+      {files.length > 0 && (
+        <div className="space-y-2 mb-4">
+          {files.map((file, i) => (
+            <div key={i} className="flex items-center gap-3 p-3 bg-gray-50 rounded border">
+              <span className="text-lg">{file.name.endsWith('.pdf') ? '📕' : '📄'}</span>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium truncate">{file.name}</p>
+                <p className="text-xs text-gray-500">{(file.size / 1024).toFixed(0)} KB</p>
+              </div>
+              {file.status === 'pending' && (
+                <select value={file.category} onChange={e => updateCategory(i, e.target.value)} className="border border-gray-300 p-1 text-xs rounded">
+                  <option value="other">Category...</option>
+                  <option value="identification">Identification</option>
+                  <option value="proof_of_address">Proof of Address</option>
+                  <option value="income_evidence">Income Evidence</option>
+                  <option value="debt_evidence">Debt Evidence</option>
+                  <option value="other">Other</option>
+                </select>
+              )}
+              <div>
+                {file.status === 'pending' && <span className="text-xs bg-gray-200 px-2 py-0.5 rounded">Ready</span>}
+                {file.status === 'uploading' && <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded animate-pulse">Uploading...</span>}
+                {file.status === 'scanning' && <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded animate-pulse">🔍 Scanning...</span>}
+                {file.status === 'clean' && <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded font-bold">✓ Accepted</span>}
+                {file.status === 'quarantined' && <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded font-bold">⚠ Rejected</span>}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {files.length > 0 && files.some(f => f.status === 'pending') && (
+        <button onClick={uploadAll} className="bg-gov-green text-white font-bold py-2 px-6 text-sm hover:bg-green-800">Upload & Scan All</button>
+      )}
+      {files.length > 0 && files.every(f => f.status === 'clean' || f.status === 'quarantined') && (
+        <div className="bg-green-50 border border-green-200 rounded p-3">
+          <p className="text-sm text-green-800 font-bold">✓ Upload complete. {files.filter(f => f.status === 'clean').length} document(s) added to your application.</p>
+        </div>
+      )}
     </div>
   );
 }
