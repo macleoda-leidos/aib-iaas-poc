@@ -22,8 +22,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <nav aria-label="Main navigation">
               <ul className="flex gap-6 text-sm">
                 <li><a href="/" className="text-white hover:underline no-underline">Home</a></li>
+                <li><a href="/portal" className="text-white hover:underline no-underline">Portal</a></li>
                 <li><a href="/apply" className="text-white hover:underline no-underline">Apply</a></li>
                 <li><a href="/dashboard" className="text-white hover:underline no-underline">Dashboard</a></li>
+                <li><a href="/login" className="text-white hover:underline no-underline">Sign In</a></li>
               </ul>
             </nav>
           </div>
