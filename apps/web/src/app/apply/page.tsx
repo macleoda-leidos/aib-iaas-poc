@@ -132,8 +132,8 @@ export default function ApplyPage() {
       <h1 className="text-3xl font-bold mb-2">Apply for Debt Advice</h1>
       <p className="text-gray-600 mb-6">Complete each section below. You can navigate between sections freely.</p>
 
-      {/* Section navigation with status indicators */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-2 mb-8">
+      {/* Section navigation — scrollable on mobile, grid on desktop */}
+      <div className="flex overflow-x-auto gap-2 pb-2 mb-8 md:grid md:grid-cols-5 lg:grid-cols-9 md:overflow-visible">
         {SECTIONS.map((section, i) => {
           const status = getSectionStatus(section.id);
           const isActive = i === currentSection;
@@ -141,7 +141,7 @@ export default function ApplyPage() {
             <button
               key={section.id}
               onClick={() => setCurrentSection(i)}
-              className={`relative p-3 rounded border-2 text-center transition-all ${isActive ? 'border-blue-600 bg-blue-50 ring-2 ring-blue-300' : 'border-gray-200 hover:border-gray-400 bg-white'}`}
+              className={`relative p-3 rounded border-2 text-center transition-all min-w-[80px] flex-shrink-0 md:min-w-0 ${isActive ? 'border-blue-600 bg-blue-50 ring-2 ring-blue-300' : 'border-gray-200 hover:border-gray-400 bg-white'}`}
             >
               {/* Status dot */}
               <div className={`absolute top-1 right-1 w-3 h-3 rounded-full border ${getSectionStatusColour(status)}`}
@@ -395,10 +395,14 @@ function AddressSection({ formData, updateField }: { formData: any; updateField:
             <button onClick={() => removePrevAddr(i)} className="absolute top-2 right-2 text-red-600 text-xs hover:underline">Remove</button>
             <p className="font-bold text-sm mb-2">Previous Address {i + 1}</p>
             <div className="grid md:grid-cols-2 gap-3">
+              <div className="flex gap-2 items-end">
+                <div className="flex-1"><Input label="Postcode" value={prev.postcode} onChange={v => updatePrevAddr(i, 'postcode', v)} /></div>
+                <button type="button" onClick={() => { updatePrevAddr(i, 'line1', '12 Sample Road'); updatePrevAddr(i, 'city', 'Glasgow'); }}
+                  className="bg-blue-700 text-white text-xs py-2.5 px-3 mb-1 hover:bg-blue-800 rounded min-h-[44px]">Find</button>
+              </div>
+              <div></div>
               <Input label="Address line 1" value={prev.line1} onChange={v => updatePrevAddr(i, 'line1', v)} />
               <Input label="City" value={prev.city} onChange={v => updatePrevAddr(i, 'city', v)} />
-              <Input label="Postcode" value={prev.postcode} onChange={v => updatePrevAddr(i, 'postcode', v)} />
-              <div></div>
               <Input label="Date from" type="date" value={prev.dateFrom} onChange={v => updatePrevAddr(i, 'dateFrom', v)} />
               <Input label="Date to" type="date" value={prev.dateTo} onChange={v => updatePrevAddr(i, 'dateTo', v)} />
             </div>
@@ -758,7 +762,7 @@ function Input({ label, type = 'text', value, onChange, hint, error }: {
       {hint && <p className="text-xs text-gray-500 mb-1">{hint}</p>}
       {error && <p className="text-xs text-red-600 font-bold mb-1">⚠ {error}</p>}
       <input type={type} value={value || ''} onChange={e => onChange(e.target.value)}
-        className={`border-2 ${error ? 'border-red-500' : 'border-gray-900'} p-2 w-full text-sm focus:outline-2 focus:outline-yellow-400`} />
+        className={`border-2 ${error ? 'border-red-500' : 'border-gray-900'} p-2.5 w-full text-base min-h-[44px] focus:outline-2 focus:outline-yellow-400`} />
     </div>
   );
 }

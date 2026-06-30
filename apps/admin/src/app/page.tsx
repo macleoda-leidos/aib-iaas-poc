@@ -15,18 +15,42 @@ const STATUS_COLOURS: Record<string, string> = {
   draft: 'bg-gray-200 text-gray-700',
   submitted: 'bg-blue-100 text-blue-800',
   under_review: 'bg-purple-100 text-purple-800',
+  additional_info_required: 'bg-orange-100 text-orange-800',
   recommendation_issued: 'bg-green-100 text-green-800',
   accepted: 'bg-green-200 text-green-900',
   rejected: 'bg-red-100 text-red-800',
+  withdrawn: 'bg-gray-100 text-gray-500',
 };
 
 // Synthetic demo data for the admin portal
 const DEMO_APPLICATIONS: ApplicationSummary[] = [
-  { id: '1', referenceNumber: 'IAAS-2024-00001', status: 'submitted', createdAt: '2024-03-15T10:30:00Z', submittedAt: '2024-03-15T11:45:00Z', summary: { applicantName: 'John Testerton', totalDebt: 12700 } },
-  { id: '2', referenceNumber: 'IAAS-2024-00002', status: 'under_review', createdAt: '2024-03-14T09:00:00Z', submittedAt: '2024-03-14T10:20:00Z', summary: { applicantName: 'Sarah Lowdebt', totalDebt: 3200 } },
-  { id: '3', referenceNumber: 'IAAS-2024-00003', status: 'recommendation_issued', createdAt: '2024-03-13T14:15:00Z', submittedAt: '2024-03-13T15:30:00Z', summary: { applicantName: 'Margaret Highdebt', totalDebt: 45000 } },
-  { id: '4', referenceNumber: 'IAAS-2024-00004', status: 'draft', createdAt: '2024-03-16T08:00:00Z', summary: { applicantName: 'David Minimal', totalDebt: 8500 } },
-  { id: '5', referenceNumber: 'IAAS-2024-00005', status: 'accepted', createdAt: '2024-03-10T11:00:00Z', submittedAt: '2024-03-10T12:00:00Z', summary: { applicantName: 'James Midrange', totalDebt: 15600 } },
+  // Submitted (awaiting review)
+  { id: '1', referenceNumber: 'IAAS-2026-00012', status: 'submitted', createdAt: '2026-06-29T10:30:00Z', submittedAt: '2026-06-29T11:45:00Z', summary: { applicantName: 'Alistair Morrison', totalDebt: 18400 } },
+  { id: '2', referenceNumber: 'IAAS-2026-00011', status: 'submitted', createdAt: '2026-06-28T14:00:00Z', submittedAt: '2026-06-28T15:20:00Z', summary: { applicantName: 'Brenda Campbell', totalDebt: 9200 } },
+  { id: '3', referenceNumber: 'IAAS-2026-00010', status: 'submitted', createdAt: '2026-06-27T09:15:00Z', submittedAt: '2026-06-27T10:00:00Z', summary: { applicantName: 'Craig Stewart', totalDebt: 23100 } },
+  { id: '4', referenceNumber: 'IAAS-2026-00009', status: 'submitted', createdAt: '2026-06-26T16:30:00Z', submittedAt: '2026-06-26T17:00:00Z', summary: { applicantName: 'Donna Murray', totalDebt: 6800 } },
+  // Under review
+  { id: '5', referenceNumber: 'IAAS-2026-00008', status: 'under_review', createdAt: '2026-06-25T11:00:00Z', submittedAt: '2026-06-25T12:00:00Z', summary: { applicantName: 'John Testerton', totalDebt: 12700 } },
+  { id: '6', referenceNumber: 'IAAS-2026-00007', status: 'under_review', createdAt: '2026-06-24T10:00:00Z', submittedAt: '2026-06-24T10:30:00Z', summary: { applicantName: 'Eilidh MacKenzie', totalDebt: 31500 } },
+  { id: '7', referenceNumber: 'IAAS-2026-00006', status: 'under_review', createdAt: '2026-06-23T08:45:00Z', submittedAt: '2026-06-23T09:15:00Z', summary: { applicantName: 'Fraser MacDonald', totalDebt: 7600 } },
+  // Additional info required
+  { id: '8', referenceNumber: 'IAAS-2026-00005', status: 'additional_info_required', createdAt: '2026-06-20T13:00:00Z', submittedAt: '2026-06-20T14:00:00Z', summary: { applicantName: 'Gavin Robertson', totalDebt: 14200 } },
+  { id: '9', referenceNumber: 'IAAS-2026-00004', status: 'additional_info_required', createdAt: '2026-06-18T09:30:00Z', submittedAt: '2026-06-18T10:00:00Z', summary: { applicantName: 'Helen Douglas', totalDebt: 52000 } },
+  // Recommendation issued
+  { id: '10', referenceNumber: 'IAAS-2026-00003', status: 'recommendation_issued', createdAt: '2026-06-15T11:00:00Z', submittedAt: '2026-06-15T12:00:00Z', summary: { applicantName: 'Sarah Lowdebt', totalDebt: 3200 } },
+  { id: '11', referenceNumber: 'IAAS-2026-00002', status: 'recommendation_issued', createdAt: '2026-06-14T10:00:00Z', submittedAt: '2026-06-14T11:00:00Z', summary: { applicantName: 'Ian Wallace', totalDebt: 28900 } },
+  { id: '12', referenceNumber: 'IAAS-2026-00001', status: 'recommendation_issued', createdAt: '2026-06-12T14:30:00Z', submittedAt: '2026-06-12T15:00:00Z', summary: { applicantName: 'Margaret Highdebt', totalDebt: 45000 } },
+  // Accepted
+  { id: '13', referenceNumber: 'IAAS-2026-00015', status: 'accepted', createdAt: '2026-06-10T09:00:00Z', submittedAt: '2026-06-10T10:00:00Z', summary: { applicantName: 'James Midrange', totalDebt: 15600 } },
+  { id: '14', referenceNumber: 'IAAS-2026-00014', status: 'accepted', createdAt: '2026-06-08T11:30:00Z', submittedAt: '2026-06-08T12:00:00Z', summary: { applicantName: 'Karen Thomson', totalDebt: 8900 } },
+  // Rejected
+  { id: '15', referenceNumber: 'IAAS-2026-00016', status: 'rejected', createdAt: '2026-06-05T14:00:00Z', submittedAt: '2026-06-05T15:00:00Z', summary: { applicantName: 'Lewis Brown', totalDebt: 900 } },
+  // Draft
+  { id: '16', referenceNumber: 'IAAS-2026-00017', status: 'draft', createdAt: '2026-06-30T08:00:00Z', summary: { applicantName: 'David Minimal', totalDebt: 8500 } },
+  { id: '17', referenceNumber: 'IAAS-2026-00018', status: 'draft', createdAt: '2026-06-30T07:30:00Z', summary: { applicantName: 'Morag Patterson', totalDebt: 4200 } },
+  { id: '18', referenceNumber: 'IAAS-2026-00019', status: 'draft', createdAt: '2026-06-29T16:00:00Z', summary: { applicantName: 'Neil Hamilton', totalDebt: 19800 } },
+  // Withdrawn
+  { id: '19', referenceNumber: 'IAAS-2026-00013', status: 'withdrawn', createdAt: '2026-06-01T10:00:00Z', submittedAt: '2026-06-01T11:00:00Z', summary: { applicantName: 'Fiona Existing', totalDebt: 11000 } },
 ];
 
 export default function AdminDashboard() {
