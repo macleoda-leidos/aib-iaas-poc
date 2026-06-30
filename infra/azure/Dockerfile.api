@@ -1,0 +1,42 @@
+# AiB IAAS - Consolidated API Container
+# Runs all 11 backend services in a single Express process
+# Optimised for Azure Container Apps free tier
+
+FROM node:20-alpine AS base
+WORKDIR /app
+
+# Install dependencies for all services
+FROM base AS deps
+COPY package.json ./
+COPY services/consolidated-api/package.json ./services/consolidated-api/
+COPY services/api-gateway/package.json ./services/api-gateway/
+COPY services/recommendation-service/package.json ./services/recommendation-service/
+COPY services/document-service/package.json ./services/document-service/
+COPY services/integration-orchestrator/package.json ./services/integration-orchestrator/
+COPY services/mock-integrations/package.json ./services/mock-integrations/
+COPY services/payment-service/package.json ./services/payment-service/
+COPY services/audit-service/package.json ./services/audit-service/
+COPY services/credit-check-service/package.json ./services/credit-check-service/
+COPY services/organisation-service/package.json ./services/organisation-service/
+COPY services/user-service/package.json ./services/user-service/
+COPY services/notification-service/package.json ./services/notification-service/
+
+RUN cd services/consolidated-api && npm install --production
+
+# Copy source
+FROM base AS runner
+ENV NODE_ENV=production
+RUN apk add --no-cache tini && mkdir -p /data/uploads
+COPY --from=deps /app/services/consolidated-api/node_modules ./node_modules
+COPY services/ ./services/
+COPY packages/ ./packages/
+
+# Use tsx to run TypeScript directly (avoids build step for POC)
+RUN npm install -g tsx
+
+WORKDIR /app/services/consolidated-api
+EXPOSE 3001
+
+# Use tini for proper signal handling
+ENTRYPOINT ["/sbin/tini", "--"]
+CMD ["tsx", "src/index.ts"]
