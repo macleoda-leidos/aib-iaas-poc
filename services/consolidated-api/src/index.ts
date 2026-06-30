@@ -39,6 +39,8 @@ import { rolesRouter } from '../user-service/src/routes/roles';
 import { initUserDb } from '../user-service/src/db';
 import { notificationRouter } from '../notification-service/src/routes/notifications';
 import { initNotificationDb } from '../notification-service/src/db';
+import { verifyRouter } from '../identity-service/src/routes/verify';
+import { federationRouter } from '../identity-service/src/routes/federation';
 
 // Mock integrations
 import { basysRouter } from '../mock-integrations/src/routes/basys';
@@ -89,6 +91,8 @@ app.use('/api/users', usersRouter);
 app.use('/api/users/auth', userAuthRouter);
 app.use('/api/roles', rolesRouter);
 app.use('/api/notifications', notificationRouter);
+app.use('/api/identity', verifyRouter);
+app.use('/api/identity', federationRouter);
 
 // ===== MOCK INTEGRATION ROUTES =====
 app.use('/api/mock/basys', latencyMiddleware, basysRouter);

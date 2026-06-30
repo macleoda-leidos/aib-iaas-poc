@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import { useParams } from 'next/navigation';
 
 // Synthetic application detail for POC
@@ -23,6 +23,14 @@ const STATUS_COLOURS: Record<string, string> = {
 };
 
 export default function ApplicationDetailPage() {
+  return (
+    <Suspense fallback={<div className="p-8">Loading application...</div>}>
+      <ApplicationDetailContent />
+    </Suspense>
+  );
+}
+
+function ApplicationDetailContent() {
   const params = useParams();
   const id = params.id as string;
   const app = DEMO_APPS[id];

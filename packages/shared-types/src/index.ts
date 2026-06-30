@@ -6,3 +6,4 @@ export * from './integration';
 export * from './api';
 export * from './organisation';
 export * from './rbac';
+export * from './identity';

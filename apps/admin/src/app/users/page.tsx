@@ -96,7 +96,8 @@ export default function UsersPage() {
 
   const downloadReport = () => {
     // Trigger report download from API
-    window.open('http://localhost:3001/api/reports/export/weekly-report', '_blank');
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+    window.open(`${apiUrl}/api/reports/export/weekly-report`, '_blank');
   };
 
   return (
