@@ -4,10 +4,11 @@ import { useState, useCallback } from 'react';
 
 // Section definitions with validation rules
 const SECTIONS = [
-  { id: 'personal', label: 'Personal Details', icon: '👤' },
-  { id: 'address', label: 'Address & Contact', icon: '🏠' },
+  { id: 'personal', label: 'Personal Details & Aliases', icon: '👤' },
+  { id: 'address', label: 'Address History (5yr)', icon: '🏠' },
   { id: 'debts', label: 'Debts', icon: '💳' },
   { id: 'income', label: 'Income & Expenditure', icon: '💰' },
+  { id: 'assets', label: 'Assets', icon: '🏡' },
   { id: 'documents', label: 'Documents', icon: '📄' },
   { id: 'checks', label: 'System Checks', icon: '🔍' },
   { id: 'recommendation', label: 'Recommendation', icon: '✅' },
@@ -95,6 +96,12 @@ export default function ApplyPage() {
         if (hasIncome && hasExp) return 'complete';
         return 'in_progress';
       }
+      case 'assets': {
+        if (data.noAssets) return 'complete';
+        const hasAny = data.properties?.length || data.vehicles?.length || data.savings?.length || data.other?.length;
+        if (hasAny) return 'complete';
+        return 'not_started';
+      }
       case 'documents': {
         if (data.uploaded && data.uploaded > 0) return 'complete';
         return 'not_started'; // Documents are optional
@@ -168,10 +175,11 @@ export default function ApplyPage() {
         {currentSection === 1 && <AddressSection formData={formData} updateField={updateField} />}
         {currentSection === 2 && <DebtsSection formData={formData} updateField={updateField} />}
         {currentSection === 3 && <IncomeSection formData={formData} updateField={updateField} />}
-        {currentSection === 4 && <DocumentsSection formData={formData} updateField={updateField} />}
-        {currentSection === 5 && <ChecksSection formData={formData} updateField={updateField} />}
-        {currentSection === 6 && <RecommendationSection formData={formData} updateField={updateField} />}
-        {currentSection === 7 && <PaymentSection formData={formData} updateField={updateField} />}
+        {currentSection === 4 && <AssetsSection formData={formData} updateField={updateField} />}
+        {currentSection === 5 && <DocumentsSection formData={formData} updateField={updateField} />}
+        {currentSection === 6 && <ChecksSection formData={formData} updateField={updateField} />}
+        {currentSection === 7 && <RecommendationSection formData={formData} updateField={updateField} />}
+        {currentSection === 8 && <PaymentSection formData={formData} updateField={updateField} />}
       </div>
 
       {/* Navigation buttons */}
@@ -305,17 +313,34 @@ function PersonalSection({ formData, updateField }: { formData: any; updateField
           {['Employed','Self-employed','Unemployed','Retired','Student','Other'].map(s => <option key={s} value={s.toLowerCase().replace('-','_')}>{s}</option>)}
         </select>
       </div>
+
+      {/* Aliases / Other Names */}
+      <div className="mt-6 pt-4 border-t border-gray-200">
+        <h3 className="font-bold text-sm mb-2">Other Names / Aliases</h3>
+        <p className="text-xs text-gray-500 mb-3">Include any other names you are or have been known by (maiden name, previous married name, etc.)</p>
+        {(d.aliases || []).map((alias: any, i: number) => (
+          <div key={i} className="flex gap-2 items-end mb-2">
+            <div className="flex-1"><input value={alias.firstName || ''} onChange={e => { const a = [...(d.aliases||[])]; a[i]={...a[i],firstName:e.target.value}; updateField('personal','aliases',a); }} placeholder="First name" className="border-2 border-gray-900 p-2 w-full text-sm" /></div>
+            <div className="flex-1"><input value={alias.lastName || ''} onChange={e => { const a = [...(d.aliases||[])]; a[i]={...a[i],lastName:e.target.value}; updateField('personal','aliases',a); }} placeholder="Last name" className="border-2 border-gray-900 p-2 w-full text-sm" /></div>
+            <select value={alias.type || ''} onChange={e => { const a = [...(d.aliases||[])]; a[i]={...a[i],type:e.target.value}; updateField('personal','aliases',a); }} className="border-2 border-gray-900 p-2 text-sm">
+              <option value="">Type</option><option value="maiden">Maiden name</option><option value="previous_married">Previous married</option><option value="other">Other</option>
+            </select>
+            <button onClick={() => { const a = (d.aliases||[]).filter((_:any,idx:number)=>idx!==i); updateField('personal','aliases',a); }} className="text-red-600 text-xs px-2 py-2 hover:bg-red-50 rounded">✕</button>
+          </div>
+        ))}
+        <button onClick={() => updateField('personal','aliases',[...(d.aliases||[]),{firstName:'',lastName:'',type:''}])} className="text-sm bg-gray-200 px-3 py-1.5 rounded hover:bg-gray-300">+ Add other name</button>
+      </div>
     </div>
   );
 }
 
 function AddressSection({ formData, updateField }: { formData: any; updateField: any }) {
   const a = formData.address || {};
+  const prevAddresses = a.previousAddresses || [];
   const [lookupResults, setLookupResults] = useState<any[]>([]);
 
   const lookupPostcode = async () => {
     if (!a.postcode) return;
-    // Simulate postcode lookup
     setLookupResults([
       { line1: '1 Sample Street', city: 'Edinburgh' },
       { line1: '2 Sample Street', city: 'Edinburgh' },
@@ -323,8 +348,18 @@ function AddressSection({ formData, updateField }: { formData: any; updateField:
     ]);
   };
 
+  const addPreviousAddress = () => updateField('address', 'previousAddresses', [...prevAddresses, { line1: '', city: '', postcode: '', dateFrom: '', dateTo: '' }]);
+  const updatePrevAddr = (i: number, field: string, value: string) => {
+    const updated = [...prevAddresses]; updated[i] = { ...updated[i], [field]: value }; updateField('address', 'previousAddresses', updated);
+  };
+  const removePrevAddr = (i: number) => updateField('address', 'previousAddresses', prevAddresses.filter((_: any, idx: number) => idx !== i));
+
   return (
     <div className="space-y-4">
+      <div className="bg-blue-50 border border-blue-200 rounded p-3 mb-4">
+        <p className="text-sm"><strong>5-Year Address History Required:</strong> Please provide all addresses you have lived at during the last 5 years. This is needed for credit checks and cross-system verification.</p>
+      </div>
+
       <h3 className="font-bold">Current Address</h3>
       <div className="flex gap-2 items-end">
         <div className="flex-1">
@@ -349,6 +384,29 @@ function AddressSection({ formData, updateField }: { formData: any; updateField:
         <Input label="City *" value={a.city} onChange={v => updateField('address', 'city', v)} />
         <Input label="County" value={a.county} onChange={v => updateField('address', 'county', v)} />
       </div>
+      <Input label="Resident since *" type="date" value={a.residentSince} onChange={v => updateField('address', 'residentSince', v)} />
+
+      {/* Previous Addresses */}
+      <div className="mt-6 pt-4 border-t border-gray-200">
+        <h3 className="font-bold mb-2">Previous Addresses (last 5 years)</h3>
+        {prevAddresses.length === 0 && <p className="text-sm text-gray-500 mb-3">No previous addresses added. If you have lived at your current address for less than 5 years, please add your previous address(es).</p>}
+        {prevAddresses.map((prev: any, i: number) => (
+          <div key={i} className="border border-gray-300 rounded p-4 mb-3 relative">
+            <button onClick={() => removePrevAddr(i)} className="absolute top-2 right-2 text-red-600 text-xs hover:underline">Remove</button>
+            <p className="font-bold text-sm mb-2">Previous Address {i + 1}</p>
+            <div className="grid md:grid-cols-2 gap-3">
+              <Input label="Address line 1" value={prev.line1} onChange={v => updatePrevAddr(i, 'line1', v)} />
+              <Input label="City" value={prev.city} onChange={v => updatePrevAddr(i, 'city', v)} />
+              <Input label="Postcode" value={prev.postcode} onChange={v => updatePrevAddr(i, 'postcode', v)} />
+              <div></div>
+              <Input label="Date from" type="date" value={prev.dateFrom} onChange={v => updatePrevAddr(i, 'dateFrom', v)} />
+              <Input label="Date to" type="date" value={prev.dateTo} onChange={v => updatePrevAddr(i, 'dateTo', v)} />
+            </div>
+          </div>
+        ))}
+        <button onClick={addPreviousAddress} className="text-sm bg-gray-200 px-3 py-1.5 rounded hover:bg-gray-300">+ Add previous address</button>
+      </div>
+
       <h3 className="font-bold mt-6">Contact Details</h3>
       <div className="grid md:grid-cols-2 gap-4">
         <Input label="Email address *" type="email" value={a.email} onChange={v => updateField('address', 'email', v)} error={a.email && !a.email.includes('@') ? 'Invalid email' : undefined} />
@@ -434,6 +492,125 @@ function IncomeSection({ formData, updateField }: { formData: any; updateField: 
           Disposable income: £{(totalIncome - totalExp).toLocaleString()}/month
         </p>
       </div>
+    </div>
+  );
+}
+
+function AssetsSection({ formData, updateField }: { formData: any; updateField: any }) {
+  const assets = formData.assets || {};
+  const properties = assets.properties || [];
+  const vehicles = assets.vehicles || [];
+  const savings = assets.savings || [];
+  const otherAssets = assets.other || [];
+
+  const totalValue = [...properties, ...vehicles, ...savings, ...otherAssets].reduce((s: number, a: any) => s + (parseFloat(a.value) || 0), 0);
+
+  const addItem = (category: string, item: any) => updateField('assets', category, [...(assets[category] || []), item]);
+  const updateItem = (category: string, i: number, field: string, value: any) => {
+    const items = [...(assets[category] || [])]; items[i] = { ...items[i], [field]: value }; updateField('assets', category, items);
+  };
+  const removeItem = (category: string, i: number) => updateField('assets', category, (assets[category] || []).filter((_: any, idx: number) => idx !== i));
+
+  return (
+    <div className="space-y-4">
+      <p className="text-sm text-gray-600">Declare all assets you own or have an interest in. This is essential for determining which debt solution is most appropriate.</p>
+
+      {assets.noAssets ? (
+        <div className="bg-green-50 border border-green-200 rounded p-4">
+          <p className="font-bold text-green-800">✓ No assets declared</p>
+          <button onClick={() => updateField('assets', 'noAssets', false)} className="text-sm text-blue-700 underline mt-2">I do have assets to declare</button>
+        </div>
+      ) : (
+        <>
+          {totalValue > 0 && (
+            <div className="bg-blue-50 border-l-4 border-blue-600 p-3">
+              <p className="font-bold">Total declared asset value: £{totalValue.toLocaleString()}</p>
+            </div>
+          )}
+
+          {/* Property */}
+          <div className="border border-gray-200 rounded p-4">
+            <h4 className="font-bold text-sm mb-2">🏠 Property</h4>
+            {properties.map((p: any, i: number) => (
+              <div key={i} className="grid md:grid-cols-2 gap-3 mb-3 pb-3 border-b border-gray-100">
+                <Input label="Property address" value={p.address} onChange={v => updateItem('properties', i, 'address', v)} />
+                <Input label="Estimated value (£)" type="number" value={p.value} onChange={v => updateItem('properties', i, 'value', v)} />
+                <Input label="Outstanding mortgage (£)" type="number" value={p.mortgage} onChange={v => updateItem('properties', i, 'mortgage', v)} />
+                <div><label className="block font-bold mb-1 text-sm">Ownership</label>
+                  <select value={p.ownership||''} onChange={e => updateItem('properties', i, 'ownership', e.target.value)} className="border-2 border-gray-900 p-2 w-full text-sm">
+                    <option value="">Select</option><option value="sole">Sole owner</option><option value="joint">Joint owner</option><option value="rented">Rented (not owned)</option>
+                  </select>
+                </div>
+                <button onClick={() => removeItem('properties', i)} className="text-red-600 text-xs self-end">Remove</button>
+              </div>
+            ))}
+            <button onClick={() => addItem('properties', { address: '', value: '', mortgage: '', ownership: '' })} className="text-sm bg-gray-100 px-3 py-1.5 rounded hover:bg-gray-200">+ Add property</button>
+          </div>
+
+          {/* Vehicles */}
+          <div className="border border-gray-200 rounded p-4">
+            <h4 className="font-bold text-sm mb-2">🚗 Vehicles</h4>
+            {vehicles.map((v: any, i: number) => (
+              <div key={i} className="grid md:grid-cols-2 gap-3 mb-3 pb-3 border-b border-gray-100">
+                <Input label="Description" value={v.description} onChange={val => updateItem('vehicles', i, 'description', val)} hint="e.g. 2018 Ford Focus" />
+                <Input label="Estimated value (£)" type="number" value={v.value} onChange={val => updateItem('vehicles', i, 'value', val)} />
+                <Input label="Finance outstanding (£)" type="number" value={v.finance} onChange={val => updateItem('vehicles', i, 'finance', val)} />
+                <div><label className="block font-bold mb-1 text-sm">Essential for work?</label>
+                  <select value={v.essential||''} onChange={e => updateItem('vehicles', i, 'essential', e.target.value)} className="border-2 border-gray-900 p-2 w-full text-sm">
+                    <option value="">Select</option><option value="yes">Yes — needed for employment</option><option value="no">No</option>
+                  </select>
+                </div>
+                <button onClick={() => removeItem('vehicles', i)} className="text-red-600 text-xs self-end">Remove</button>
+              </div>
+            ))}
+            <button onClick={() => addItem('vehicles', { description: '', value: '', finance: '', essential: '' })} className="text-sm bg-gray-100 px-3 py-1.5 rounded hover:bg-gray-200">+ Add vehicle</button>
+          </div>
+
+          {/* Savings & Investments */}
+          <div className="border border-gray-200 rounded p-4">
+            <h4 className="font-bold text-sm mb-2">💰 Savings & Investments</h4>
+            {savings.map((s: any, i: number) => (
+              <div key={i} className="grid md:grid-cols-3 gap-3 mb-2">
+                <div><label className="block font-bold mb-1 text-sm">Type</label>
+                  <select value={s.type||''} onChange={e => updateItem('savings', i, 'type', e.target.value)} className="border-2 border-gray-900 p-2 w-full text-sm">
+                    <option value="">Select</option><option value="bank_savings">Bank savings</option><option value="isa">ISA</option><option value="stocks">Stocks/shares</option><option value="pension_pot">Pension pot</option><option value="crypto">Cryptocurrency</option><option value="other">Other</option>
+                  </select>
+                </div>
+                <Input label="Provider" value={s.provider} onChange={val => updateItem('savings', i, 'provider', val)} />
+                <div className="flex gap-2 items-end">
+                  <div className="flex-1"><Input label="Balance (£)" type="number" value={s.value} onChange={val => updateItem('savings', i, 'value', val)} /></div>
+                  <button onClick={() => removeItem('savings', i)} className="text-red-600 text-xs pb-2">✕</button>
+                </div>
+              </div>
+            ))}
+            <button onClick={() => addItem('savings', { type: '', provider: '', value: '' })} className="text-sm bg-gray-100 px-3 py-1.5 rounded hover:bg-gray-200">+ Add savings/investment</button>
+          </div>
+
+          {/* Other Assets */}
+          <div className="border border-gray-200 rounded p-4">
+            <h4 className="font-bold text-sm mb-2">📦 Other Assets</h4>
+            <p className="text-xs text-gray-500 mb-2">Include valuables, collections, equipment, business assets, etc.</p>
+            {otherAssets.map((o: any, i: number) => (
+              <div key={i} className="grid md:grid-cols-3 gap-3 mb-2">
+                <div className="md:col-span-2"><Input label="Description" value={o.description} onChange={val => updateItem('other', i, 'description', val)} /></div>
+                <div className="flex gap-2 items-end">
+                  <div className="flex-1"><Input label="Value (£)" type="number" value={o.value} onChange={val => updateItem('other', i, 'value', val)} /></div>
+                  <button onClick={() => removeItem('other', i)} className="text-red-600 text-xs pb-2">✕</button>
+                </div>
+              </div>
+            ))}
+            <button onClick={() => addItem('other', { description: '', value: '' })} className="text-sm bg-gray-100 px-3 py-1.5 rounded hover:bg-gray-200">+ Add other asset</button>
+          </div>
+
+          {/* No assets option */}
+          <div className="border-t pt-4">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" checked={!!assets.noAssets} onChange={e => updateField('assets', 'noAssets', e.target.checked)} />
+              <span className="text-sm">I confirm I have no assets to declare</span>
+            </label>
+          </div>
+        </>
+      )}
     </div>
   );
 }
