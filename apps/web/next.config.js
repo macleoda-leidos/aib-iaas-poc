@@ -1,12 +1,14 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: process.env.NEXT_OUTPUT === 'export' ? 'export' : 'standalone',
+  output: 'standalone',
   reactStrictMode: true,
   transpilePackages: ['@aib-iaas/ui-components', '@aib-iaas/shared-types', '@aib-iaas/validation'],
-  // Skip type checking during build (handled by CI test step)
   typescript: { ignoreBuildErrors: true },
-  // Skip eslint during build
   eslint: { ignoreDuringBuilds: true },
+  // Prevent build failure on prerender errors (React 19 compat with default error pages)
+  experimental: {
+    missingSuspenseWithCSRBailout: false,
+  },
 };
 
 module.exports = nextConfig;

@@ -1,3 +1,8 @@
+// Set env BEFORE importing app (latency middleware reads at module level)
+process.env.MOCK_LATENCY_MIN_MS = '0';
+process.env.MOCK_LATENCY_MAX_MS = '1';
+process.env.MOCK_FAILURE_RATE = '0';
+
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { app } from '../index';
 import http from 'http';
@@ -22,11 +27,6 @@ function request(method: string, path: string, body?: any): Promise<{ status: nu
 
 describe('Mock Integrations - HTTP Endpoints', () => {
   beforeAll(async () => {
-    // Override latency/failure for tests
-    process.env.MOCK_LATENCY_MIN_MS = '0';
-    process.env.MOCK_LATENCY_MAX_MS = '10';
-    process.env.MOCK_FAILURE_RATE = '0';
-
     await new Promise<void>((resolve) => {
       server = app.listen(0, () => {
         const addr = server.address() as any;
