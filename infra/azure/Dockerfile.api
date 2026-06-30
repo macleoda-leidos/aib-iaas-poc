@@ -1,12 +1,12 @@
 # AiB IAAS - Consolidated API Container
 # Runs all 11 backend services in a single Express process
-# Optimised for Azure Container Apps free tier
 
 FROM node:20-alpine AS base
 WORKDIR /app
 
-# Install dependencies
+# Install dependencies (including native build tools for better-sqlite3)
 FROM base AS deps
+RUN apk add --no-cache python3 make g++
 WORKDIR /app
 COPY services/consolidated-api/package.json ./package.json
 RUN npm install --omit=dev
@@ -16,19 +16,18 @@ FROM base AS runner
 ENV NODE_ENV=production
 RUN apk add --no-cache tini && mkdir -p /data/uploads
 
-# Copy installed node_modules
+# Copy node_modules (includes compiled native modules)
 COPY --from=deps /app/node_modules ./node_modules
 
-# Copy all service source code
+# Copy all service source code and packages
 COPY services/ ./services/
 COPY packages/ ./packages/
 
-# Install tsx globally for running TypeScript
+# Install tsx globally
 RUN npm install -g tsx
 
 WORKDIR /app/services/consolidated-api
 EXPOSE 3001
 
-# Use tini for proper signal handling
 ENTRYPOINT ["/sbin/tini", "--"]
 CMD ["tsx", "src/index.ts"]
