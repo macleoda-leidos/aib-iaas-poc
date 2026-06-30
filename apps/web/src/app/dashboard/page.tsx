@@ -96,8 +96,8 @@ function AibDashboard({ user }: { user: any }) {
           <div className="space-y-2">
             <ActionButton label="Run Integration Health Check" icon="🔍" />
             <ActionButton label="View Audit Log" icon="📋" />
-            <ActionButton label="Generate Weekly Report" icon="📊" />
-            <ActionButton label="Manage Users" icon="👥" />
+            <ActionButton label="Generate Weekly Report" icon="📊" onClick={() => window.open((process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001') + '/api/reports/export/weekly-report', '_blank')} />
+            <ActionButton label="Manage Users (500)" icon="👥" onClick={() => window.open('http://localhost:3010/users', '_blank')} />
           </div>
         </div>
         <div className="bg-white border border-gray-200 rounded p-4">
