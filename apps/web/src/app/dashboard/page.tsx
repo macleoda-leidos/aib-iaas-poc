@@ -45,6 +45,15 @@ export default function DashboardPage() {
 }
 
 function AibDashboard({ user }: { user: any }) {
+  const [selectedApp, setSelectedApp] = useState<any>(null);
+
+  const apps = [
+    { ref: 'IAAS-2026-00012', name: 'A. Morrison', product: 'DAS', status: 'Submitted', date: '28 Jun', debt: 18400, score: 620, result: 'PASS' },
+    { ref: 'IAAS-2026-00011', name: 'B. Campbell', product: 'MAP', status: 'Under Review', date: '27 Jun', debt: 9200, score: 340, result: 'FAIL' },
+    { ref: 'IAAS-2026-00010', name: 'C. Stewart', product: 'PTD', status: 'Awaiting Info', date: '26 Jun', debt: 23100, score: 510, result: 'PASS' },
+    { ref: 'IAAS-2026-00009', name: 'D. Murray', product: 'Sequestration', status: 'Submitted', date: '25 Jun', debt: 6800, score: 280, result: 'FAIL' },
+  ];
+
   return (
     <div>
       <h1>AiB Dashboard</h1>
@@ -62,25 +71,21 @@ function AibDashboard({ user }: { user: any }) {
       <div className="bg-white border border-gray-200 rounded mb-6">
         <div className="p-4 border-b border-gray-200 flex justify-between items-center">
           <h2 className="text-lg font-bold">Applications Requiring Action</h2>
-          <a href="/admin" className="text-gov-blue text-sm underline">View all →</a>
+          <a href="http://localhost:3010" target="_blank" className="text-gov-blue text-sm underline">View all →</a>
         </div>
         <table className="w-full">
           <thead className="bg-gray-50"><tr>
             <th className="text-left p-3 text-sm">Reference</th><th className="text-left p-3 text-sm">Applicant</th>
-            <th className="text-left p-3 text-sm">Product</th><th className="text-left p-3 text-sm">Status</th>
-            <th className="text-left p-3 text-sm">Submitted</th>
+            <th className="text-left p-3 text-sm">Product</th><th className="text-left p-3 text-sm">Credit</th>
+            <th className="text-left p-3 text-sm">Status</th><th className="text-left p-3 text-sm">Submitted</th>
           </tr></thead>
           <tbody>
-            {[
-              { ref: 'IAAS-2024-00012', name: 'A. Morrison', product: 'DAS', status: 'Submitted', date: '28 Jun' },
-              { ref: 'IAAS-2024-00011', name: 'B. Campbell', product: 'MAP', status: 'Under Review', date: '27 Jun' },
-              { ref: 'IAAS-2024-00010', name: 'C. Stewart', product: 'PTD', status: 'Awaiting Info', date: '26 Jun' },
-              { ref: 'IAAS-2024-00009', name: 'D. Murray', product: 'Sequestration', status: 'Submitted', date: '25 Jun' },
-            ].map(app => (
-              <tr key={app.ref} className="border-b border-gray-100 hover:bg-gray-50">
+            {apps.map(app => (
+              <tr key={app.ref} onClick={() => setSelectedApp(selectedApp?.ref === app.ref ? null : app)} className="border-b border-gray-100 hover:bg-blue-50 cursor-pointer">
                 <td className="p-3 text-sm font-mono">{app.ref}</td>
                 <td className="p-3 text-sm">{app.name}</td>
                 <td className="p-3 text-sm">{app.product}</td>
+                <td className="p-3"><span className={`text-xs font-bold px-2 py-0.5 rounded ${app.result === 'PASS' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>{app.result}</span></td>
                 <td className="p-3"><StatusBadge status={app.status} /></td>
                 <td className="p-3 text-sm text-gray-600">{app.date}</td>
               </tr>
@@ -88,6 +93,43 @@ function AibDashboard({ user }: { user: any }) {
           </tbody>
         </table>
       </div>
+
+      {/* Credit Check Detail Panel */}
+      {selectedApp && (
+        <div className="bg-white border border-gray-200 rounded mb-6 overflow-hidden">
+          <div className={`p-4 flex justify-between items-center ${selectedApp.result === 'PASS' ? 'bg-green-700' : 'bg-red-700'} text-white`}>
+            <div>
+              <h3 className="font-bold text-white">{selectedApp.ref} — Credit Check: {selectedApp.result}</h3>
+              <p className="text-sm opacity-80">{selectedApp.name} | {selectedApp.product} | Total debt: £{selectedApp.debt.toLocaleString()}</p>
+            </div>
+            <button onClick={() => setSelectedApp(null)} className="text-white/70 hover:text-white text-sm">✕ Close</button>
+          </div>
+          <div className="p-6">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+              <div className="text-center p-3 bg-gray-50 rounded">
+                <p className={`text-2xl font-bold ${selectedApp.score >= 500 ? 'text-green-700' : selectedApp.score >= 350 ? 'text-amber-600' : 'text-red-700'}`}>{selectedApp.score}</p>
+                <p className="text-xs text-gray-500">Score (0-999)</p>
+              </div>
+              <div className="text-center p-3 bg-gray-50 rounded"><p className="text-2xl font-bold">{selectedApp.score >= 700 ? 'Good' : selectedApp.score >= 500 ? 'Fair' : selectedApp.score >= 350 ? 'Poor' : 'Very Poor'}</p><p className="text-xs text-gray-500">Band</p></div>
+              <div className="text-center p-3 bg-gray-50 rounded"><p className="text-2xl font-bold">{selectedApp.score < 400 ? '2' : '0'}</p><p className="text-xs text-gray-500">Defaults</p></div>
+              <div className="text-center p-3 bg-gray-50 rounded"><p className="text-2xl font-bold">{selectedApp.score < 350 ? '1' : '0'}</p><p className="text-xs text-gray-500">CCJs</p></div>
+            </div>
+            <div className={`p-4 rounded border ${selectedApp.result === 'PASS' ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
+              <p className="font-bold text-sm">{selectedApp.result === 'PASS' ? '✓ Credit check PASSED' : '✗ Credit check FAILED'}</p>
+              <p className="text-xs mt-1">{selectedApp.result === 'PASS'
+                ? 'Score meets minimum threshold. No bankruptcy flags. Applicant eligible to proceed with recommended product.'
+                : 'Score below threshold and/or adverse records found. Manual review required. Consider alternative products or request additional evidence.'}</p>
+            </div>
+            <div className="mt-4 flex gap-2">
+              <button className="bg-green-700 text-white text-xs font-bold px-3 py-2 rounded hover:bg-green-800">✓ Approve Application</button>
+              <button className="bg-red-700 text-white text-xs font-bold px-3 py-2 rounded hover:bg-red-800">✗ Reject</button>
+              <button className="bg-orange-500 text-white text-xs font-bold px-3 py-2 rounded hover:bg-orange-600">⚠ Request More Info</button>
+              <button className="bg-gray-200 text-gray-800 text-xs font-bold px-3 py-2 rounded hover:bg-gray-300">📋 View Full Report</button>
+            </div>
+            <p className="text-xs text-gray-400 mt-3 italic">Provider: SyntheticCredit Ltd (PLACEHOLDER) | Checked: {selectedApp.date} 2026</p>
+          </div>
+        </div>
+      )}
 
       {/* Quick Actions & Reports */}
       <div className="grid md:grid-cols-2 gap-6">
