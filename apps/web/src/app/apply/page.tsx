@@ -196,8 +196,81 @@ export default function ApplyPage() {
 
 function PersonalSection({ formData, updateField }: { formData: any; updateField: any }) {
   const d = formData.personal || {};
+  const [verifying, setVerifying] = useState(false);
+  const [verified, setVerified] = useState<string | null>(d.verifiedVia || null);
+
+  const startVerification = (provider: string) => {
+    setVerifying(true);
+    setTimeout(() => {
+      // Simulate verified identity returned from ScotAccount/GOV.UK
+      updateField('personal', 'title', 'Mr');
+      updateField('personal', 'firstName', 'John');
+      updateField('personal', 'lastName', 'Testerton');
+      updateField('personal', 'dateOfBirth', '1985-03-15');
+      updateField('personal', 'nationalInsuranceNumber', 'AB123456C');
+      updateField('personal', 'maritalStatus', 'married');
+      updateField('personal', 'employmentStatus', 'employed');
+      updateField('personal', 'verifiedVia', provider);
+      setVerified(provider);
+      setVerifying(false);
+    }, 2000);
+  };
+
   return (
     <div className="space-y-4">
+      {/* Identity Verification Panel */}
+      <div className="border-2 border-blue-200 rounded-lg p-4 bg-blue-50 mb-6">
+        <h3 className="font-bold text-sm mb-2">🔐 Verify Your Identity</h3>
+        <p className="text-xs text-gray-600 mb-3">Verify your identity using a government service to pre-fill your details securely. This provides a higher assurance level for your application.</p>
+
+        {!verified && !verifying && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <button onClick={() => startVerification('scotaccount')} className="p-3 border-2 border-blue-300 rounded bg-white hover:border-blue-600 hover:bg-blue-50 text-left transition-all">
+              <p className="font-bold text-sm">🏴󠁧󠁢󠁳󠁣󠁴󠁿 ScotAccount</p>
+              <p className="text-xs text-gray-500">Scottish Government ID</p>
+              <p className="text-xs text-blue-600 mt-1">LOA2 — Medium confidence</p>
+            </button>
+            <button onClick={() => startVerification('govuk')} className="p-3 border-2 border-blue-300 rounded bg-white hover:border-blue-600 hover:bg-blue-50 text-left transition-all">
+              <p className="font-bold text-sm">🇬🇧 GOV.UK One Login</p>
+              <p className="text-xs text-gray-500">UK Government ID</p>
+              <p className="text-xs text-blue-600 mt-1">LOA2 — Medium confidence</p>
+            </button>
+            <button onClick={() => setVerified('manual')} className="p-3 border-2 border-gray-300 rounded bg-white hover:border-gray-500 text-left transition-all">
+              <p className="font-bold text-sm">✏️ Manual Entry</p>
+              <p className="text-xs text-gray-500">Enter details yourself</p>
+              <p className="text-xs text-gray-400 mt-1">LOA1 — Basic</p>
+            </button>
+          </div>
+        )}
+
+        {verifying && (
+          <div className="flex items-center gap-3 p-4 bg-white rounded border">
+            <div className="animate-spin w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full"></div>
+            <div>
+              <p className="text-sm font-bold">Redirecting to identity provider...</p>
+              <p className="text-xs text-gray-500">You would normally be redirected to sign in. Simulating verification...</p>
+            </div>
+          </div>
+        )}
+
+        {verified && verified !== 'manual' && (
+          <div className="flex items-center gap-3 p-3 bg-green-50 border border-green-200 rounded">
+            <span className="text-xl">✅</span>
+            <div>
+              <p className="text-sm font-bold text-green-800">Identity Verified via {verified === 'scotaccount' ? 'ScotAccount' : 'GOV.UK One Login'}</p>
+              <p className="text-xs text-green-600">Assurance Level: LOA2 (Medium confidence) — Details pre-filled from verified source</p>
+            </div>
+          </div>
+        )}
+
+        {verified === 'manual' && (
+          <div className="flex items-center gap-2 p-2 bg-gray-100 border border-gray-200 rounded">
+            <span>✏️</span>
+            <p className="text-xs text-gray-600">Manual entry — LOA1 (Basic). Additional document verification may be required.</p>
+          </div>
+        )}
+      </div>
+
       <div className="grid md:grid-cols-2 gap-4">
         <div>
           <label className="block font-bold mb-1 text-sm">Title</label>
