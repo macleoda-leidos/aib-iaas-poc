@@ -39,8 +39,27 @@ const WORK_QUEUE = [
   { id: 15, system: 'IAAS', ref: 'IAAS-2024-00009', task: 'Application approved — notify debtor', priority: 'low', assignee: 'System', due: '1 Jul', status: 'Pending' },
 ];
 
+// Debtor-specific items (they only see their own case updates)
+const DEBTOR_QUEUE = [
+  { id: 101, system: 'IAAS', ref: 'IAAS-2024-00001', task: 'Your application was submitted', priority: 'low', assignee: 'You', due: '15 Mar', status: 'Complete' },
+  { id: 102, system: 'IAAS', ref: 'IAAS-2024-00001', task: 'System checks completed — no issues found', priority: 'low', assignee: 'System', due: '15 Mar', status: 'Complete' },
+  { id: 103, system: 'IAAS', ref: 'IAAS-2024-00001', task: 'Credit check completed', priority: 'low', assignee: 'System', due: '15 Mar', status: 'Complete' },
+  { id: 104, system: 'IAAS', ref: 'IAAS-2024-00001', task: 'Recommendation issued: Debt Arrangement Scheme', priority: 'medium', assignee: 'System', due: '16 Mar', status: 'Complete' },
+  { id: 105, system: 'IAAS', ref: 'IAAS-2024-00001', task: 'Action required: Accept or review recommendation', priority: 'high', assignee: 'You', due: '5 Jul', status: 'Pending' },
+];
+
+// Role-based portal configuration
+const ROLE_CONFIG: Record<string, { visibleSystems: string[]; queueTitle: string; showSystemTiles: boolean; filterQueue: (q: typeof WORK_QUEUE) => typeof WORK_QUEUE }> = {
+  'AiB Senior Officer': { visibleSystems: ['BASYS', 'ASTRA', 'eDEN', 'CFT', 'RoI', 'IAAS'], queueTitle: 'Unified Work Queue', showSystemTiles: true, filterQueue: q => q },
+  'AiB Case Officer': { visibleSystems: ['BASYS', 'ASTRA', 'eDEN', 'CFT', 'RoI', 'IAAS'], queueTitle: 'My Work Queue', showSystemTiles: true, filterQueue: q => q.filter(i => i.assignee === 'James Wilson' || i.assignee === 'Unassigned' || i.assignee === 'System') },
+  'Money Adviser': { visibleSystems: ['eDEN', 'IAAS'], queueTitle: 'My Client Cases', showSystemTiles: true, filterQueue: q => q.filter(i => ['IAAS', 'eDEN', 'DAS'].includes(i.system) && (i.assignee === 'Fiona Campbell' || i.assignee === 'Unassigned')) },
+  'Creditor': { visibleSystems: ['CFT', 'IAAS'], queueTitle: 'Cases Involving Your Organisation', showSystemTiles: true, filterQueue: q => q.filter(i => ['CFT', 'IAAS'].includes(i.system)) },
+  'Trustee': { visibleSystems: ['BASYS', 'CFT', 'IAAS'], queueTitle: 'Cases Under Management', showSystemTiles: true, filterQueue: q => q.filter(i => ['BASYS', 'CFT'].includes(i.system) || i.assignee === 'Robert Henderson') },
+  'Debtor': { visibleSystems: ['IAAS'], queueTitle: 'My Application Updates', showSystemTiles: false, filterQueue: () => DEBTOR_QUEUE },
+};
+
 const PRIORITY_COLOURS: Record<string, string> = { high: 'bg-red-100 text-red-800', medium: 'bg-amber-100 text-amber-800', low: 'bg-green-100 text-green-800' };
-const STATUS_COLOURS: Record<string, string> = { New: 'bg-blue-100 text-blue-800', Overdue: 'bg-red-100 text-red-800', Pending: 'bg-amber-100 text-amber-800', 'In Progress': 'bg-purple-100 text-purple-800', 'Not Started': 'bg-gray-200 text-gray-700' };
+const STATUS_COLOURS: Record<string, string> = { New: 'bg-blue-100 text-blue-800', Overdue: 'bg-red-100 text-red-800', Pending: 'bg-amber-100 text-amber-800', 'In Progress': 'bg-purple-100 text-purple-800', 'Not Started': 'bg-gray-200 text-gray-700', Complete: 'bg-green-100 text-green-800' };
 
 export default function PortalPage() {
   return (
@@ -58,7 +77,11 @@ function PortalContent() {
   const [systemFilter, setSystemFilter] = useState<string>('all');
   const [showSession, setShowSession] = useState(false);
 
-  const filteredQueue = systemFilter === 'all' ? WORK_QUEUE : WORK_QUEUE.filter(t => t.system === systemFilter);
+  // Role-based filtering
+  const roleConfig = ROLE_CONFIG[user.role] || ROLE_CONFIG['Debtor'];
+  const visibleSystems = SYSTEMS.filter(s => roleConfig.visibleSystems.includes(s.id));
+  const roleQueue = roleConfig.filterQueue(WORK_QUEUE);
+  const filteredQueue = systemFilter === 'all' ? roleQueue : roleQueue.filter(t => t.system === systemFilter);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -124,36 +147,42 @@ function PortalContent() {
           </div>
         )}
 
-        {/* System Tiles */}
-        <h2 className="text-lg font-bold mb-4">Connected Systems</h2>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-8">
-          {SYSTEMS.map(sys => (
-            <button key={sys.id} onClick={() => setSystemFilter(systemFilter === sys.id ? 'all' : sys.id)}
-              className={`p-4 bg-white rounded-lg border-2 text-center transition-all hover:shadow-md ${systemFilter === sys.id ? `${sys.colour} shadow-md` : 'border-gray-200 hover:border-gray-400'}`}>
-              <div className="text-2xl mb-1">{sys.icon}</div>
-              <p className="text-xs font-bold">{sys.id}</p>
-              <p className="text-xs text-gray-500 truncate">{sys.name}</p>
-              <div className="mt-2 flex items-center justify-center gap-1">
-                <span className="w-2 h-2 rounded-full bg-green-500"></span>
-                <span className="text-xs font-bold text-gray-700">{sys.tasks}</span>
-              </div>
-            </button>
-          ))}
-        </div>
+        {/* System Tiles — only show for roles with multi-system access */}
+        {roleConfig.showSystemTiles && (
+          <>
+            <h2 className="text-lg font-bold mb-4">Connected Systems</h2>
+            <div className={`grid grid-cols-2 md:grid-cols-3 ${visibleSystems.length >= 6 ? 'lg:grid-cols-6' : `lg:grid-cols-${visibleSystems.length}`} gap-3 mb-8`}>
+              {visibleSystems.map(sys => (
+                <button key={sys.id} onClick={() => setSystemFilter(systemFilter === sys.id ? 'all' : sys.id)}
+                  className={`p-4 bg-white rounded-lg border-2 text-center transition-all hover:shadow-md ${systemFilter === sys.id ? `${sys.colour} shadow-md` : 'border-gray-200 hover:border-gray-400'}`}>
+                  <div className="text-2xl mb-1">{sys.icon}</div>
+                  <p className="text-xs font-bold">{sys.id}</p>
+                  <p className="text-xs text-gray-500 truncate">{sys.name}</p>
+                  <div className="mt-2 flex items-center justify-center gap-1">
+                    <span className="w-2 h-2 rounded-full bg-green-500"></span>
+                    <span className="text-xs font-bold text-gray-700">{sys.tasks}</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </>
+        )}
 
-        {/* Unified Work Queue */}
+        {/* Work Queue — title and filter based on role */}
         <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
           <div className="p-4 border-b flex items-center justify-between">
             <div>
-              <h2 className="font-bold">Unified Work Queue</h2>
-              <p className="text-xs text-gray-500">{filteredQueue.length} items {systemFilter !== 'all' ? `from ${systemFilter}` : 'across all systems'}</p>
+              <h2 className="font-bold">{roleConfig.queueTitle}</h2>
+              <p className="text-xs text-gray-500">{filteredQueue.length} items {systemFilter !== 'all' ? `from ${systemFilter}` : ''}</p>
             </div>
+            {visibleSystems.length > 1 && (
             <div className="flex gap-2">
               <button onClick={() => setSystemFilter('all')} className={`text-xs px-2 py-1 rounded ${systemFilter === 'all' ? 'bg-blue-100 text-blue-800 font-bold' : 'bg-gray-100'}`}>All</button>
-              {SYSTEMS.map(s => (
+              {visibleSystems.map(s => (
                 <button key={s.id} onClick={() => setSystemFilter(s.id)} className={`text-xs px-2 py-1 rounded ${systemFilter === s.id ? 'bg-blue-100 text-blue-800 font-bold' : 'bg-gray-100 hover:bg-gray-200'}`}>{s.id}</button>
               ))}
             </div>
+            )}
           </div>
           <table className="w-full">
             <thead className="bg-gray-50 text-xs"><tr>
