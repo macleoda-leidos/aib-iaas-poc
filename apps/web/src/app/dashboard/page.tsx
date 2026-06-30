@@ -4,6 +4,7 @@ import { useState } from 'react';
 
 // Role selection for POC demo purposes
 const DEMO_USERS = [
+  { id: 'USR-001', name: 'Admin User', role: 'system_admin', roleDisplay: 'System Admin', org: 'Accountant in Bankruptcy' },
   { id: 'USR-002', name: 'Karen MacLeod', role: 'aib_senior_officer', roleDisplay: 'AiB Senior Officer', org: 'Accountant in Bankruptcy' },
   { id: 'USR-003', name: 'James Wilson', role: 'aib_officer', roleDisplay: 'AiB Case Officer', org: 'AiB - Case Administration' },
   { id: 'USR-005', name: 'Fiona Campbell', role: 'money_adviser', roleDisplay: 'Money Adviser', org: 'CAS - Edinburgh Bureau' },
@@ -35,7 +36,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Render appropriate dashboard */}
-      {selectedUser.role.startsWith('aib') && <AibDashboard user={selectedUser} />}
+      {(selectedUser.role.startsWith('aib') || selectedUser.role === 'system_admin') && <AibDashboard user={selectedUser} />}
       {selectedUser.role === 'money_adviser' && <AdviserDashboard user={selectedUser} />}
       {selectedUser.role === 'creditor' && <CreditorDashboard user={selectedUser} />}
       {selectedUser.role === 'supplier' && <SupplierDashboard user={selectedUser} />}
@@ -46,6 +47,8 @@ export default function DashboardPage() {
 
 function AibDashboard({ user }: { user: any }) {
   const [selectedApp, setSelectedApp] = useState<any>(null);
+  const [activePanel, setActivePanel] = useState<'none' | 'report' | 'users'>('none');
+  const isAdmin = user.role === 'system_admin' || user.role === 'aib_senior_officer';
 
   const apps = [
     { ref: 'IAAS-2026-00012', name: 'A. Morrison', product: 'DAS', status: 'Submitted', date: '28 Jun', debt: 18400, score: 620, result: 'PASS' },
@@ -138,8 +141,9 @@ function AibDashboard({ user }: { user: any }) {
           <div className="space-y-2">
             <ActionButton label="Run Integration Health Check" icon="🔍" />
             <ActionButton label="View Audit Log" icon="📋" />
-            <ActionButton label="Generate Weekly Report" icon="📊" onClick={() => window.open((process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001') + '/api/reports/export/weekly-report', '_blank')} />
-            <ActionButton label="Manage Users (500)" icon="👥" onClick={() => window.open('http://localhost:3010/users', '_blank')} />
+            {isAdmin && <ActionButton label="Generate Weekly Report" icon="📊" onClick={() => setActivePanel(activePanel === 'report' ? 'none' : 'report')} />}
+            {isAdmin && <ActionButton label="Manage Users (500)" icon="👥" onClick={() => setActivePanel(activePanel === 'users' ? 'none' : 'users')} />}
+            {!isAdmin && <p className="text-xs text-gray-400 italic mt-2">🔒 Report & User management requires System Admin or Senior Officer role</p>}
           </div>
         </div>
         <div className="bg-white border border-gray-200 rounded p-4">
@@ -154,6 +158,88 @@ function AibDashboard({ user }: { user: any }) {
           </div>
         </div>
       </div>
+
+      {/* Admin Panels */}
+      {activePanel !== 'none' && (
+        <div className="mb-6">
+          <div className="flex justify-between items-center mb-3">
+            <h2 className="text-lg font-bold">{activePanel === 'report' ? '📊 Weekly Report' : '👥 User Management (500 users)'}</h2>
+            <button onClick={() => setActivePanel('none')} className="text-sm border border-gray-300 px-2 py-1 rounded">✕ Close</button>
+          </div>
+
+          {activePanel === 'report' && (
+            <div className="bg-white border border-gray-200 rounded p-6">
+              <div className="bg-gray-50 border border-gray-200 rounded p-4 mb-4 font-mono text-xs overflow-auto max-h-64">
+                <p className="font-bold mb-2">AiB IAAS — Weekly Management Report (Preview)</p>
+                <p>Report Period: 23 Jun 2026 to 30 Jun 2026</p>
+                <p className="mt-2 font-bold">EXECUTIVE SUMMARY</p>
+                <table className="w-full mt-1"><tbody>
+                  <tr><td>New Applications</td><td className="text-right">47 (+12%)</td></tr>
+                  <tr><td>Processed</td><td className="text-right">38</td></tr>
+                  <tr><td>Avg Processing Time</td><td className="text-right">52 hrs</td></tr>
+                  <tr><td>SLA Compliance</td><td className="text-right">87%</td></tr>
+                </tbody></table>
+                <p className="mt-2 font-bold">APPLICATIONS BY STATUS</p>
+                <table className="w-full mt-1"><tbody>
+                  <tr><td>Submitted</td><td className="text-right">12</td></tr>
+                  <tr><td>Under Review</td><td className="text-right">15</td></tr>
+                  <tr><td>Recommendation Issued</td><td className="text-right">28</td></tr>
+                  <tr><td>Accepted</td><td className="text-right">72</td></tr>
+                </tbody></table>
+                <p className="mt-2 text-gray-400">... 8 more sections (financial, integrations, staff, creditors, compliance, forecast)</p>
+              </div>
+              <button onClick={() => window.open((process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001') + '/api/reports/export/weekly-report', '_blank')}
+                className="bg-green-700 text-white font-bold py-2 px-4 text-sm rounded hover:bg-green-800">📥 Download Full Report (CSV)</button>
+              <p className="text-xs text-gray-500 mt-2">Requires API service running on port 3001</p>
+            </div>
+          )}
+
+          {activePanel === 'users' && (
+            <div className="bg-white border border-gray-200 rounded p-6">
+              <div className="flex justify-between items-center mb-4">
+                <p className="text-sm text-gray-600">500 users across 19 organisations • 9 role levels</p>
+                <button className="bg-blue-700 text-white text-xs px-3 py-1.5 rounded">+ Add User</button>
+              </div>
+              <div className="overflow-auto max-h-80">
+                <table className="w-full text-xs">
+                  <thead className="bg-gray-50 sticky top-0"><tr>
+                    <th className="text-left p-2">Name</th><th className="text-left p-2">Role</th><th className="text-left p-2">Level</th><th className="text-left p-2">Organisation</th><th className="text-left p-2">Status</th>
+                  </tr></thead>
+                  <tbody>
+                    {Array.from({length: 20}, (_, i) => {
+                      const names = ['A. Morrison','B. Campbell','C. Stewart','D. Murray','E. MacKenzie','F. MacDonald','G. Robertson','H. Douglas','I. Wallace','J. Testerton','K. Thomson','L. Brown','M. Patterson','N. Hamilton','O. Burns','P. Duncan','Q. Fraser','R. Gray','S. Henderson','T. Allan'];
+                      const roles = ['Case Officer','DAS Team','Money Adviser','Senior Officer','Creditor','Read-Only','Trustee','Case Officer','Money Adviser','Debtor','Case Officer','Money Adviser','DAS Team','Creditor','Senior Officer','Case Officer','Money Adviser','Read-Only','Trustee','Case Officer'];
+                      const levels = [80,75,50,90,40,70,45,80,50,10,80,50,75,40,90,80,50,70,45,80];
+                      const orgs = ['AiB Case Admin','AiB DAS Team','CAS Edinburgh','AiB','RBS','AiB Policy','Sample IP','AiB Case Admin','StepChange','—','AiB Case Admin','CAS Glasgow','AiB DAS Team','Barclays','AiB','AiB Case Admin','Highland Debt','AiB Policy','Test Trustees','AiB Case Admin'];
+                      const statuses = i % 10 === 0 ? 'suspended' : 'active';
+                      return (
+                        <tr key={i} className="border-b border-gray-100 hover:bg-gray-50">
+                          <td className="p-2 font-medium">{names[i]}</td>
+                          <td className="p-2">{roles[i]}</td>
+                          <td className="p-2 font-mono text-gray-500">L{levels[i]}</td>
+                          <td className="p-2 text-gray-600">{orgs[i]}</td>
+                          <td className="p-2"><span className={`text-xs font-bold ${statuses === 'active' ? 'text-green-700' : 'text-red-700'}`}>● {statuses}</span></td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <div className="flex justify-between items-center mt-3 pt-3 border-t">
+                <p className="text-xs text-gray-500">Showing 1–20 of 500 users</p>
+                <div className="flex gap-1">
+                  <button className="px-2 py-1 text-xs border rounded bg-blue-600 text-white">1</button>
+                  <button className="px-2 py-1 text-xs border rounded hover:bg-gray-100">2</button>
+                  <button className="px-2 py-1 text-xs border rounded hover:bg-gray-100">3</button>
+                  <button className="px-2 py-1 text-xs border rounded hover:bg-gray-100">...</button>
+                  <button className="px-2 py-1 text-xs border rounded hover:bg-gray-100">25</button>
+                </div>
+              </div>
+              <p className="text-xs text-gray-400 mt-2 italic">🔒 User management restricted to System Admin and Senior Officer roles only</p>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
