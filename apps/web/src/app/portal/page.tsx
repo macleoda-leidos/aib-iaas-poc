@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 
 const USERS: Record<string, any> = {
@@ -43,6 +43,14 @@ const PRIORITY_COLOURS: Record<string, string> = { high: 'bg-red-100 text-red-80
 const STATUS_COLOURS: Record<string, string> = { New: 'bg-blue-100 text-blue-800', Overdue: 'bg-red-100 text-red-800', Pending: 'bg-amber-100 text-amber-800', 'In Progress': 'bg-purple-100 text-purple-800', 'Not Started': 'bg-gray-200 text-gray-700' };
 
 export default function PortalPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center">Loading portal...</div>}>
+      <PortalContent />
+    </Suspense>
+  );
+}
+
+function PortalContent() {
   const searchParams = useSearchParams();
   const userId = searchParams.get('user') || 'karen';
   const user = USERS[userId] || USERS.karen;
