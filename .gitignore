@@ -14,3 +14,5 @@ Thumbs.db
 *.tfstate
 *.tfstate.backup
 .terraform.lock.hcl
+data/
+services/*/data/
