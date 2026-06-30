@@ -116,3 +116,56 @@ The Initial Application Advice Service (IAAS) is part of the Applications Gatewa
 - Feature flags for progressive rollout
 - Rollback capability at infrastructure and application level
 - Health checks and auto-recovery
+
+## Current Service Inventory (Updated)
+
+| # | Service | Port | Purpose |
+|---|---------|------|---------|
+| 1 | API Gateway | 3001 | BFF, routing, auth, rate limiting, application CRUD |
+| 2 | Recommendation | 3002 | Rules-based product recommendation engine |
+| 3 | Document | 3003 | Upload, storage, ClamAV virus scanning |
+| 4 | Integration Orchestrator | 3004 | Parallel cross-system checks |
+| 5 | Mock Integrations | 3005 | Stub APIs for BASYS, eDEN, DAS, CFT, Moratorium, RoI |
+| 6 | Payment | 3006 | Apple Pay, Google Pay, Card sandbox |
+| 7 | Audit | 3007 | Full event trail |
+| 8 | Credit Check | 3008 | Multi-provider (Synthetic, Experian, Equifax sandbox) |
+| 9 | Organisation | 3009 | Parent/child hierarchy, relationships |
+| 10 | User | 3011 | RBAC (8 roles, 23 permissions), sessions |
+| 11 | Notification | 3012 | In-app, email/SMS placeholder |
+| 12 | Identity | 3013 | ScotAccount/GOV.UK Verify, federation |
+| 13 | Consolidated API | 3001 | All services combined for cloud deployment |
+
+## Shared Packages (Reusable)
+
+| Package | Purpose | Reused By |
+|---------|---------|-----------|
+| @aib-iaas/shared-types | TypeScript interfaces for all entities | All services + frontends |
+| @aib-iaas/validation | Zod schemas (shared FE/BE validation) | API Gateway, Web app |
+| @aib-iaas/ui-components | GOV.UK-style React components | Web app, Admin app |
+| @aib-iaas/test-data | Synthetic data generators + presets | Tests, seeding |
+
+## Reusable Component Patterns
+
+- **UploadDocsPanel** — Used in Debtor dashboard, Adviser dashboard, Supplier dashboard
+- **ActionButton** — Shared across all dashboards (accepts onClick handler)
+- **KpiCard** — Used in all 5 role dashboards
+- **StatusBadge** — Used in dashboards, admin portal, portal work queue
+- **Input** — Shared form input with label, hint, error, types
+- **Panel** — Admin detail view section wrapper
+
+## Application Form (9 Sections)
+
+1. Personal Details & Aliases (identity verification + other names)
+2. Address History (5-year) with postcode lookup
+3. Debts (repeatable creditor entries)
+4. Income & Expenditure (monthly breakdown)
+5. Assets (property, vehicles, savings, other)
+6. Documents (upload with ClamAV scanning)
+7. System Checks (cross-system integration)
+8. Recommendation (rules engine output)
+9. Payment & Submit (Apple Pay/Google Pay/Card)
+
+## Identity Architecture
+
+See docs/identity-architecture.md for the full Keycloak consolidation strategy.
+Key pages: /login (mock Keycloak SSO), /portal (unified work queue with role filtering)
