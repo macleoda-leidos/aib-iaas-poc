@@ -53,7 +53,7 @@ export default function Home() {
 
       <a
         href="/apply"
-        className="inline-block bg-gov-green text-white font-bold py-3 px-8 no-underline hover:bg-green-800 focus:outline-3 focus:outline-gov-yellow"
+        className="inline-block bg-gov-green text-white font-bold py-3 px-8 no-underline hover:bg-green-800 focus:outline-2 focus:outline-gov-yellow"
         role="button"
       >
         Start your application

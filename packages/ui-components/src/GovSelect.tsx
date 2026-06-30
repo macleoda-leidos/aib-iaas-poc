@@ -52,7 +52,7 @@ export function GovSelect({
         value={value}
         onChange={onChange}
         required={required}
-        className={`w-full border-2 ${error ? 'border-red-700' : 'border-gray-900'} p-2 text-base bg-white focus:outline-3 focus:outline-yellow-400 focus:outline-offset-0`}
+        className={`w-full border-2 ${error ? 'border-red-700' : 'border-gray-900'} p-2 text-base bg-white focus:outline-2 focus:outline-yellow-400 focus:outline-offset-0`}
         aria-describedby={[hint ? `${id}-hint` : '', error ? `${id}-error` : ''].filter(Boolean).join(' ') || undefined}
         aria-invalid={!!error}
       >

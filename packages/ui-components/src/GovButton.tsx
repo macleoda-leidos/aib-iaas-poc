@@ -19,7 +19,7 @@ export function GovButton({
   onClick,
   className = '',
 }: GovButtonProps) {
-  const baseStyles = 'govuk-button font-bold py-3 px-6 rounded-none border-b-2 cursor-pointer text-base transition-colors focus:outline-3 focus:outline-offset-0 focus:outline-yellow-400';
+  const baseStyles = 'govuk-button font-bold py-3 px-6 rounded-none border-b-2 cursor-pointer text-base transition-colors focus:outline-2 focus:outline-offset-0 focus:outline-yellow-400';
 
   const variantStyles = {
     primary: 'bg-green-700 text-white border-green-900 hover:bg-green-800 active:bg-green-900',

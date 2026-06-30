@@ -576,7 +576,7 @@ function InputField({ id, label, type = 'text', value, onChange, required, hint 
       {hint && <p className="text-sm text-gray-600 mb-1">{hint}</p>}
       <input id={id} type={type} value={value || ''} onChange={e => onChange(e.target.value)}
         required={required}
-        className="border-2 border-gray-900 p-2 w-full max-w-md focus:outline-3 focus:outline-yellow-400" />
+        className="border-2 border-gray-900 p-2 w-full max-w-md focus:outline-2 focus:outline-yellow-400" />
     </div>
   );
 }
