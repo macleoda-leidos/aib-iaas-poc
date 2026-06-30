@@ -1,15 +1,16 @@
 import { Request, Response, NextFunction } from 'express';
 
-const MIN_LATENCY = parseInt(process.env.MOCK_LATENCY_MIN_MS || '100');
-const MAX_LATENCY = parseInt(process.env.MOCK_LATENCY_MAX_MS || '500');
-const FAILURE_RATE = parseFloat(process.env.MOCK_FAILURE_RATE || '0.05');
-
 export function latencyMiddleware(req: Request, res: Response, next: NextFunction): void {
+  // Read env at request time (not module load) so tests can override
+  const minLatency = parseInt(process.env.MOCK_LATENCY_MIN_MS || '100');
+  const maxLatency = parseInt(process.env.MOCK_LATENCY_MAX_MS || '500');
+  const failureRate = parseFloat(process.env.MOCK_FAILURE_RATE || '0.05');
+
   const start = Date.now();
-  const delay = Math.floor(Math.random() * (MAX_LATENCY - MIN_LATENCY) + MIN_LATENCY);
+  const delay = Math.floor(Math.random() * (maxLatency - minLatency) + minLatency);
 
   // Check if this request should fail (simulate service unavailability)
-  if (Math.random() < FAILURE_RATE) {
+  if (Math.random() < failureRate) {
     setTimeout(() => {
       res.setHeader('X-Response-Time', `${Date.now() - start}ms`);
       res.status(503).json({
