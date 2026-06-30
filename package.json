@@ -10,19 +10,27 @@
   ],
   "scripts": {
     "dev": "docker compose -f infra/docker/docker-compose.yml up --build",
-    "dev:services": "concurrently \"npm run dev -w services/mock-integrations\" \"npm run dev -w services/api-gateway\" \"npm run dev -w services/recommendation-service\" \"npm run dev -w services/document-service\" \"npm run dev -w services/integration-orchestrator\" \"npm run dev -w services/payment-service\" \"npm run dev -w services/audit-service\"",
+    "dev:services": "concurrently \"npm run dev -w services/mock-integrations\" \"npm run dev -w services/api-gateway\" \"npm run dev -w services/recommendation-service\" \"npm run dev -w services/document-service\" \"npm run dev -w services/integration-orchestrator\" \"npm run dev -w services/payment-service\" \"npm run dev -w services/audit-service\" \"npm run dev -w services/credit-check-service\" \"npm run dev -w services/organisation-service\" \"npm run dev -w services/user-service\" \"npm run dev -w services/notification-service\"",
     "dev:web": "npm run dev -w apps/web",
     "dev:admin": "npm run dev -w apps/admin",
-    "test": "npm run test --workspaces --if-present",
+    "test": "vitest run",
+    "test:unit": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:e2e": "npx playwright test --config=tests/e2e/playwright.config.ts",
     "test:contracts": "npm run test:contracts --workspaces --if-present",
+    "test:all": "vitest run && npx playwright test --config=tests/e2e/playwright.config.ts",
     "lint": "npm run lint --workspaces --if-present",
     "build": "npm run build --workspaces --if-present",
+    "deploy": "bash scripts/deploy.sh",
     "clean": "rimraf node_modules **/node_modules **/dist **/.next"
   },
   "devDependencies": {
+    "@playwright/test": "^1.44.0",
+    "@vitest/coverage-v8": "^1.6.1",
     "concurrently": "^8.2.0",
     "rimraf": "^5.0.0",
-    "typescript": "^5.4.0"
+    "typescript": "^5.4.0",
+    "vitest": "^1.6.1"
   },
   "engines": {
     "node": ">=20.0.0"
