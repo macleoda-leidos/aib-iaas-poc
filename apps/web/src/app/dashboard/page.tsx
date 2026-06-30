@@ -594,6 +594,9 @@ function CalendarPanel() {
 }
 
 function CreditorDashboard({ user }: { user: any }) {
+  const [activePanel, setActivePanel] = useState<'none' | 'vote' | 'claim' | 'statement'>('none');
+  const [voted, setVoted] = useState(false);
+
   return (
     <div>
       <h1>Creditor Portal</h1>
@@ -603,13 +606,13 @@ function CreditorDashboard({ user }: { user: any }) {
         <KpiCard label="Active Cases" value="23" colour="blue" />
         <KpiCard label="Pending Claims" value="5" colour="orange" />
         <KpiCard label="Dividends Due" value="£4,230" colour="green" />
-        <KpiCard label="Proposals to Vote" value="2" colour="red" />
+        <button onClick={() => setActivePanel('vote')} className="text-left bg-white border border-gray-200 rounded p-4 border-l-4 border-red-500 hover:bg-red-50">
+          <p className="text-2xl font-bold">2</p><p className="text-sm text-gray-600">Proposals to Vote</p><p className="text-xs text-red-600 mt-1">Action required</p>
+        </button>
       </div>
 
       <div className="bg-white border border-gray-200 rounded mb-6">
-        <div className="p-4 border-b border-gray-200">
-          <h2 className="font-bold">Cases Involving Your Organisation</h2>
-        </div>
+        <div className="p-4 border-b border-gray-200"><h2 className="font-bold">Cases Involving Your Organisation</h2></div>
         <table className="w-full">
           <thead className="bg-gray-50"><tr>
             <th className="text-left p-3 text-sm">Reference</th><th className="text-left p-3 text-sm">Debtor</th>
@@ -618,9 +621,9 @@ function CreditorDashboard({ user }: { user: any }) {
           </tr></thead>
           <tbody>
             {[
-              { ref: 'DAS-2023-00456', debtor: 'J. Morrison', type: 'DAS', claim: '£8,200', status: 'Active', action: 'Vote' },
-              { ref: 'SEQ-2024-00123', debtor: 'P. Thomson', type: 'Sequestration', claim: '£15,000', status: 'Claim Filed', action: 'View' },
-              { ref: 'PTD-2024-00045', debtor: 'M. MacDonald', type: 'Trust Deed', claim: '£6,400', status: 'Proposal', action: 'Vote' },
+              { ref: 'DAS-2023-00456', debtor: 'J. Morrison', type: 'DAS', claim: '£8,200', status: 'Active', action: 'statement' },
+              { ref: 'SEQ-2024-00123', debtor: 'P. Thomson', type: 'Sequestration', claim: '£15,000', status: 'Claim Filed', action: 'claim' },
+              { ref: 'PTD-2024-00045', debtor: 'M. MacDonald', type: 'Trust Deed', claim: '£6,400', status: 'Proposal', action: 'vote' },
             ].map(c => (
               <tr key={c.ref} className="border-b border-gray-100">
                 <td className="p-3 text-sm font-mono">{c.ref}</td>
@@ -628,12 +631,86 @@ function CreditorDashboard({ user }: { user: any }) {
                 <td className="p-3 text-sm">{c.type}</td>
                 <td className="p-3 text-sm font-bold">{c.claim}</td>
                 <td className="p-3"><StatusBadge status={c.status} /></td>
-                <td className="p-3"><button className="text-gov-blue text-sm underline">{c.action}</button></td>
+                <td className="p-3"><button onClick={() => setActivePanel(c.action as any)} className="text-gov-blue text-sm underline">{c.action === 'vote' ? '🗳 Vote' : c.action === 'claim' ? '📋 View Claim' : '📊 Statement'}</button></td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+
+      {/* Active Panel */}
+      {activePanel !== 'none' && (
+        <div className="mb-6">
+          <div className="flex justify-between items-center mb-3">
+            <h2 className="text-lg font-bold">{activePanel === 'vote' ? '🗳 Vote on Proposal' : activePanel === 'claim' ? '📋 Claim Details' : '📊 Annual Statement'}</h2>
+            <button onClick={() => setActivePanel('none')} className="text-sm border border-gray-300 px-2 py-1 rounded">✕ Close</button>
+          </div>
+
+          {activePanel === 'vote' && (
+            <div className="bg-white border border-gray-200 rounded p-6">
+              <div className="bg-red-50 border border-red-200 rounded p-4 mb-4">
+                <p className="font-bold text-red-800">Protected Trust Deed Proposal — PTD-2024-00045</p>
+                <p className="text-sm text-red-700">Voting deadline: 15 July 2026</p>
+              </div>
+              <div className="grid md:grid-cols-2 gap-4 mb-4 text-sm">
+                <div><span className="text-gray-500">Debtor:</span> <strong>M. MacDonald</strong></div>
+                <div><span className="text-gray-500">Your claim:</span> <strong>£6,400</strong></div>
+                <div><span className="text-gray-500">Total debt:</span> <strong>£32,000</strong></div>
+                <div><span className="text-gray-500">Proposed dividend:</span> <strong>22p in £</strong></div>
+                <div><span className="text-gray-500">Duration:</span> <strong>48 months</strong></div>
+                <div><span className="text-gray-500">Trustee:</span> <strong>Sample Insolvency Practitioners LLP</strong></div>
+              </div>
+              <div className="border-t pt-4 mb-4">
+                <p className="font-bold text-sm mb-2">Your estimated recovery: <span className="text-green-700">£1,408</span></p>
+                <p className="text-xs text-gray-500">Based on proposed 22p dividend on your claim of £6,400</p>
+              </div>
+              {voted ? (
+                <div className="bg-green-50 border border-green-200 rounded p-3"><p className="text-green-800 font-bold">✓ Vote recorded. Thank you for participating.</p></div>
+              ) : (
+                <div className="flex gap-3">
+                  <button onClick={() => setVoted(true)} className="bg-green-700 text-white font-bold py-2 px-6 text-sm rounded hover:bg-green-800">✓ Accept Proposal</button>
+                  <button onClick={() => setVoted(true)} className="bg-red-700 text-white font-bold py-2 px-6 text-sm rounded hover:bg-red-800">✗ Reject Proposal</button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {activePanel === 'claim' && (
+            <div className="bg-white border border-gray-200 rounded p-6">
+              <h3 className="font-bold mb-3">Claim: SEQ-2024-00123 — P. Thomson</h3>
+              <div className="grid md:grid-cols-2 gap-4 text-sm mb-4">
+                <div><span className="text-gray-500">Claim amount:</span> <strong>£15,000</strong></div>
+                <div><span className="text-gray-500">Claim type:</span> <strong>Unsecured credit</strong></div>
+                <div><span className="text-gray-500">Filed:</span> <strong>14 March 2024</strong></div>
+                <div><span className="text-gray-500">Status:</span> <StatusBadge status="Claim Filed" /></div>
+                <div><span className="text-gray-500">Trustee:</span> <strong>Sample Insolvency Practitioners LLP</strong></div>
+                <div><span className="text-gray-500">Adjudication due:</span> <strong>28 July 2026</strong></div>
+              </div>
+              <div className="bg-blue-50 p-3 rounded text-sm"><p>Your claim is awaiting adjudication by the trustee. You will be notified of the outcome.</p></div>
+            </div>
+          )}
+
+          {activePanel === 'statement' && (
+            <div className="bg-white border border-gray-200 rounded p-6">
+              <h3 className="font-bold mb-3">Annual Statement — DAS-2023-00456</h3>
+              <div className="grid md:grid-cols-3 gap-4 text-sm mb-4">
+                <div className="p-3 bg-gray-50 rounded text-center"><p className="text-xl font-bold">£8,200</p><p className="text-xs">Original Claim</p></div>
+                <div className="p-3 bg-green-50 rounded text-center"><p className="text-xl font-bold text-green-700">£2,280</p><p className="text-xs">Received to Date</p></div>
+                <div className="p-3 bg-blue-50 rounded text-center"><p className="text-xl font-bold">£5,920</p><p className="text-xs">Remaining</p></div>
+              </div>
+              <table className="w-full text-sm border border-gray-200 mb-4">
+                <thead className="bg-gray-50"><tr><th className="p-2 text-left">Date</th><th className="p-2 text-right">Payment</th><th className="p-2 text-right">Running Total</th></tr></thead>
+                <tbody>
+                  {[['Apr 2024','£285','£285'],['Jul 2024','£285','£570'],['Oct 2024','£285','£855'],['Jan 2025','£285','£1,140'],['Apr 2025','£285','£1,425'],['Jul 2025','£285','£1,710'],['Oct 2025','£285','£1,995'],['Jan 2026','£285','£2,280']].map(([d,p,t]) => (
+                    <tr key={d} className="border-t"><td className="p-2">{d}</td><td className="p-2 text-right">{p}</td><td className="p-2 text-right font-bold">{t}</td></tr>
+                  ))}
+                </tbody>
+              </table>
+              <button className="bg-gray-200 text-gray-800 font-bold py-2 px-4 text-sm rounded hover:bg-gray-300">📥 Download Statement (PDF)</button>
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="grid md:grid-cols-2 gap-6">
         <div className="bg-white border border-gray-200 rounded p-4">
@@ -641,7 +718,7 @@ function CreditorDashboard({ user }: { user: any }) {
           <div className="space-y-2 text-sm">
             <div className="flex justify-between"><span>DAS-2023-00456</span><span className="font-bold text-green-700">£285 (Jul)</span></div>
             <div className="flex justify-between"><span>SEQ-2024-00123</span><span className="text-gray-500">Pending adjudication</span></div>
-            <div className="flex justify-between"><span>PTD-2024-00045</span><span className="text-gray-500">Awaiting acceptance</span></div>
+            <div className="flex justify-between"><span>PTD-2024-00045</span><span className="text-gray-500">Awaiting vote</span></div>
           </div>
         </div>
         <div className="bg-white border border-gray-200 rounded p-4">
@@ -658,6 +735,10 @@ function CreditorDashboard({ user }: { user: any }) {
 }
 
 function SupplierDashboard({ user }: { user: any }) {
+  const [activePanel, setActivePanel] = useState<'none' | 'report' | 'distribution' | 'upload'>('none');
+  const [reportSubmitted, setReportSubmitted] = useState(false);
+  const [distRecorded, setDistRecorded] = useState(false);
+
   return (
     <div>
       <h1>Trustee / Supplier Dashboard</h1>
@@ -671,9 +752,7 @@ function SupplierDashboard({ user }: { user: any }) {
       </div>
 
       <div className="bg-white border border-gray-200 rounded mb-6">
-        <div className="p-4 border-b border-gray-200">
-          <h2 className="font-bold">Cases Under Management</h2>
-        </div>
+        <div className="p-4 border-b border-gray-200"><h2 className="font-bold">Cases Under Management</h2></div>
         <table className="w-full">
           <thead className="bg-gray-50"><tr>
             <th className="text-left p-3 text-sm">Case Ref</th><th className="text-left p-3 text-sm">Debtor</th>
@@ -699,14 +778,84 @@ function SupplierDashboard({ user }: { user: any }) {
         </table>
       </div>
 
-      <div className="bg-white border border-gray-200 rounded p-4">
+      <div className="bg-white border border-gray-200 rounded p-4 mb-6">
         <h3 className="font-bold mb-3">Compliance & Reporting</h3>
         <div className="grid md:grid-cols-3 gap-4">
-          <ActionButton label="Submit Annual Report" icon="📊" />
-          <ActionButton label="Record Distribution" icon="💰" />
-          <ActionButton label="Upload Case Documents" icon="📄" />
+          <ActionButton label="Submit Annual Report" icon="📊" onClick={() => setActivePanel(activePanel === 'report' ? 'none' : 'report')} />
+          <ActionButton label="Record Distribution" icon="💰" onClick={() => setActivePanel(activePanel === 'distribution' ? 'none' : 'distribution')} />
+          <ActionButton label="Upload Case Documents" icon="📄" onClick={() => setActivePanel(activePanel === 'upload' ? 'none' : 'upload')} />
         </div>
       </div>
+
+      {activePanel !== 'none' && (
+        <div className="mb-6">
+          <div className="flex justify-between items-center mb-3">
+            <h2 className="text-lg font-bold">
+              {activePanel === 'report' && '📊 Submit Annual Report'}
+              {activePanel === 'distribution' && '💰 Record Distribution'}
+              {activePanel === 'upload' && '📄 Upload Case Documents'}
+            </h2>
+            <button onClick={() => setActivePanel('none')} className="text-sm border border-gray-300 px-2 py-1 rounded">✕ Close</button>
+          </div>
+
+          {activePanel === 'report' && (
+            <div className="bg-white border border-gray-200 rounded p-6">
+              <div className="bg-red-50 border border-red-200 rounded p-3 mb-4">
+                <p className="text-sm text-red-800"><strong>⚠ Overdue:</strong> Annual report for SEQ-2023-00789 (A. Brown) was due 30 June 2026</p>
+              </div>
+              <div className="mb-4"><label className="block text-sm font-bold mb-1">Select case:</label>
+                <select className="border border-gray-300 p-2 w-full max-w-sm text-sm rounded">
+                  <option>SEQ-2023-00789 — A. Brown (OVERDUE)</option>
+                  <option>PTD-2024-00034 — B. Green (due 15 Jul)</option>
+                </select>
+              </div>
+              <div className="grid md:grid-cols-2 gap-4 mb-4 text-sm">
+                <div><label className="block font-bold mb-1">Reporting period</label><input type="text" defaultValue="Jul 2025 — Jun 2026" className="border border-gray-300 p-2 w-full rounded" /></div>
+                <div><label className="block font-bold mb-1">Total ingathered this period</label><input type="text" defaultValue="£12,450" className="border border-gray-300 p-2 w-full rounded" /></div>
+                <div><label className="block font-bold mb-1">Distributions made</label><input type="text" defaultValue="£8,200" className="border border-gray-300 p-2 w-full rounded" /></div>
+                <div><label className="block font-bold mb-1">Trustee fees claimed</label><input type="text" defaultValue="£2,100" className="border border-gray-300 p-2 w-full rounded" /></div>
+              </div>
+              <div className="mb-4"><label className="block text-sm font-bold mb-1">Summary notes</label>
+                <textarea rows={3} defaultValue="Asset realisation ongoing. Property valued at £95,000, marketing commenced. Debtor cooperating." className="border border-gray-300 p-2 w-full text-sm rounded"></textarea>
+              </div>
+              {reportSubmitted ? (
+                <div className="bg-green-50 border border-green-200 rounded p-3"><p className="text-green-800 font-bold">✓ Annual report submitted successfully. AiB will review within 14 days.</p></div>
+              ) : (
+                <button onClick={() => setReportSubmitted(true)} className="bg-green-700 text-white font-bold py-2 px-6 text-sm hover:bg-green-800">Submit Report to AiB</button>
+              )}
+            </div>
+          )}
+
+          {activePanel === 'distribution' && (
+            <div className="bg-white border border-gray-200 rounded p-6">
+              <div className="mb-4"><label className="block text-sm font-bold mb-1">Case:</label>
+                <select className="border border-gray-300 p-2 w-full max-w-sm text-sm rounded">
+                  <option>PTD-2024-00034 — B. Green (Trust Deed)</option>
+                  <option>SEQ-2023-00789 — A. Brown (Sequestration)</option>
+                </select>
+              </div>
+              <h4 className="font-bold text-sm mb-2">Creditor Distribution</h4>
+              <table className="w-full text-sm border border-gray-200 mb-4">
+                <thead className="bg-gray-50"><tr><th className="p-2 text-left">Creditor</th><th className="p-2 text-right">Claim</th><th className="p-2 text-right">% Share</th><th className="p-2 text-right">Distribution</th></tr></thead>
+                <tbody>
+                  <tr className="border-t"><td className="p-2">Royal Bank of Scotland</td><td className="p-2 text-right">£12,000</td><td className="p-2 text-right">42.9%</td><td className="p-2 text-right font-bold">£1,286</td></tr>
+                  <tr className="border-t"><td className="p-2">Barclays Bank</td><td className="p-2 text-right">£8,000</td><td className="p-2 text-right">28.6%</td><td className="p-2 text-right font-bold">£857</td></tr>
+                  <tr className="border-t"><td className="p-2">HMRC</td><td className="p-2 text-right">£5,000</td><td className="p-2 text-right">17.9%</td><td className="p-2 text-right font-bold">£536</td></tr>
+                  <tr className="border-t"><td className="p-2">Glasgow City Council</td><td className="p-2 text-right">£3,000</td><td className="p-2 text-right">10.7%</td><td className="p-2 text-right font-bold">£321</td></tr>
+                  <tr className="border-t-2 font-bold"><td className="p-2">TOTAL</td><td className="p-2 text-right">£28,000</td><td className="p-2 text-right">100%</td><td className="p-2 text-right">£3,000</td></tr>
+                </tbody>
+              </table>
+              {distRecorded ? (
+                <div className="bg-green-50 border border-green-200 rounded p-3"><p className="text-green-800 font-bold">✓ Distribution recorded. Payment instructions sent to payment distributor.</p></div>
+              ) : (
+                <button onClick={() => setDistRecorded(true)} className="bg-green-700 text-white font-bold py-2 px-6 text-sm hover:bg-green-800">Record Distribution & Instruct Payment</button>
+              )}
+            </div>
+          )}
+
+          {activePanel === 'upload' && <DebtorUploadPanel />}
+        </div>
+      )}
     </div>
   );
 }
