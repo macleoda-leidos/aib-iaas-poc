@@ -36,17 +36,18 @@ export default function Home() {
         <h2>Available Scottish debt solutions</h2>
         <div className="grid md:grid-cols-2 gap-4">
           {[
-            { name: 'Debt Arrangement Scheme (DAS)', desc: 'Repay debts in full over an extended period with statutory protection' },
-            { name: 'Minimal Asset Process (MAP)', desc: 'Simplified bankruptcy for people with low income and few assets' },
-            { name: 'Sequestration (Bankruptcy)', desc: 'Formal debt relief for people who cannot repay their debts' },
-            { name: 'Protected Trust Deed', desc: 'Voluntary agreement with creditors to repay over 4 years' },
-            { name: 'Moratorium', desc: '6-week breathing space from creditor action while you seek advice' },
-            { name: 'Debt Payment Programme', desc: 'Structured repayment plan for manageable debt levels' },
+            { name: 'Debt Arrangement Scheme (DAS)', desc: 'Repay debts in full over an extended period with statutory protection', url: 'https://www.aib.gov.uk/debt-solutions/debt-arrangement-scheme' },
+            { name: 'Minimal Asset Process (MAP)', desc: 'Simplified bankruptcy for people with low income and few assets', url: 'https://www.aib.gov.uk/debt-solutions/minimal-asset-process' },
+            { name: 'Sequestration (Bankruptcy)', desc: 'Formal debt relief for people who cannot repay their debts', url: 'https://www.aib.gov.uk/debt-solutions/sequestration' },
+            { name: 'Protected Trust Deed', desc: 'Voluntary agreement with creditors to repay over 4 years', url: 'https://www.aib.gov.uk/debt-solutions/protected-trust-deeds' },
+            { name: 'Moratorium', desc: '6-week breathing space from creditor action while you seek advice', url: 'https://www.aib.gov.uk/debt-solutions/moratorium' },
+            { name: 'Debt Payment Programme', desc: 'Structured repayment plan for manageable debt levels', url: 'https://www.aib.gov.uk/debt-solutions/debt-arrangement-scheme' },
           ].map(product => (
-            <div key={product.name} className="border border-gray-300 p-4">
-              <h3 className="text-base font-bold">{product.name}</h3>
+            <a key={product.name} href={product.url} target="_blank" rel="noopener noreferrer" className="border border-gray-300 p-4 no-underline hover:border-gov-blue hover:bg-blue-50 transition-colors block">
+              <h3 className="text-base font-bold text-gray-900">{product.name}</h3>
               <p className="text-sm text-gray-600">{product.desc}</p>
-            </div>
+              <p className="text-xs text-gov-blue mt-2">Learn more on aib.gov.uk →</p>
+            </a>
           ))}
         </div>
       </div>

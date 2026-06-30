@@ -66,9 +66,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <div>
                 <h3 className="text-sm font-bold mb-2">Related services</h3>
                 <ul className="text-sm space-y-1">
-                  <li><a href="#" className="gov-link">Citizens Advice Scotland</a></li>
-                  <li><a href="#" className="gov-link">AiB Main Website</a></li>
-                  <li><a href="#" className="gov-link">DAS Information</a></li>
+                  <li><a href="https://www.citizensadvice.org.uk/scotland/" target="_blank" rel="noopener noreferrer" className="gov-link">Citizens Advice Scotland</a></li>
+                  <li><a href="https://www.aib.gov.uk/" target="_blank" rel="noopener noreferrer" className="gov-link">AiB Main Website</a></li>
+                  <li><a href="https://www.aib.gov.uk/debt-solutions/debt-arrangement-scheme" target="_blank" rel="noopener noreferrer" className="gov-link">DAS Information</a></li>
+                  <li><a href="https://www.aib.gov.uk/contact-us" target="_blank" rel="noopener noreferrer" className="gov-link">Contact AiB</a></li>
+                  <li><a href="https://www.aib.gov.uk/statistics-and-reporting" target="_blank" rel="noopener noreferrer" className="gov-link">Statistics & Reporting</a></li>
                 </ul>
               </div>
             </div>
