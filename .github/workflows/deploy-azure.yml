@@ -1,8 +1,9 @@
 name: Deploy to Azure (Free Tier)
 
 on:
-  push:
-    branches: [main]
+  # Disabled auto-trigger: requires Azure AD OIDC secrets (client-id, tenant-id, subscription-id)
+  # Use deploy-swa.yml for frontend deployment (only needs SWA API token)
+  # To enable: set up Azure AD App Registration + federated credential, add secrets to GitHub
   workflow_dispatch:
     inputs:
       environment:
