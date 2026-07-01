@@ -140,6 +140,63 @@ export default function ArchitecturePage() {
           )}
         </div>
       ))}
+
+      {/* Enterprise Production Stack */}
+      <div className="mt-8 bg-white border border-gray-200 rounded-lg p-4 md:p-6">
+        <h2 className="text-lg font-bold mb-2">🏢 Enterprise Production Stack (Target)</h2>
+        <p className="text-xs text-gray-500 mb-4">The POC uses a lightweight stack for rapid delivery. Production would use the enterprise stack below, aligned with AiB/Scottish Government standards.</p>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm border border-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="text-left p-3 border-b">Layer</th>
+                <th className="text-left p-3 border-b">POC (This Demo)</th>
+                <th className="text-left p-3 border-b">Enterprise Production</th>
+                <th className="text-left p-3 border-b">Rationale</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[
+                ['Frontend', 'Next.js 15 / React 19', 'Angular 17+ or React 18 SPA\n(.NET MVC for server-rendered pages)', 'Angular preferred in Scottish Gov; React for complex SPAs. .NET MVC for content pages.'],
+                ['Backend API', 'Node.js / Express / TypeScript', '.NET 8 Minimal APIs\n(C# / ASP.NET Core)', '.NET is AiB\'s primary backend stack. Minimal APIs for microservices; MVC for monolith.'],
+                ['API Gateway', 'Express middleware (custom)', 'Azure API Management\n+ Ocelot (.NET gateway)', 'APIM provides rate limiting, analytics, developer portal. Ocelot for internal routing.'],
+                ['Database', 'SQLite (file-based)', 'SQL Server 2022\nor Azure SQL Database', 'Enterprise HA, backups, Always Encrypted, row-level security, auditing built-in.'],
+                ['Identity', 'Mock JWT + Identity Service', 'Keycloak 24\n(or Azure AD B2C + Okta)', 'Keycloak for multi-realm federation. Azure AD B2C if Microsoft-only. Okta for existing estate.'],
+                ['Hosting (Frontend)', 'Azure Static Web Apps (free)', 'Azure App Service\n(Standard/Premium tier)', 'App Service provides deployment slots, custom domains, VNet integration, auto-scale.'],
+                ['Hosting (Backend)', 'Azure Container Apps (free)', 'Azure Kubernetes Service (AKS)\nor Azure App Service', 'AKS for microservices at scale. App Service for simpler deployments.'],
+                ['CI/CD', 'GitHub Actions', 'Azure DevOps Pipelines\n(or GitHub Actions)', 'Azure DevOps aligns with Scottish Gov tooling. YAML pipelines, release gates, approvals.'],
+                ['IaC', 'Bicep + Terraform', 'Terraform\nor Azure Bicep', 'Terraform for multi-cloud. Bicep for Azure-only. Both support environment promotion.'],
+                ['Testing', 'Vitest (96 tests, 60%)', 'xUnit (.NET) + Playwright\nSpecFlow (BDD) + SonarQube', 'xUnit for .NET unit tests. Playwright for E2E. SpecFlow for acceptance. SonarQube for quality gates.'],
+                ['Monitoring', 'Health endpoints only', 'Application Insights\n+ Azure Monitor + Grafana', 'Full APM: distributed tracing, log analytics, dashboards, alerting, SLA tracking.'],
+                ['Messaging', 'Direct HTTP (sync)', 'Azure Service Bus\nor RabbitMQ', 'Async messaging for resilience. Dead letter queues. Topic-based pub/sub for events.'],
+                ['Caching', 'None', 'Azure Redis Cache', 'Session cache, response cache, rate-limit counters, distributed locks.'],
+                ['Document Storage', 'Local filesystem', 'Azure Blob Storage\n(with CDN)', 'Encrypted at rest, lifecycle policies, immutable storage for compliance.'],
+                ['Virus Scanning', 'ClamAV (Docker)', 'Microsoft Defender for Storage\nor ClamAV cluster', 'Defender for cloud-native scanning. ClamAV cluster for on-prem/hybrid.'],
+                ['Secrets', 'Environment variables', 'Azure Key Vault\n+ Managed Identity', 'No secrets in code or config. Managed Identity eliminates credential management.'],
+              ].map(([layer, poc, prod, rationale]) => (
+                <tr key={layer} className="border-b border-gray-100 hover:bg-gray-50">
+                  <td className="p-2 font-bold text-xs">{layer}</td>
+                  <td className="p-2 text-xs"><span className="bg-blue-50 px-1 rounded">{poc}</span></td>
+                  <td className="p-2 text-xs font-medium whitespace-pre-line">{prod}</td>
+                  <td className="p-2 text-xs text-gray-600">{rationale}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="mt-4 grid md:grid-cols-2 gap-4">
+          <div className="p-3 bg-blue-50 border border-blue-200 rounded">
+            <h3 className="font-bold text-sm mb-1">💡 Why Node.js for the POC?</h3>
+            <p className="text-xs text-gray-700">Rapid prototyping, shared TypeScript types between FE/BE, zero-cost hosting on free tiers, and fast iteration. The architecture patterns (RBAC, integration orchestration, API gateway) translate directly to .NET without redesign.</p>
+          </div>
+          <div className="p-3 bg-green-50 border border-green-200 rounded">
+            <h3 className="font-bold text-sm mb-1">🔄 Migration Path: POC → .NET</h3>
+            <p className="text-xs text-gray-700">Each Express service maps 1:1 to a .NET Minimal API. Zod schemas → FluentValidation. SQLite queries → Entity Framework Core. The same Terraform/Bicep infra deploys .NET containers. Shared types become C# records/DTOs.</p>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
