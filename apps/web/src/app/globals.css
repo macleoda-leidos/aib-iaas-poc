@@ -4,23 +4,34 @@
 
 @layer base {
   body {
-    @apply text-gov-black font-gov;
+    @apply text-gov-black font-gov bg-white;
+  }
+
+  /* Dark mode base */
+  .dark body, .dark {
+    @apply bg-gray-900 text-gray-100;
   }
 
   a {
     @apply text-gov-blue underline hover:text-gov-dark-blue focus:outline focus:outline-offset-0 focus:bg-gov-yellow focus:text-gov-black;
   }
 
+  .dark a {
+    @apply text-blue-400 hover:text-blue-300;
+  }
+
   h1 { @apply text-3xl font-bold mb-6; }
   h2 { @apply text-2xl font-bold mb-4; }
   h3 { @apply text-xl font-bold mb-3; }
-}
 
-@layer base {
   /* Mobile-first: prevent iOS zoom on input focus */
   input, select, textarea {
     @apply text-base;
-    font-size: 16px; /* iOS requires 16px to prevent zoom */
+    font-size: 16px;
+  }
+
+  .dark input, .dark select, .dark textarea {
+    @apply bg-gray-800 border-gray-600 text-gray-100;
   }
 
   /* Touch-friendly minimum sizes */
@@ -48,8 +59,16 @@
     @apply bg-gov-light-grey border-t border-gray-300 py-8 mt-12;
   }
 
+  .dark .gov-footer {
+    @apply bg-gray-800 border-gray-700;
+  }
+
   .gov-link {
     @apply text-gov-blue underline hover:text-gov-dark-blue;
+  }
+
+  .dark .gov-link {
+    @apply text-blue-400 hover:text-blue-300;
   }
 
   .gov-warning {
@@ -58,5 +77,50 @@
 
   .gov-inset {
     @apply border-l-4 border-gov-light-grey pl-4 py-2 mb-4;
+  }
+
+  .dark .gov-inset {
+    @apply border-gray-600;
+  }
+
+  /* Dark mode overrides for common patterns */
+  .dark .bg-white {
+    background-color: #1f2937 !important; /* gray-800 */
+  }
+
+  .dark .border-gray-200 {
+    border-color: #374151 !important; /* gray-700 */
+  }
+
+  .dark .border-gray-300 {
+    border-color: #4b5563 !important; /* gray-600 */
+  }
+
+  .dark .bg-gray-50 {
+    background-color: #111827 !important; /* gray-900 */
+  }
+
+  .dark .text-gray-600 {
+    color: #9ca3af !important; /* gray-400 */
+  }
+
+  .dark .text-gray-500 {
+    color: #9ca3af !important;
+  }
+
+  .dark .text-gray-700 {
+    color: #d1d5db !important; /* gray-300 */
+  }
+
+  .dark .text-gray-900 {
+    color: #f3f4f6 !important; /* gray-100 */
+  }
+
+  .dark .text-gov-black {
+    color: #f3f4f6 !important;
+  }
+
+  .dark .border-gray-900 {
+    border-color: #6b7280 !important; /* gray-500 */
   }
 }

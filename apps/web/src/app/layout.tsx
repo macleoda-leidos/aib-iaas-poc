@@ -13,10 +13,12 @@ export const metadata: Metadata = {
   description: 'Accountant in Bankruptcy - Find the right debt solution for your situation',
 };
 
+import { ThemeToggle } from './ThemeToggle';
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <body className="min-h-screen flex flex-col">
+    <html lang="en" suppressHydrationWarning>
+      <body className="min-h-screen flex flex-col bg-white dark:bg-gray-900 text-gov-black dark:text-gray-100 transition-colors">
         {/* GOV.UK-style header */}
         <header className="gov-header">
           <div className="max-w-6xl mx-auto px-4 flex items-center justify-between">
@@ -26,6 +28,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 <span className="text-gray-300 text-sm ml-2">Accountant in Bankruptcy</span>
               </span>
             </div>
+            <div className="flex items-center gap-2">
+            <ThemeToggle />
             <nav aria-label="Main navigation">
               <ul className="flex flex-wrap gap-3 md:gap-6 text-xs md:text-sm">
                 <li><a href="/" className="text-white hover:underline no-underline">Home</a></li>
@@ -36,6 +40,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 <li><a href="/login" className="text-white hover:underline no-underline">Sign In</a></li>
               </ul>
             </nav>
+            </div>
           </div>
         </header>
 

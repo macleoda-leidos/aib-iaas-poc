@@ -4,6 +4,7 @@ module.exports = {
     './src/**/*.{js,ts,jsx,tsx,mdx}',
     '../../packages/ui-components/src/**/*.{js,ts,jsx,tsx}',
   ],
+  darkMode: 'class',
   theme: {
     extend: {
       colors: {
