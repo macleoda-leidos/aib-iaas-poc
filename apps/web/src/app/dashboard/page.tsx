@@ -195,7 +195,7 @@ function AibDashboard({ user }: { user: any }) {
             <ActionButton label="Run Integration Health Check" icon="🔍" onClick={() => setActivePanel(activePanel === 'health' ? 'none' : 'health')} />
             <ActionButton label="View Audit Log" icon="📋" onClick={() => setActivePanel(activePanel === 'audit' ? 'none' : 'audit')} />
             {isAdmin && <ActionButton label="Generate Weekly Report" icon="📊" onClick={() => setActivePanel(activePanel === 'report' ? 'none' : 'report')} />}
-            {isAdmin && <ActionButton label="Manage Users (500)" icon="👥" onClick={() => setActivePanel(activePanel === 'users' ? 'none' : 'users')} />}
+            {isAdmin && <ActionButton label="Manage Users (500)" icon="👥" onClick={() => { window.location.href = '/manage-users'; }} />}
             {!isAdmin && <p className="text-xs text-gray-400 italic mt-2">🔒 Report & User management requires System Admin or Senior Officer role</p>}
           </div>
         </div>
