@@ -120,6 +120,41 @@ function AibDashboard({ user }: { user: any }) {
         <KpiCard label="Total Active" value="156" trend="across all products" colour="purple" />
       </div>
 
+      {/* Role-Specific Notifications */}
+      <div className="bg-white border border-gray-200 rounded mb-6">
+        <div className="p-3 border-b border-gray-200 flex justify-between items-center">
+          <h2 className="font-bold text-sm">🔔 Notifications</h2>
+          <span className="text-xs text-gray-400">Today</span>
+        </div>
+        <div className="divide-y divide-gray-100 max-h-48 overflow-y-auto">
+          {(user.role === 'system_admin' ? [
+            { time: '14:30', icon: '🔴', msg: 'ALERT: eDEN/DASH response time elevated (512ms avg, threshold 300ms)', type: 'critical' },
+            { time: '13:45', icon: '👤', msg: 'User account locked: F. MacDonald (3 failed MFA attempts)', type: 'warning' },
+            { time: '12:00', icon: '🚀', msg: 'Deployment: IAAS v0.1.42 deployed to FAT environment', type: 'info' },
+            { time: '09:30', icon: '🔒', msg: 'Security: 2 new users pending approval (CAS Glasgow)', type: 'info' },
+            { time: '09:00', icon: '📊', msg: 'Scheduled: Weekly report generated (47 applications processed)', type: 'info' },
+          ] : user.role === 'aib_senior_officer' ? [
+            { time: '14:32', icon: '📋', msg: 'New application IAAS-2026-00012 awaiting assignment', type: 'action' },
+            { time: '13:00', icon: '⚠️', msg: 'SLA warning: IAAS-2026-00005 approaching 5-day review limit', type: 'warning' },
+            { time: '11:30', icon: '✓', msg: 'James Wilson completed review of IAAS-2026-00011', type: 'info' },
+            { time: '10:15', icon: '📊', msg: 'Weekly KPI: 87% SLA compliance (target 85%) ✓', type: 'info' },
+            { time: '09:45', icon: '👥', msg: 'Staff update: Fiona Campbell (CAS) submitted 3 applications this week', type: 'info' },
+          ] : [
+            { time: '14:32', icon: '📨', msg: 'New case assigned: IAAS-2026-00012 (A. Morrison, DAS, £18,400)', type: 'action' },
+            { time: '13:15', icon: '📄', msg: 'Document uploaded by C. Stewart for IAAS-2026-00010', type: 'action' },
+            { time: '11:50', icon: '🔍', msg: 'Credit check complete: B. Campbell — score 340 (FAIL)', type: 'warning' },
+            { time: '10:00', icon: '⏰', msg: 'Reminder: IAAS-2026-00008 — additional info requested 3 days ago', type: 'warning' },
+            { time: '09:30', icon: '✓', msg: 'Your review of IAAS-2026-00006 approved by Karen MacLeod', type: 'info' },
+          ]).map((n, i) => (
+            <div key={i} className={`flex items-start gap-2 p-2 text-xs ${n.type === 'critical' ? 'bg-red-50' : n.type === 'warning' ? 'bg-amber-50' : n.type === 'action' ? 'bg-blue-50' : ''}`}>
+              <span className="text-sm flex-shrink-0">{n.icon}</span>
+              <span className="flex-1">{n.msg}</span>
+              <span className="text-gray-400 flex-shrink-0">{n.time}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* Recent Applications */}
       <div className="bg-white border border-gray-200 rounded mb-6">
         <div className="p-4 border-b border-gray-200 flex justify-between items-center">
@@ -135,7 +170,7 @@ function AibDashboard({ user }: { user: any }) {
           <tbody>
             {apps.map(app => (
               <tr key={app.ref} onClick={() => setSelectedApp(selectedApp?.ref === app.ref ? null : app)} className="border-b border-gray-100 hover:bg-blue-50 cursor-pointer">
-                <td className="p-3 text-sm font-mono">{app.ref}</td>
+                <td className="p-3 text-sm font-mono"><a href={`/case/${app.ref}`} className="text-blue-700 underline hover:text-blue-900" onClick={e => e.stopPropagation()}>{app.ref}</a></td>
                 <td className="p-3 text-sm">{app.name}</td>
                 <td className="p-3 text-sm">{app.product}</td>
                 <td className="p-3"><span className={`text-xs font-bold px-2 py-0.5 rounded ${app.result === 'PASS' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>{app.result}</span></td>
