@@ -14,18 +14,25 @@ const DEMO_ACCOUNTS = [
 export default function LoginPage() {
   const [selectedAccount, setSelectedAccount] = useState(DEMO_ACCOUNTS[0]);
   const [authenticating, setAuthenticating] = useState(false);
+  const [mfaRequired, setMfaRequired] = useState(false);
+  const [mfaCode, setMfaCode] = useState('123456');
+  const [mfaMethod, setMfaMethod] = useState<'totp' | 'webauthn' | 'email'>('totp');
   const [sessionEstablished, setSessionEstablished] = useState(false);
 
   const handleLogin = () => {
     setAuthenticating(true);
     setTimeout(() => {
       setAuthenticating(false);
-      setSessionEstablished(true);
-      // Redirect after showing session message
-      setTimeout(() => {
-        window.location.href = `/portal?user=${selectedAccount.id}`;
-      }, 2000);
-    }, 1500);
+      setMfaRequired(true); // Show MFA step
+    }, 1200);
+  };
+
+  const handleMfaVerify = () => {
+    setMfaRequired(false);
+    setSessionEstablished(true);
+    setTimeout(() => {
+      window.location.href = `/portal?user=${selectedAccount.id}`;
+    }, 2000);
   };
 
   return (
@@ -53,7 +60,7 @@ export default function LoginPage() {
           <div className="p-6">
             <h1 className="text-xl font-bold text-center mb-6 text-gray-800">Sign in to AiB Services</h1>
 
-            {!authenticating && !sessionEstablished && (
+            {!authenticating && !mfaRequired && !sessionEstablished && (
               <>
                 {/* Demo account selector */}
                 <div className="mb-4">
@@ -113,6 +120,78 @@ export default function LoginPage() {
                 <div className="animate-spin w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full mx-auto mb-4"></div>
                 <p className="font-bold text-gray-800">Authenticating...</p>
                 <p className="text-sm text-gray-500 mt-1">Verifying credentials with Keycloak</p>
+              </div>
+            )}
+
+            {/* MFA Step */}
+            {mfaRequired && (
+              <div className="py-4">
+                <div className="text-center mb-4">
+                  <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <span className="text-2xl">🔐</span>
+                  </div>
+                  <h2 className="text-lg font-bold text-gray-800">Multi-Factor Authentication</h2>
+                  <p className="text-sm text-gray-500">Additional verification required for {selectedAccount.name}</p>
+                </div>
+
+                {/* MFA Method Selection */}
+                <div className="flex gap-2 mb-4">
+                  {[
+                    { id: 'totp' as const, label: '📱 Authenticator', desc: 'TOTP code' },
+                    { id: 'webauthn' as const, label: '🔑 Security Key', desc: 'WebAuthn' },
+                    { id: 'email' as const, label: '📧 Email Code', desc: 'One-time code' },
+                  ].map(m => (
+                    <button key={m.id} onClick={() => setMfaMethod(m.id)}
+                      className={`flex-1 p-2 rounded border text-center text-xs ${mfaMethod === m.id ? 'border-blue-600 bg-blue-50 font-bold' : 'border-gray-200 hover:border-gray-400'}`}>
+                      <p>{m.label}</p>
+                      <p className="text-gray-400">{m.desc}</p>
+                    </button>
+                  ))}
+                </div>
+
+                {mfaMethod === 'totp' && (
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">Enter 6-digit code from your authenticator app</label>
+                    <div className="flex gap-1 justify-center mb-4">
+                      {mfaCode.split('').map((digit, i) => (
+                        <input key={i} value={digit} readOnly
+                          className="w-10 h-12 border-2 border-gray-900 rounded text-center text-lg font-bold" />
+                      ))}
+                    </div>
+                    <p className="text-xs text-gray-400 text-center mb-4">Demo: code pre-filled. In production: user enters from Google Authenticator / Microsoft Authenticator / Okta Verify</p>
+                  </div>
+                )}
+
+                {mfaMethod === 'webauthn' && (
+                  <div className="text-center p-4 bg-gray-50 rounded mb-4">
+                    <p className="text-sm font-bold mb-2">🔑 Touch your security key</p>
+                    <p className="text-xs text-gray-500">Or use biometric: fingerprint / Face ID</p>
+                    <div className="animate-pulse mt-3 text-4xl">👆</div>
+                  </div>
+                )}
+
+                {mfaMethod === 'email' && (
+                  <div className="mb-4">
+                    <p className="text-sm text-gray-600 mb-2">A 6-digit code has been sent to <strong>{selectedAccount.email}</strong></p>
+                    <div className="flex gap-1 justify-center">
+                      {mfaCode.split('').map((digit, i) => (
+                        <input key={i} value={digit} readOnly
+                          className="w-10 h-12 border-2 border-gray-900 rounded text-center text-lg font-bold" />
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <button onClick={handleMfaVerify} className="w-full bg-blue-600 text-white font-bold py-3 rounded hover:bg-blue-700">
+                  Verify & Continue
+                </button>
+
+                <div className="mt-4 p-3 bg-gray-50 rounded">
+                  <p className="text-xs text-gray-500 text-center">
+                    <strong>MFA powered by Keycloak</strong> — supports TOTP, WebAuthn (FIDO2), SMS, Email OTP.
+                    Compatible with Okta Verify, Google Authenticator, Microsoft Authenticator, YubiKey.
+                  </p>
+                </div>
               </div>
             )}
 

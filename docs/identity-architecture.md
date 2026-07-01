@@ -187,3 +187,70 @@ Keycloak manages **realm roles** which map to **application permissions**:
 5. Future services automatically get SSO, RBAC, and audit for free
 
 The POC's `user-service` and `organisation-service` demonstrate the **data model**. In production, Keycloak replaces the auth portions while the services retain business logic (permissions, org hierarchy queries, etc.).
+
+## Multi-Factor Authentication (MFA)
+
+### Keycloak Native MFA
+
+Keycloak provides built-in MFA with the following methods:
+
+| Method | Protocol | User Experience | Supported Apps |
+|--------|----------|-----------------|----------------|
+| TOTP (Time-based OTP) | RFC 6238 | 6-digit code from authenticator app | Google Authenticator, Microsoft Authenticator, Okta Verify, Authy |
+| WebAuthn / FIDO2 | W3C WebAuthn | Fingerprint, Face ID, or USB security key | YubiKey, Windows Hello, Touch ID, Android biometric |
+| Email OTP | SMTP | One-time code sent to registered email | Any email client |
+| SMS OTP | Plugin | One-time code via text message | Any mobile phone |
+
+### MFA Policy Configuration
+
+```
+Per-realm MFA policies in Keycloak:
+- aib-internal:     Required (TOTP or WebAuthn)
+- external-advisers: Required (TOTP, WebAuthn, or Email)
+- public-debtors:   Conditional (required for financial actions, optional for read-only)
+- creditors:        Required (TOTP or WebAuthn)
+```
+
+### Okta Integration Options
+
+If the customer has existing Okta infrastructure, three integration patterns are available:
+
+**Option A: Okta as Identity Provider in Keycloak (Recommended)**
+```
+User → Keycloak login → "Sign in with Okta" button → Okta handles auth + MFA
+  → OIDC token returned to Keycloak → Keycloak issues session for all AiB systems
+```
+- Okta enforces its own MFA policies (Okta Verify, push notifications)
+- Keycloak receives verified identity without handling MFA itself
+- Best of both: Okta's MFA + Keycloak's multi-system federation
+
+**Option B: Okta replaces Keycloak entirely**
+- Use Okta as the sole identity provider
+- Each AiB system registered as an Okta OIDC application
+- MFA handled entirely by Okta
+- Simpler if all users are already in Okta
+- Less flexible for ScotAccount/GOV.UK federation (requires Okta Inbound Federation)
+
+**Option C: Keycloak with Okta Verify as authenticator**
+- Keycloak handles authentication and federation
+- Okta Verify app used as the TOTP authenticator (compatible with standard TOTP)
+- No Okta platform dependency — just the authenticator app
+- Cheapest option (no Okta licence needed for just the app)
+
+### Recommendation
+
+**Option A** is recommended because:
+1. Preserves Keycloak's multi-realm federation (ScotAccount, GOV.UK, AD)
+2. Leverages existing Okta investment for MFA (push notifications, adaptive policies)
+3. Users with Okta accounts get SSO across both Okta and AiB systems
+4. Non-Okta users (debtors via ScotAccount) aren't forced into Okta
+
+### Adaptive MFA (Risk-Based)
+
+Keycloak 24+ supports conditional MFA based on risk signals:
+- New device → require MFA
+- Unusual location → require MFA
+- High-value action (payment, case decision) → step-up MFA
+- Trusted device + normal hours → skip MFA (remember for 30 days)
+
+This reduces friction for low-risk actions while enforcing strong auth for sensitive operations.
