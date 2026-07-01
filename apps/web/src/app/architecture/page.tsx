@@ -80,58 +80,56 @@ export default function ArchitecturePage() {
               );
             })}
           </div>
-        </div>
-      ))}
 
-      {/* Detail Panel */}
-      {tile && selected && (
-        <div className="fixed bottom-0 left-0 right-0 md:relative md:mt-4 bg-white border-t-2 md:border-2 border-blue-600 md:rounded-lg shadow-2xl md:shadow-lg max-h-[60vh] md:max-h-none overflow-y-auto z-50">
-          <div className="p-4 md:p-6">
-            <div className="flex justify-between items-start mb-4">
-              <div>
-                <h3 className="text-lg font-bold flex items-center gap-2">{tile.icon} {tile.name}</h3>
-                <span className={`text-xs px-2 py-0.5 rounded font-bold text-white ${tile.statusColour}`}>{tile.status}</span>
-              </div>
-              <button onClick={() => setSelected(null)} className="text-gray-400 hover:text-gray-800 text-lg">✕</button>
-            </div>
+          {/* Inline Detail Panel — renders directly below this category if a tile in it is selected */}
+          {selected && cat.tiles.includes(selected) && tile && (
+            <div className="mt-3 bg-white border-2 border-blue-600 rounded-lg shadow-lg animate-in">
+              <div className="p-4 md:p-6">
+                <div className="flex justify-between items-start mb-4">
+                  <div>
+                    <h3 className="text-lg font-bold flex items-center gap-2">{tile.icon} {tile.name}</h3>
+                    <span className={`text-xs px-2 py-0.5 rounded font-bold text-white ${tile.statusColour}`}>{tile.status}</span>
+                  </div>
+                  <button onClick={() => setSelected(null)} className="bg-gray-100 hover:bg-gray-200 rounded-full w-8 h-8 flex items-center justify-center text-gray-600 hover:text-gray-900">✕</button>
+                </div>
 
-            <p className="text-sm text-gray-700 mb-4">{tile.detail.description}</p>
+                <p className="text-sm text-gray-700 mb-4">{tile.detail.description}</p>
 
-            <div className="grid md:grid-cols-2 gap-4">
-              {tile.detail.endpoints && (
-                <div>
-                  <h4 className="text-xs font-bold text-gray-500 uppercase mb-1">API Endpoints</h4>
-                  <ul className="text-xs space-y-0.5 font-mono bg-gray-50 p-2 rounded">
-                    {tile.detail.endpoints.map((ep, i) => <li key={i}>{ep}</li>)}
-                  </ul>
-                </div>
-              )}
-              {tile.detail.dependencies && (
-                <div>
-                  <h4 className="text-xs font-bold text-gray-500 uppercase mb-1">Dependencies</h4>
-                  <ul className="text-xs space-y-0.5">{tile.detail.dependencies.map((d, i) => <li key={i}>• {d}</li>)}</ul>
-                </div>
-              )}
-              {tile.detail.dataFlow && (
-                <div>
-                  <h4 className="text-xs font-bold text-gray-500 uppercase mb-1">Data Flow</h4>
-                  <p className="text-xs bg-blue-50 p-2 rounded">{tile.detail.dataFlow}</p>
-                </div>
-              )}
-              {tile.detail.mockBehaviour && (
-                <div>
-                  <h4 className="text-xs font-bold text-gray-500 uppercase mb-1">POC Mock Behaviour</h4>
-                  <p className="text-xs bg-amber-50 p-2 rounded">{tile.detail.mockBehaviour}</p>
-                </div>
-              )}
-              {tile.detail.productionPath && (
-                <div>
-                  <h4 className="text-xs font-bold text-gray-500 uppercase mb-1">Production Path</h4>
-                  <p className="text-xs bg-green-50 p-2 rounded">{tile.detail.productionPath}</p>
-                </div>
-              )}
-              {tile.detail.connectedTo && (
-                <div>
+                <div className="grid md:grid-cols-2 gap-4">
+                  {tile.detail.endpoints && (
+                    <div>
+                      <h4 className="text-xs font-bold text-gray-500 uppercase mb-1">API Endpoints</h4>
+                      <ul className="text-xs space-y-0.5 font-mono bg-gray-50 p-2 rounded">
+                        {tile.detail.endpoints.map((ep, i) => <li key={i}>{ep}</li>)}
+                      </ul>
+                    </div>
+                  )}
+                  {tile.detail.dependencies && (
+                    <div>
+                      <h4 className="text-xs font-bold text-gray-500 uppercase mb-1">Dependencies</h4>
+                      <ul className="text-xs space-y-0.5">{tile.detail.dependencies.map((d, i) => <li key={i}>• {d}</li>)}</ul>
+                    </div>
+                  )}
+                  {tile.detail.dataFlow && (
+                    <div>
+                      <h4 className="text-xs font-bold text-gray-500 uppercase mb-1">Data Flow</h4>
+                      <p className="text-xs bg-blue-50 p-2 rounded">{tile.detail.dataFlow}</p>
+                    </div>
+                  )}
+                  {tile.detail.mockBehaviour && (
+                    <div>
+                      <h4 className="text-xs font-bold text-gray-500 uppercase mb-1">POC Mock Behaviour</h4>
+                      <p className="text-xs bg-amber-50 p-2 rounded">{tile.detail.mockBehaviour}</p>
+                    </div>
+                  )}
+                  {tile.detail.productionPath && (
+                    <div>
+                      <h4 className="text-xs font-bold text-gray-500 uppercase mb-1">Production Path</h4>
+                      <p className="text-xs bg-green-50 p-2 rounded">{tile.detail.productionPath}</p>
+                    </div>
+                  )}
+                  {tile.detail.connectedTo && (
+                    <div>
                   <h4 className="text-xs font-bold text-gray-500 uppercase mb-1">Connected To</h4>
                   <div className="flex flex-wrap gap-1">{tile.detail.connectedTo.map((c, i) => <span key={i} className="text-xs bg-gray-200 px-1.5 py-0.5 rounded">{c}</span>)}</div>
                 </div>
@@ -139,7 +137,9 @@ export default function ArchitecturePage() {
             </div>
           </div>
         </div>
-      )}
+          )}
+        </div>
+      ))}
     </div>
   );
 }
