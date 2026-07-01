@@ -306,50 +306,7 @@ function AibDashboard({ user }: { user: any }) {
             </div>
           )}
 
-          {activePanel === 'users' && (
-            <div className="bg-white border border-gray-200 rounded p-6">
-              <div className="flex justify-between items-center mb-4">
-                <p className="text-sm text-gray-600">500 users across 19 organisations • 9 role levels</p>
-                <button className="bg-blue-700 text-white text-xs px-3 py-1.5 rounded">+ Add User</button>
-              </div>
-              <div className="overflow-auto max-h-80">
-                <table className="w-full text-xs">
-                  <thead className="bg-gray-50 sticky top-0"><tr>
-                    <th className="text-left p-2">Name</th><th className="text-left p-2">Role</th><th className="text-left p-2">Level</th><th className="text-left p-2">Organisation</th><th className="text-left p-2">Status</th>
-                  </tr></thead>
-                  <tbody>
-                    {Array.from({length: 20}, (_, i) => {
-                      const names = ['A. Morrison','B. Campbell','C. Stewart','D. Murray','E. MacKenzie','F. MacDonald','G. Robertson','H. Douglas','I. Wallace','J. Testerton','K. Thomson','L. Brown','M. Patterson','N. Hamilton','O. Burns','P. Duncan','Q. Fraser','R. Gray','S. Henderson','T. Allan'];
-                      const roles = ['Case Officer','DAS Team','Money Adviser','Senior Officer','Creditor','Read-Only','Trustee','Case Officer','Money Adviser','Debtor','Case Officer','Money Adviser','DAS Team','Creditor','Senior Officer','Case Officer','Money Adviser','Read-Only','Trustee','Case Officer'];
-                      const levels = [80,75,50,90,40,70,45,80,50,10,80,50,75,40,90,80,50,70,45,80];
-                      const orgs = ['AiB Case Admin','AiB DAS Team','CAS Edinburgh','AiB','RBS','AiB Policy','Sample IP','AiB Case Admin','StepChange','—','AiB Case Admin','CAS Glasgow','AiB DAS Team','Barclays','AiB','AiB Case Admin','Highland Debt','AiB Policy','Test Trustees','AiB Case Admin'];
-                      const statuses = i % 10 === 0 ? 'suspended' : 'active';
-                      return (
-                        <tr key={i} className="border-b border-gray-100 hover:bg-gray-50">
-                          <td className="p-2 font-medium">{names[i]}</td>
-                          <td className="p-2">{roles[i]}</td>
-                          <td className="p-2 font-mono text-gray-500">L{levels[i]}</td>
-                          <td className="p-2 text-gray-600">{orgs[i]}</td>
-                          <td className="p-2"><span className={`text-xs font-bold ${statuses === 'active' ? 'text-green-700' : 'text-red-700'}`}>● {statuses}</span></td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-              <div className="flex justify-between items-center mt-3 pt-3 border-t">
-                <p className="text-xs text-gray-500">Showing 1–20 of 500 users</p>
-                <div className="flex gap-1">
-                  <button className="px-2 py-1 text-xs border rounded bg-blue-600 text-white">1</button>
-                  <button className="px-2 py-1 text-xs border rounded hover:bg-gray-100">2</button>
-                  <button className="px-2 py-1 text-xs border rounded hover:bg-gray-100">3</button>
-                  <button className="px-2 py-1 text-xs border rounded hover:bg-gray-100">...</button>
-                  <button className="px-2 py-1 text-xs border rounded hover:bg-gray-100">25</button>
-                </div>
-              </div>
-              <p className="text-xs text-gray-400 mt-2 italic">🔒 User management restricted to System Admin and Senior Officer roles only</p>
-            </div>
-          )}
+          {activePanel === 'users' && <InlineUserManagement />}
 
           {activePanel === 'audit' && (
             <div className="bg-white border border-gray-200 rounded p-6">
@@ -1515,6 +1472,99 @@ function DebtorUploadPanel() {
           <p className="text-sm text-green-800 font-bold">✓ Upload complete. {files.filter(f => f.status === 'clean').length} document(s) added to your application.</p>
         </div>
       )}
+    </div>
+  );
+}
+
+// ===== INLINE USER MANAGEMENT =====
+function InlineUserManagement() {
+  const [search, setSearch] = useState('');
+  const [roleFilter, setRoleFilter] = useState('');
+
+  const allUsers = [
+    { name: 'A. Morrison', role: 'Case Officer', level: 80, org: 'AiB Case Admin', status: 'active' },
+    { name: 'B. Campbell', role: 'DAS Team', level: 75, org: 'AiB DAS Team', status: 'active' },
+    { name: 'C. Stewart', role: 'Money Adviser', level: 50, org: 'CAS Edinburgh', status: 'active' },
+    { name: 'D. Murray', role: 'Senior Officer', level: 90, org: 'AiB', status: 'active' },
+    { name: 'E. MacKenzie', role: 'Creditor', level: 40, org: 'RBS', status: 'active' },
+    { name: 'F. MacDonald', role: 'Read-Only', level: 70, org: 'AiB Policy', status: 'suspended' },
+    { name: 'G. Robertson', role: 'Trustee', level: 45, org: 'Sample IP', status: 'active' },
+    { name: 'H. Douglas', role: 'Case Officer', level: 80, org: 'AiB Case Admin', status: 'active' },
+    { name: 'I. Wallace', role: 'Money Adviser', level: 50, org: 'StepChange', status: 'active' },
+    { name: 'J. Testerton', role: 'Debtor', level: 10, org: '—', status: 'active' },
+    { name: 'K. Thomson', role: 'Case Officer', level: 80, org: 'AiB Case Admin', status: 'active' },
+    { name: 'L. Brown', role: 'Money Adviser', level: 50, org: 'CAS Glasgow', status: 'active' },
+    { name: 'M. Patterson', role: 'DAS Team', level: 75, org: 'AiB DAS Team', status: 'active' },
+    { name: 'N. Hamilton', role: 'Creditor', level: 40, org: 'Barclays', status: 'suspended' },
+    { name: 'O. Burns', role: 'Senior Officer', level: 90, org: 'AiB', status: 'active' },
+    { name: 'P. Duncan', role: 'Case Officer', level: 80, org: 'AiB Case Admin', status: 'active' },
+    { name: 'Q. Fraser', role: 'Money Adviser', level: 50, org: 'Highland Debt', status: 'active' },
+    { name: 'R. Gray', role: 'Read-Only', level: 70, org: 'AiB Policy', status: 'active' },
+    { name: 'S. Henderson', role: 'Trustee', level: 45, org: 'Test Trustees', status: 'active' },
+    { name: 'T. Allan', role: 'Case Officer', level: 80, org: 'AiB Case Admin', status: 'active' },
+  ];
+
+  const filtered = allUsers.filter(u => {
+    if (search && !u.name.toLowerCase().includes(search.toLowerCase()) && !u.org.toLowerCase().includes(search.toLowerCase())) return false;
+    if (roleFilter && u.role !== roleFilter) return false;
+    return true;
+  });
+
+  const roles = [...new Set(allUsers.map(u => u.role))];
+
+  return (
+    <div className="bg-white border border-gray-200 rounded p-6">
+      <div className="flex flex-wrap justify-between items-center gap-3 mb-4">
+        <p className="text-sm text-gray-600">500 users across 19 organisations • 9 role levels</p>
+        <button className="bg-blue-700 text-white text-xs px-3 py-1.5 rounded">+ Add User</button>
+      </div>
+
+      {/* Search & Filter */}
+      <div className="flex flex-wrap gap-2 mb-3">
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search name or org..."
+          className="border border-gray-300 p-1.5 text-xs rounded w-48" />
+        <select value={roleFilter} onChange={e => setRoleFilter(e.target.value)} className="border border-gray-300 p-1.5 text-xs rounded">
+          <option value="">All Roles</option>
+          {roles.map(r => <option key={r} value={r}>{r}</option>)}
+        </select>
+        {(search || roleFilter) && <button onClick={() => { setSearch(''); setRoleFilter(''); }} className="text-xs text-blue-700 underline">Clear</button>}
+        <span className="text-xs text-gray-400 ml-auto">{filtered.length} of 500 shown</span>
+      </div>
+
+      <div className="overflow-auto max-h-72">
+        <table className="w-full text-xs">
+          <thead className="bg-gray-50 sticky top-0"><tr>
+            <th className="text-left p-2 cursor-pointer hover:text-blue-700">Name ↕</th>
+            <th className="text-left p-2 cursor-pointer hover:text-blue-700">Role ↕</th>
+            <th className="text-left p-2">Level</th>
+            <th className="text-left p-2 cursor-pointer hover:text-blue-700">Organisation ↕</th>
+            <th className="text-left p-2">Status</th>
+          </tr></thead>
+          <tbody>
+            {filtered.map((u, i) => (
+              <tr key={i} className="border-b border-gray-100 hover:bg-gray-50">
+                <td className="p-2 font-medium">{u.name}</td>
+                <td className="p-2">{u.role}</td>
+                <td className="p-2 font-mono text-gray-500">L{u.level}</td>
+                <td className="p-2 text-gray-600">{u.org}</td>
+                <td className="p-2"><span className={`text-xs font-bold ${u.status === 'active' ? 'text-green-700' : 'text-red-700'}`}>● {u.status}</span></td>
+              </tr>
+            ))}
+            {filtered.length === 0 && <tr><td colSpan={5} className="p-4 text-center text-gray-400">No users match your search</td></tr>}
+          </tbody>
+        </table>
+      </div>
+      <div className="flex justify-between items-center mt-3 pt-3 border-t">
+        <p className="text-xs text-gray-500">Showing 1–{filtered.length} of 500 users (page 1 of 25)</p>
+        <div className="flex gap-1">
+          <button className="px-2 py-1 text-xs border rounded bg-blue-600 text-white">1</button>
+          <button className="px-2 py-1 text-xs border rounded hover:bg-gray-100">2</button>
+          <button className="px-2 py-1 text-xs border rounded hover:bg-gray-100">3</button>
+          <button className="px-2 py-1 text-xs border rounded hover:bg-gray-100">...</button>
+          <button className="px-2 py-1 text-xs border rounded hover:bg-gray-100">25</button>
+        </div>
+      </div>
+      <p className="text-xs text-gray-400 mt-2 italic">🔒 User management restricted to System Admin and Senior Officer roles only. Full management at /admin/users.</p>
     </div>
   );
 }
