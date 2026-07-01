@@ -21,7 +21,7 @@ export default function DashboardPage() {
       {/* POC Role Switcher */}
       <div className="bg-yellow-50 border border-yellow-300 p-4 mb-6 rounded">
         <p className="text-sm font-bold mb-2">POC Demo: Switch User Role</p>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-1.5 md:gap-2">
           {DEMO_USERS.map(user => (
             <button key={user.id} onClick={() => setSelectedUser(user)}
               className={`text-xs px-3 py-1.5 rounded border ${selectedUser.id === user.id ? 'bg-gov-blue text-white border-gov-blue' : 'bg-white border-gray-300 hover:border-gov-blue'}`}>

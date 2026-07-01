@@ -283,7 +283,7 @@ function PersonalSection({ formData, updateField }: { formData: any; updateField
         <div>
           <label className="block font-bold mb-1 text-sm">Title</label>
           <select value={d.title || ''} onChange={e => updateField('personal', 'title', e.target.value)}
-            className="border-2 border-gray-900 p-2 w-full">
+            className="border-2 border-gray-900 p-2.5 min-h-[44px] w-full">
             <option value="">Select</option>
             {['Mr', 'Mrs', 'Ms', 'Miss', 'Dr'].map(t => <option key={t}>{t}</option>)}
           </select>
@@ -298,7 +298,7 @@ function PersonalSection({ formData, updateField }: { formData: any; updateField
         <div>
           <label className="block font-bold mb-1 text-sm">Marital status *</label>
           <select value={d.maritalStatus || ''} onChange={e => updateField('personal', 'maritalStatus', e.target.value)}
-            className="border-2 border-gray-900 p-2 w-full">
+            className="border-2 border-gray-900 p-2.5 min-h-[44px] w-full">
             <option value="">Select</option>
             {['Single','Married','Civil Partnership','Divorced','Widowed','Separated'].map(s => <option key={s} value={s.toLowerCase().replace(' ','_')}>{s}</option>)}
           </select>
@@ -308,7 +308,7 @@ function PersonalSection({ formData, updateField }: { formData: any; updateField
       <div>
         <label className="block font-bold mb-1 text-sm">Employment status *</label>
         <select value={d.employmentStatus || ''} onChange={e => updateField('personal', 'employmentStatus', e.target.value)}
-          className="border-2 border-gray-900 p-2 w-full md:w-1/2">
+          className="border-2 border-gray-900 p-2.5 min-h-[44px] w-full md:w-1/2">
           <option value="">Select</option>
           {['Employed','Self-employed','Unemployed','Retired','Student','Other'].map(s => <option key={s} value={s.toLowerCase().replace('-','_')}>{s}</option>)}
         </select>
@@ -320,8 +320,8 @@ function PersonalSection({ formData, updateField }: { formData: any; updateField
         <p className="text-xs text-gray-500 mb-3">Include any other names you are or have been known by (maiden name, previous married name, etc.)</p>
         {(d.aliases || []).map((alias: any, i: number) => (
           <div key={i} className="flex gap-2 items-end mb-2">
-            <div className="flex-1"><input value={alias.firstName || ''} onChange={e => { const a = [...(d.aliases||[])]; a[i]={...a[i],firstName:e.target.value}; updateField('personal','aliases',a); }} placeholder="First name" className="border-2 border-gray-900 p-2 w-full text-sm" /></div>
-            <div className="flex-1"><input value={alias.lastName || ''} onChange={e => { const a = [...(d.aliases||[])]; a[i]={...a[i],lastName:e.target.value}; updateField('personal','aliases',a); }} placeholder="Last name" className="border-2 border-gray-900 p-2 w-full text-sm" /></div>
+            <div className="flex-1"><input value={alias.firstName || ''} onChange={e => { const a = [...(d.aliases||[])]; a[i]={...a[i],firstName:e.target.value}; updateField('personal','aliases',a); }} placeholder="First name" className="border-2 border-gray-900 p-2.5 min-h-[44px] w-full text-sm" /></div>
+            <div className="flex-1"><input value={alias.lastName || ''} onChange={e => { const a = [...(d.aliases||[])]; a[i]={...a[i],lastName:e.target.value}; updateField('personal','aliases',a); }} placeholder="Last name" className="border-2 border-gray-900 p-2.5 min-h-[44px] w-full text-sm" /></div>
             <select value={alias.type || ''} onChange={e => { const a = [...(d.aliases||[])]; a[i]={...a[i],type:e.target.value}; updateField('personal','aliases',a); }} className="border-2 border-gray-900 p-2 text-sm">
               <option value="">Type</option><option value="maiden">Maiden name</option><option value="previous_married">Previous married</option><option value="other">Other</option>
             </select>
@@ -447,7 +447,7 @@ function DebtsSection({ formData, updateField }: { formData: any; updateField: a
             <Input label="Creditor name *" value={debt.creditorName} onChange={v => updateDebt(i, 'creditorName', v)} />
             <div>
               <label className="block font-bold mb-1 text-sm">Type</label>
-              <select value={debt.creditorType} onChange={e => updateDebt(i, 'creditorType', e.target.value)} className="border-2 border-gray-900 p-2 w-full">
+              <select value={debt.creditorType} onChange={e => updateDebt(i, 'creditorType', e.target.value)} className="border-2 border-gray-900 p-2.5 min-h-[44px] w-full">
                 {[['bank','Bank'],['credit_card','Credit Card'],['loan_company','Loan'],['utility','Utility'],['council_tax','Council Tax'],['hmrc','HMRC'],['other','Other']].map(([v,l]) => <option key={v} value={v}>{l}</option>)}
               </select>
             </div>
@@ -544,7 +544,7 @@ function AssetsSection({ formData, updateField }: { formData: any; updateField: 
                 <Input label="Estimated value (£)" type="number" value={p.value} onChange={v => updateItem('properties', i, 'value', v)} />
                 <Input label="Outstanding mortgage (£)" type="number" value={p.mortgage} onChange={v => updateItem('properties', i, 'mortgage', v)} />
                 <div><label className="block font-bold mb-1 text-sm">Ownership</label>
-                  <select value={p.ownership||''} onChange={e => updateItem('properties', i, 'ownership', e.target.value)} className="border-2 border-gray-900 p-2 w-full text-sm">
+                  <select value={p.ownership||''} onChange={e => updateItem('properties', i, 'ownership', e.target.value)} className="border-2 border-gray-900 p-2.5 min-h-[44px] w-full text-sm">
                     <option value="">Select</option><option value="sole">Sole owner</option><option value="joint">Joint owner</option><option value="rented">Rented (not owned)</option>
                   </select>
                 </div>
@@ -563,7 +563,7 @@ function AssetsSection({ formData, updateField }: { formData: any; updateField: 
                 <Input label="Estimated value (£)" type="number" value={v.value} onChange={val => updateItem('vehicles', i, 'value', val)} />
                 <Input label="Finance outstanding (£)" type="number" value={v.finance} onChange={val => updateItem('vehicles', i, 'finance', val)} />
                 <div><label className="block font-bold mb-1 text-sm">Essential for work?</label>
-                  <select value={v.essential||''} onChange={e => updateItem('vehicles', i, 'essential', e.target.value)} className="border-2 border-gray-900 p-2 w-full text-sm">
+                  <select value={v.essential||''} onChange={e => updateItem('vehicles', i, 'essential', e.target.value)} className="border-2 border-gray-900 p-2.5 min-h-[44px] w-full text-sm">
                     <option value="">Select</option><option value="yes">Yes — needed for employment</option><option value="no">No</option>
                   </select>
                 </div>
@@ -579,7 +579,7 @@ function AssetsSection({ formData, updateField }: { formData: any; updateField: 
             {savings.map((s: any, i: number) => (
               <div key={i} className="grid md:grid-cols-3 gap-3 mb-2">
                 <div><label className="block font-bold mb-1 text-sm">Type</label>
-                  <select value={s.type||''} onChange={e => updateItem('savings', i, 'type', e.target.value)} className="border-2 border-gray-900 p-2 w-full text-sm">
+                  <select value={s.type||''} onChange={e => updateItem('savings', i, 'type', e.target.value)} className="border-2 border-gray-900 p-2.5 min-h-[44px] w-full text-sm">
                     <option value="">Select</option><option value="bank_savings">Bank savings</option><option value="isa">ISA</option><option value="stocks">Stocks/shares</option><option value="pension_pot">Pension pot</option><option value="crypto">Cryptocurrency</option><option value="other">Other</option>
                   </select>
                 </div>

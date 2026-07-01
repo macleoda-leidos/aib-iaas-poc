@@ -16,13 +16,32 @@
   h3 { @apply text-xl font-bold mb-3; }
 }
 
+@layer base {
+  /* Mobile-first: prevent iOS zoom on input focus */
+  input, select, textarea {
+    @apply text-base;
+    font-size: 16px; /* iOS requires 16px to prevent zoom */
+  }
+
+  /* Touch-friendly minimum sizes */
+  button, a, [role="button"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Tables scroll horizontally on mobile */
+  table {
+    @apply w-full;
+  }
+}
+
 @layer components {
   .gov-header {
-    @apply bg-gov-black text-white py-4;
+    @apply bg-gov-black text-white py-3 md:py-4;
   }
 
   .gov-main {
-    @apply max-w-4xl mx-auto px-4 py-8;
+    @apply max-w-4xl mx-auto px-4 py-6 md:py-8;
   }
 
   .gov-footer {

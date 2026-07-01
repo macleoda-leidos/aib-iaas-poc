@@ -1,5 +1,12 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import './globals.css';
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 5,
+  userScalable: true,
+};
 
 export const metadata: Metadata = {
   title: 'AiB - Initial Application Advice Service',
@@ -20,7 +27,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               </span>
             </div>
             <nav aria-label="Main navigation">
-              <ul className="flex gap-6 text-sm">
+              <ul className="flex flex-wrap gap-3 md:gap-6 text-xs md:text-sm">
                 <li><a href="/" className="text-white hover:underline no-underline">Home</a></li>
                 <li><a href="/portal" className="text-white hover:underline no-underline">Portal</a></li>
                 <li><a href="/apply" className="text-white hover:underline no-underline">Apply</a></li>
