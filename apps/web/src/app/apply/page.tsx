@@ -470,6 +470,9 @@ function IncomeSection({ formData, updateField }: { formData: any; updateField: 
 
   return (
     <div className="space-y-4">
+      <div className="bg-blue-50 border border-blue-200 rounded p-3 mb-2">
+        <p className="text-xs"><strong>📋 Common Financial Tool (CFT):</strong> Income and expenditure categories below are aligned with the <a href="https://www.aib.gov.uk/common-financial-tool" target="_blank" rel="noopener noreferrer" className="text-blue-700 underline">Common Financial Tool</a> used across all Scottish debt solutions for affordability assessment.</p>
+      </div>
       <h3 className="font-bold">Monthly Income</h3>
       <div className="grid md:grid-cols-2 gap-3">
         <Input label="Wages/Salary (£)" type="number" value={inc.wages} onChange={v => updateField('income', 'wages', v)} />

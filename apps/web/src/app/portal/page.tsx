@@ -63,15 +63,19 @@ const STATUS_COLOURS: Record<string, string> = { New: 'bg-blue-100 text-blue-800
 
 export default function PortalPage() {
   return (
-    <Suspense fallback={<div className="p-8 text-center">Loading portal...</div>}>
-      <PortalContent />
+    <Suspense fallback={<PortalContent userId="karen" />}>
+      <PortalWithParams />
     </Suspense>
   );
 }
 
-function PortalContent() {
+function PortalWithParams() {
   const searchParams = useSearchParams();
   const userId = searchParams.get('user') || 'karen';
+  return <PortalContent userId={userId} />;
+}
+
+function PortalContent({ userId }: { userId: string }) {
   const user = USERS[userId] || USERS.karen;
 
   const [systemFilter, setSystemFilter] = useState<string>('all');

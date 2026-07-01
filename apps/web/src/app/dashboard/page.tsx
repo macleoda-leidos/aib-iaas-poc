@@ -47,7 +47,7 @@ export default function DashboardPage() {
 
 function AibDashboard({ user }: { user: any }) {
   const [selectedApp, setSelectedApp] = useState<any>(null);
-  const [activePanel, setActivePanel] = useState<'none' | 'report' | 'users'>('none');
+  const [activePanel, setActivePanel] = useState<'none' | 'report' | 'users' | 'audit' | 'health'>('none');
   const isAdmin = user.role === 'system_admin' || user.role === 'aib_senior_officer';
 
   const apps = [
@@ -142,8 +142,8 @@ function AibDashboard({ user }: { user: any }) {
         <div className="bg-white border border-gray-200 rounded p-4">
           <h3 className="font-bold mb-3">Quick Actions</h3>
           <div className="space-y-2">
-            <ActionButton label="Run Integration Health Check" icon="🔍" />
-            <ActionButton label="View Audit Log" icon="📋" />
+            <ActionButton label="Run Integration Health Check" icon="🔍" onClick={() => setActivePanel(activePanel === 'health' ? 'none' : 'health')} />
+            <ActionButton label="View Audit Log" icon="📋" onClick={() => setActivePanel(activePanel === 'audit' ? 'none' : 'audit')} />
             {isAdmin && <ActionButton label="Generate Weekly Report" icon="📊" onClick={() => setActivePanel(activePanel === 'report' ? 'none' : 'report')} />}
             {isAdmin && <ActionButton label="Manage Users (500)" icon="👥" onClick={() => setActivePanel(activePanel === 'users' ? 'none' : 'users')} />}
             {!isAdmin && <p className="text-xs text-gray-400 italic mt-2">🔒 Report & User management requires System Admin or Senior Officer role</p>}
@@ -239,6 +239,56 @@ function AibDashboard({ user }: { user: any }) {
                 </div>
               </div>
               <p className="text-xs text-gray-400 mt-2 italic">🔒 User management restricted to System Admin and Senior Officer roles only</p>
+            </div>
+          )}
+
+          {activePanel === 'audit' && (
+            <div className="bg-white border border-gray-200 rounded p-6">
+              <p className="text-xs text-gray-500 mb-3">Recent system events (last 24 hours)</p>
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {[
+                  { time: '14:32', action: 'Application IAAS-2026-00012 submitted', actor: 'A. Morrison', type: 'Applicant' },
+                  { time: '14:15', action: 'Credit check completed — PASS (score 620)', actor: 'System', type: 'System' },
+                  { time: '13:45', action: 'Case IAAS-2026-00008 assigned to James Wilson', actor: 'Karen MacLeod', type: 'Staff' },
+                  { time: '12:20', action: 'Staff note added to IAAS-2026-00010', actor: 'James Wilson', type: 'Staff' },
+                  { time: '11:50', action: 'Document uploaded: payslip_june.pdf', actor: 'C. Stewart', type: 'Applicant' },
+                  { time: '11:30', action: 'Application IAAS-2026-00011 status → Under Review', actor: 'System', type: 'System' },
+                  { time: '10:15', action: 'Cross-system check: no duplicates found', actor: 'System', type: 'System' },
+                  { time: '09:45', action: 'User login: Karen MacLeod (AiB Senior Officer)', actor: 'Karen MacLeod', type: 'Auth' },
+                  { time: '09:30', action: 'Weekly report generated and downloaded', actor: 'Karen MacLeod', type: 'Staff' },
+                  { time: '09:00', action: 'Scheduled: virus scan batch completed (12 files clean)', actor: 'ClamAV', type: 'System' },
+                ].map((e, i) => (
+                  <div key={i} className="flex items-start gap-3 text-xs p-2 hover:bg-gray-50 rounded">
+                    <span className="text-gray-400 w-12 flex-shrink-0">{e.time}</span>
+                    <span className={`px-1.5 py-0.5 rounded font-bold flex-shrink-0 ${e.type === 'System' ? 'bg-gray-100 text-gray-600' : e.type === 'Staff' ? 'bg-blue-100 text-blue-700' : e.type === 'Auth' ? 'bg-purple-100 text-purple-700' : 'bg-green-100 text-green-700'}`}>{e.type}</span>
+                    <span className="flex-1">{e.action}</span>
+                    <span className="text-gray-400">{e.actor}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {activePanel === 'health' && (
+            <div className="bg-white border border-gray-200 rounded p-6">
+              <p className="text-xs text-gray-500 mb-3">Real-time integration health status</p>
+              <div className="grid md:grid-cols-2 gap-3">
+                {[
+                  { sys: 'BASYS', status: 'healthy', latency: '245ms', uptime: '99.8%' },
+                  { sys: 'eDEN/DASH', status: 'healthy', latency: '312ms', uptime: '99.5%' },
+                  { sys: 'DAS', status: 'healthy', latency: '189ms', uptime: '99.9%' },
+                  { sys: 'CFT', status: 'healthy', latency: '156ms', uptime: '100%' },
+                  { sys: 'Moratorium', status: 'healthy', latency: '278ms', uptime: '99.7%' },
+                  { sys: 'RoI', status: 'healthy', latency: '298ms', uptime: '99.6%' },
+                  { sys: 'Credit Check (Equifax)', status: 'healthy', latency: '520ms', uptime: '100%' },
+                  { sys: 'ClamAV Scanner', status: 'healthy', latency: '1.2s', uptime: '100%' },
+                ].map(s => (
+                  <div key={s.sys} className="flex items-center justify-between p-3 border rounded">
+                    <div className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-green-500"></span><span className="text-sm font-bold">{s.sys}</span></div>
+                    <div className="text-right text-xs text-gray-500"><p>{s.latency}</p><p>{s.uptime}</p></div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </div>
