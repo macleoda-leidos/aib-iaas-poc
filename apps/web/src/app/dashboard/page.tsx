@@ -57,10 +57,60 @@ function AibDashboard({ user }: { user: any }) {
     { ref: 'IAAS-2026-00009', name: 'D. Murray', product: 'Sequestration', status: 'Submitted', date: '25 Jun', debt: 6800, score: 280, result: 'FAIL' },
   ];
 
+  const [alertDismissed, setAlertDismissed] = useState(false);
+  const [scenarioRunning, setScenarioRunning] = useState<string | null>(null);
+  const [scenarioSteps, setScenarioSteps] = useState<any[]>([]);
+
+  const runScenario = (id: string) => {
+    setScenarioRunning(id);
+    setScenarioSteps([]);
+    const scenarios: Record<string, any[]> = {
+      S001: [
+        { step: 1, system: 'IAAS', action: 'Application received', status: 'ok', time: 500 },
+        { step: 2, system: 'Credit Check', action: 'Score: 620 (PASS)', status: 'ok', time: 1200 },
+        { step: 3, system: 'BASYS', action: 'No existing case', status: 'ok', time: 1800 },
+        { step: 4, system: 'Recommend', action: 'DAS recommended (high confidence)', status: 'ok', time: 2400 },
+        { step: 5, system: 'Notification', action: 'Email sent to applicant', status: 'ok', time: 3000 },
+      ],
+      S002: [
+        { step: 1, system: 'IAAS', action: 'Application received', status: 'ok', time: 500 },
+        { step: 2, system: 'Credit Check', action: 'Score: 280 (FAIL)', status: 'warn', time: 1200 },
+        { step: 3, system: 'BASYS', action: 'Previous sequestration found', status: 'warn', time: 1800 },
+        { step: 4, system: 'Recommend', action: 'Signposting advice (existing case)', status: 'warn', time: 2400 },
+        { step: 5, system: 'Notification', action: 'SMS sent — seek money advice', status: 'ok', time: 3000 },
+      ],
+      S003: [
+        { step: 1, system: 'IAAS', action: 'High-value application (£48,000)', status: 'ok', time: 500 },
+        { step: 2, system: 'AI', action: '⚠ Anomaly: outlier amount (confidence 94%)', status: 'alert', time: 1000 },
+        { step: 3, system: 'Credit Check', action: 'Score: 410 (borderline)', status: 'warn', time: 1800 },
+        { step: 4, system: 'BASYS', action: 'No existing case', status: 'ok', time: 2200 },
+        { step: 5, system: 'Recommend', action: 'PTD recommended — flagged for review', status: 'warn', time: 2800 },
+      ],
+    };
+    const steps = scenarios[id] || scenarios.S001;
+    steps.forEach((s: any) => {
+      setTimeout(() => setScenarioSteps(prev => [...prev, s]), s.time);
+    });
+    setTimeout(() => setScenarioRunning(null), 3500);
+  };
+
   return (
     <div>
       <h1>AiB Dashboard</h1>
       <p className="text-gray-600 mb-6">Welcome back, {user.name}</p>
+
+      {/* AI Anomaly Alert Banner */}
+      {!alertDismissed && (
+        <div className="bg-amber-50 border-2 border-amber-400 rounded-lg p-4 mb-6 flex items-start gap-3">
+          <span className="text-2xl">⚠️</span>
+          <div className="flex-1">
+            <p className="font-bold text-amber-900">AI Anomaly Detected</p>
+            <p className="text-sm text-amber-800">High-value application (£9,850) from <strong>A. Morrison</strong> — confidence <strong>94%</strong> — classified as <span className="bg-red-100 text-red-800 px-1 rounded text-xs font-bold">HIGH_VALUE_OUTLIER</span></p>
+            <p className="text-xs text-amber-700 mt-1">Suggested action: Manual review before auto-approval. Pattern matches 3 similar flagged cases this month.</p>
+          </div>
+          <button onClick={() => setAlertDismissed(true)} className="text-amber-500 hover:text-amber-800 text-sm">Dismiss</button>
+        </div>
+      )}
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
@@ -159,6 +209,65 @@ function AibDashboard({ user }: { user: any }) {
               </div>
             ))}
           </div>
+        </div>
+      </div>
+
+      {/* Demo Scenario Replay */}
+      <div className="bg-white border border-gray-200 rounded mb-6">
+        <div className="p-4 border-b"><h2 className="font-bold">🎬 Demo Scenarios (Replay)</h2><p className="text-xs text-gray-500">Click to run a deterministic demo scenario and watch the integration flow</p></div>
+        <div className="p-4">
+          <div className="grid md:grid-cols-3 gap-3 mb-4">
+            {[
+              { id: 'S001', name: 'Happy Path — DAS Approval', desc: 'Credit pass, no duplicates, DAS recommended', colour: 'border-green-500 hover:bg-green-50' },
+              { id: 'S002', name: 'Failed — Existing Case', desc: 'Credit fail, BASYS match found, signposting', colour: 'border-red-500 hover:bg-red-50' },
+              { id: 'S003', name: 'Anomaly — High Value', desc: 'AI flags outlier, borderline credit, manual review', colour: 'border-amber-500 hover:bg-amber-50' },
+            ].map(s => (
+              <button key={s.id} onClick={() => runScenario(s.id)} disabled={!!scenarioRunning}
+                className={`p-3 border-2 rounded text-left ${s.colour} ${scenarioRunning === s.id ? 'ring-2 ring-blue-400' : ''} disabled:opacity-60`}>
+                <p className="font-bold text-sm">{s.name}</p>
+                <p className="text-xs text-gray-600">{s.desc}</p>
+              </button>
+            ))}
+          </div>
+          {scenarioSteps.length > 0 && (
+            <div className="bg-gray-900 rounded p-3 font-mono text-xs text-green-400 max-h-40 overflow-y-auto">
+              {scenarioSteps.map((s, i) => (
+                <div key={i} className="flex gap-2 mb-1">
+                  <span className="text-gray-500">[{s.step}]</span>
+                  <span className={`w-16 ${s.status === 'ok' ? 'text-green-400' : s.status === 'warn' ? 'text-amber-400' : 'text-red-400'}`}>{s.system}</span>
+                  <span>{s.action}</span>
+                  <span className="ml-auto">{s.status === 'ok' ? '✓' : s.status === 'warn' ? '⚠' : '✗'}</span>
+                </div>
+              ))}
+              {scenarioRunning && <div className="text-blue-400 animate-pulse mt-1">▸ Running...</div>}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Live Transaction Feed */}
+      <div className="bg-white border border-gray-200 rounded mb-6">
+        <div className="p-3 border-b flex justify-between items-center">
+          <h3 className="font-bold text-sm">📡 Live Transaction Feed</h3>
+          <span className="text-xs text-green-600 flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>Connected</span>
+        </div>
+        <div className="p-3 space-y-1 text-xs font-mono max-h-32 overflow-y-auto bg-gray-50">
+          {[
+            { time: '14:32:45', sys: 'IAAS', msg: 'POST /api/applications — 201 Created (IAAS-2026-00012)', ok: true },
+            { time: '14:32:46', sys: 'Credit', msg: 'Equifax check — score 620, PASS', ok: true },
+            { time: '14:32:47', sys: 'BASYS', msg: 'Lookup: no existing case for A. Morrison', ok: true },
+            { time: '14:32:48', sys: 'Recommend', msg: 'DAS recommended (confidence: high)', ok: true },
+            { time: '14:31:12', sys: 'IAAS', msg: 'POST /api/applications — 201 Created (IAAS-2026-00011)', ok: true },
+            { time: '14:31:13', sys: 'Credit', msg: 'Equifax check — score 340, FAIL', ok: false },
+            { time: '14:31:14', sys: 'AI', msg: '⚠ Anomaly: pattern match (confidence 87%)', ok: false },
+            { time: '14:30:00', sys: 'ClamAV', msg: 'Scan complete: 3 files clean, 0 quarantined', ok: true },
+          ].map((t, i) => (
+            <div key={i} className="flex gap-2">
+              <span className="text-gray-400">{t.time}</span>
+              <span className={`w-14 ${t.ok ? 'text-green-600' : 'text-amber-600'}`}>{t.sys}</span>
+              <span className={t.ok ? 'text-gray-700' : 'text-amber-700'}>{t.msg}</span>
+            </div>
+          ))}
         </div>
       </div>
 
