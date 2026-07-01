@@ -3,6 +3,7 @@
 import { useState } from 'react';
 
 const DEMO_ACCOUNTS = [
+  { id: 'admin', name: 'Admin User', email: 'admin@aib.example.gov.scot', role: 'System Admin', realm: 'aib-internal' },
   { id: 'karen', name: 'Karen MacLeod', email: 'senior.officer@aib.example.gov.scot', role: 'AiB Senior Officer', realm: 'aib-internal' },
   { id: 'james', name: 'James Wilson', email: 'officer@aib.example.gov.scot', role: 'AiB Case Officer', realm: 'aib-internal' },
   { id: 'fiona', name: 'Fiona Campbell', email: 'adviser@cas.example.org', role: 'Money Adviser', realm: 'external-advisers' },

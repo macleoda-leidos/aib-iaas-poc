@@ -158,8 +158,8 @@ export default function ArchitecturePage() {
             </thead>
             <tbody>
               {[
-                ['Frontend', 'Next.js 15 / React 19', 'Angular 17+ or React 18 SPA\n(.NET MVC for server-rendered pages)', 'Angular preferred in Scottish Gov; React for complex SPAs. .NET MVC for content pages.'],
-                ['Backend API', 'Node.js / Express / TypeScript', '.NET 8 Minimal APIs\n(C# / ASP.NET Core)', '.NET is AiB\'s primary backend stack. Minimal APIs for microservices; MVC for monolith.'],
+                ['Frontend', 'Next.js 15 / React 19', 'React 18 SPA\n(TypeScript, Vite or Next.js)', 'React SPA with TypeScript. Component library for consistency. Mobile-first responsive.'],
+                ['Backend API', 'Node.js / Express / TypeScript', '.NET 8 Minimal APIs\n(C# / ASP.NET Core)', '.NET is AiB\'s primary backend stack. Minimal APIs for microservices. REST + OpenAPI.'],
                 ['API Gateway', 'Express middleware (custom)', 'AWS API Gateway\n+ .NET Ocelot (internal)', 'AWS API Gateway for public endpoints, rate limiting, WAF. Ocelot for service mesh routing.'],
                 ['Database', 'SQLite (file-based)', 'AWS RDS (PostgreSQL/SQL Server)\nor Aurora Serverless', 'Enterprise HA, automated backups, encryption at rest, Multi-AZ failover.'],
                 ['Identity', 'Mock JWT + Identity Service', 'Keycloak 24 on ECS\n(+ Okta integration)', 'Keycloak for multi-realm federation. Okta for existing enterprise MFA. ScotAccount SAML.'],

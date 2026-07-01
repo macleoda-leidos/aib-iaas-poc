@@ -4,6 +4,7 @@ import { useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 
 const USERS: Record<string, any> = {
+  admin: { name: 'Admin User', role: 'System Admin', org: 'Accountant in Bankruptcy', realm: 'aib-internal' },
   karen: { name: 'Karen MacLeod', role: 'AiB Senior Officer', org: 'Accountant in Bankruptcy', realm: 'aib-internal' },
   james: { name: 'James Wilson', role: 'AiB Case Officer', org: 'AiB - Case Administration', realm: 'aib-internal' },
   fiona: { name: 'Fiona Campbell', role: 'Money Adviser', org: 'CAS - Edinburgh Bureau', realm: 'external-advisers' },
@@ -50,6 +51,7 @@ const DEBTOR_QUEUE = [
 
 // Role-based portal configuration
 const ROLE_CONFIG: Record<string, { visibleSystems: string[]; queueTitle: string; showSystemTiles: boolean; filterQueue: (q: typeof WORK_QUEUE) => typeof WORK_QUEUE }> = {
+  'System Admin': { visibleSystems: ['BASYS', 'ASTRA', 'eDEN', 'CFT', 'RoI', 'IAAS'], queueTitle: 'System Administration — All Queues', showSystemTiles: true, filterQueue: q => q },
   'AiB Senior Officer': { visibleSystems: ['BASYS', 'ASTRA', 'eDEN', 'CFT', 'RoI', 'IAAS'], queueTitle: 'Unified Work Queue', showSystemTiles: true, filterQueue: q => q },
   'AiB Case Officer': { visibleSystems: ['BASYS', 'ASTRA', 'eDEN', 'CFT', 'RoI', 'IAAS'], queueTitle: 'My Work Queue', showSystemTiles: true, filterQueue: q => q.filter(i => i.assignee === 'James Wilson' || i.assignee === 'Unassigned' || i.assignee === 'System') },
   'Money Adviser': { visibleSystems: ['eDEN', 'IAAS'], queueTitle: 'My Client Cases', showSystemTiles: true, filterQueue: q => q.filter(i => ['IAAS', 'eDEN', 'DAS'].includes(i.system) && (i.assignee === 'Fiona Campbell' || i.assignee === 'Unassigned')) },
