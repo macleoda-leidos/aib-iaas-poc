@@ -13,6 +13,7 @@ const DEMO_USERS = [
   { id: 'USR-008', name: 'Robert Henderson', role: 'supplier', roleDisplay: 'Supplier/Trustee', org: 'Sample Insolvency Practitioners LLP' },
   { id: 'USR-009', name: 'John Testerton', role: 'debtor', roleDisplay: 'Debtor', org: null },
   { id: 'USR-010', name: 'Dr. Helen Fraser', role: 'aib_statistician', roleDisplay: 'AiB Statistician', org: 'Accountant in Bankruptcy — Reporting & Analytics' },
+  { id: 'USR-011', name: 'Ryan MacIntyre', role: 'cyber_ops', roleDisplay: 'CyberOps Analyst', org: 'AiB — Security Operations Centre' },
 ];
 
 export default function DashboardPage() {
@@ -40,6 +41,7 @@ export default function DashboardPage() {
       {/* Render appropriate dashboard */}
       {(selectedUser.role.startsWith('aib') || selectedUser.role === 'system_admin') && selectedUser.role !== 'aib_statistician' && <AibDashboard user={selectedUser} />}
       {selectedUser.role === 'aib_statistician' && <StatisticianDashboard user={selectedUser} />}
+      {selectedUser.role === 'cyber_ops' && <CyberOpsDashboard user={selectedUser} />}
       {selectedUser.role === 'money_adviser' && <AdviserDashboard user={selectedUser} />}
       {selectedUser.role === 'creditor' && <CreditorDashboard user={selectedUser} />}
       {selectedUser.role === 'supplier' && <SupplierDashboard user={selectedUser} />}
@@ -1186,6 +1188,65 @@ function SupplierDashboard({ user }: { user: any }) {
           {activePanel === 'upload' && <DebtorUploadPanel />}
         </div>
       )}
+    </div>
+  );
+}
+
+function CyberOpsDashboard({ user }: { user: any }) {
+  return (
+    <div>
+      <h1>Security Operations Centre</h1>
+      <p className="text-gray-600 mb-6">Welcome, {user.name} — Threat Monitoring & Incident Response</p>
+
+      {/* Threat Level */}
+      <div className="bg-amber-50 dark:bg-amber-950 border-2 border-amber-400 rounded-lg p-4 mb-6 flex items-center gap-4">
+        <div className="w-12 h-12 rounded-full bg-amber-500 flex items-center justify-center animate-pulse">
+          <span className="text-xl font-black text-white">⚠</span>
+        </div>
+        <div>
+          <p className="font-bold text-amber-900 dark:text-amber-200">Current Threat Level: ELEVATED</p>
+          <p className="text-sm text-amber-700 dark:text-amber-300">Active credential stuffing campaign + malware delivery on contractor endpoint</p>
+        </div>
+      </div>
+
+      {/* KPI Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <KpiCard label="Active Incidents" value="2" trend="1 critical, 1 high" colour="red" />
+        <KpiCard label="Blocked Today" value="47" trend="↑ from 32 yesterday" colour="orange" />
+        <KpiCard label="Endpoints Protected" value="7/9" trend="2 require attention" colour="blue" />
+        <KpiCard label="Vuln Remediation" value="72%" trend="3 critical outstanding" colour="green" />
+      </div>
+
+      {/* Quick link to full SOC */}
+      <div className="bg-gray-900 text-white border-2 border-gray-700 rounded-lg p-6 mb-6 text-center">
+        <h2 className="text-xl font-bold mb-2">🛡️ Full Security Operations Dashboard</h2>
+        <p className="text-sm text-gray-300 mb-4">
+          Live event stream, attack timeline, Sophos endpoints, Tenable vulnerabilities, Sysmon process alerts, incident management.
+        </p>
+        <a href="/security" className="inline-block bg-red-700 text-white font-bold py-3 px-8 rounded hover:bg-red-800 text-sm">
+          Open SOC Dashboard →
+        </a>
+      </div>
+
+      {/* Recent Critical Alerts */}
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded p-4">
+        <h3 className="font-bold mb-3">🚨 Recent Critical Alerts</h3>
+        <div className="space-y-2">
+          {[
+            { time: '14:30', msg: 'Malware quarantined: Trojan.GenericKD.46789 on AIBWS-023 (contractor)', sev: 'CRIT' },
+            { time: '14:15', msg: 'Suspicious C2 connection: AIBSRV-API-01 → 185.220.101.42:4443', sev: 'HIGH' },
+            { time: '10:30', msg: 'CVE-2024-3094 (xz backdoor) detected on AIBSRV-BUILD-01', sev: 'CRIT' },
+            { time: '09:22', msg: 'Privilege escalation attempt by contractor-temp-01 (blocked)', sev: 'HIGH' },
+            { time: '02:47', msg: 'Unusual login: k.macleod@aib.gov.uk at 02:47 (normal: 08:30-18:00)', sev: 'MED' },
+          ].map((alert, i) => (
+            <div key={i} className="flex items-center gap-3 p-2 bg-gray-50 dark:bg-gray-700 rounded text-xs">
+              <span className="text-gray-500 w-12 flex-shrink-0">{alert.time}</span>
+              <span className={`px-1.5 py-0.5 rounded font-bold text-white flex-shrink-0 ${alert.sev === 'CRIT' ? 'bg-red-600' : alert.sev === 'HIGH' ? 'bg-orange-600' : 'bg-yellow-600'}`}>{alert.sev}</span>
+              <span className="flex-1">{alert.msg}</span>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
