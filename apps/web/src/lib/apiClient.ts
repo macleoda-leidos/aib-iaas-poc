@@ -1,0 +1,267 @@
+/**
+ * API Client for AiB IAAS
+ * Handles all communication with the backend API gateway.
+ * Works in both standalone (local demo) and static export (Azure SWA) modes.
+ */
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+
+// Auth token stored in memory (set on login, used for audit trail)
+let authToken: string | null = null;
+
+export function setAuthToken(token: string | null) {
+  authToken = token;
+}
+
+export function getAuthToken(): string | null {
+  return authToken;
+}
+
+// Standard API response envelope from the backend
+export interface ApiResponse<T> {
+  success: boolean;
+  data: T;
+  error?: { code: string; message: string };
+  meta?: { page: number; pageSize: number; totalCount: number; totalPages: number };
+}
+
+export class ApiError extends Error {
+  code: string;
+  status: number;
+
+  constructor(status: number, code: string, message: string) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+    this.code = code;
+  }
+}
+
+function getHeaders(): Record<string, string> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  if (authToken) {
+    headers['Authorization'] = `Bearer ${authToken}`;
+  }
+  return headers;
+}
+
+async function handleResponse<T>(res: Response): Promise<ApiResponse<T>> {
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({ error: { code: 'UNKNOWN', message: res.statusText } }));
+    throw new ApiError(
+      res.status,
+      body.error?.code || 'UNKNOWN',
+      body.error?.message || `API error: ${res.status}`
+    );
+  }
+  return res.json();
+}
+
+export async function apiGet<T>(path: string): Promise<ApiResponse<T>> {
+  const res = await fetch(`${API_URL}${path}`, { headers: getHeaders() });
+  return handleResponse<T>(res);
+}
+
+export async function apiPost<T>(path: string, body?: any): Promise<ApiResponse<T>> {
+  const res = await fetch(`${API_URL}${path}`, {
+    method: 'POST',
+    headers: getHeaders(),
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  });
+  return handleResponse<T>(res);
+}
+
+export async function apiPut<T>(path: string, body: any): Promise<ApiResponse<T>> {
+  const res = await fetch(`${API_URL}${path}`, {
+    method: 'PUT',
+    headers: getHeaders(),
+    body: JSON.stringify(body),
+  });
+  return handleResponse<T>(res);
+}
+
+export async function apiPatch<T>(path: string, body: any): Promise<ApiResponse<T>> {
+  const res = await fetch(`${API_URL}${path}`, {
+    method: 'PATCH',
+    headers: getHeaders(),
+    body: JSON.stringify(body),
+  });
+  return handleResponse<T>(res);
+}
+
+export async function apiDelete<T>(path: string): Promise<ApiResponse<T>> {
+  const res = await fetch(`${API_URL}${path}`, {
+    method: 'DELETE',
+    headers: getHeaders(),
+  });
+  return handleResponse<T>(res);
+}
+
+// ─── Application-Specific API Functions ──────────────────────────────────────
+
+export interface ApplicationSummary {
+  id: string;
+  referenceNumber: string;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+  submittedAt: string | null;
+  summary: {
+    applicantName: string;
+    totalDebt: number | null;
+  };
+}
+
+export interface ApplicationDetail {
+  id: string;
+  referenceNumber: string;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+  submittedAt: string | null;
+  debtorDetails?: any;
+  addressHistory?: any;
+  debtSummary?: any;
+  incomeExpenditure?: any;
+  assets?: any;
+  systemChecks?: any;
+  creditCheck?: any;
+  recommendation?: any;
+  staffNotes?: any[];
+}
+
+export interface CreateApplicationResponse {
+  id: string;
+  referenceNumber: string;
+  status: string;
+  createdAt: string;
+}
+
+export const applications = {
+  create: (data?: any) =>
+    apiPost<CreateApplicationResponse>('/api/applications', data || {}),
+
+  get: (id: string) =>
+    apiGet<ApplicationDetail>(`/api/applications/${id}`),
+
+  update: (id: string, data: any) =>
+    apiPut<{ id: string; status: string; updatedAt: string }>(`/api/applications/${id}`, data),
+
+  submit: (id: string) =>
+    apiPost<{ id: string; status: string; submittedAt: string; referenceNumber: string }>(`/api/applications/${id}/submit`),
+
+  list: (params?: { page?: number; pageSize?: number; status?: string; referenceNumber?: string }) => {
+    const query = new URLSearchParams();
+    if (params?.page) query.set('page', String(params.page));
+    if (params?.pageSize) query.set('pageSize', String(params.pageSize));
+    if (params?.status) query.set('status', params.status);
+    if (params?.referenceNumber) query.set('referenceNumber', params.referenceNumber);
+    const qs = query.toString();
+    return apiGet<ApplicationSummary[]>(`/api/applications${qs ? `?${qs}` : ''}`);
+  },
+
+  updateStatus: (id: string, status: string, notes?: string) =>
+    apiPatch<{ id: string; status: string; updatedAt: string }>(`/api/applications/${id}/status`, { status, notes }),
+
+  addNote: (id: string, content: string, noteType?: string, authorName?: string) =>
+    apiPost<any>(`/api/applications/${id}/notes`, { content, noteType, authorName }),
+};
+
+// ─── Integration / System Checks ────────────────────────────────────────────
+
+export interface SystemCheckResult {
+  system: string;
+  status: 'clear' | 'found' | 'error';
+  responseTime: number;
+  data?: any;
+  error?: string;
+}
+
+export const integrations = {
+  checkAll: (applicantData: any) =>
+    apiPost<{ requestId: string; results: SystemCheckResult[]; summary: any }>('/api/integrations/check-all', applicantData),
+
+  checkSystem: (system: string, applicantData: any) =>
+    apiPost<SystemCheckResult>(`/api/integrations/check/${system}`, applicantData),
+
+  health: () =>
+    apiGet<any>('/api/integrations/health'),
+};
+
+// ─── Recommendation Engine ───────────────────────────────────────────────────
+
+export interface Recommendation {
+  product: string;
+  confidence: 'high' | 'medium' | 'low';
+  reasoning: string;
+  factors: Array<{ factor: string; weight: number; value: string }>;
+  alternatives?: Array<{ product: string; reason: string }>;
+}
+
+export const recommendations = {
+  get: (financialData: any) =>
+    apiPost<Recommendation>('/api/recommend', financialData),
+};
+
+// ─── Credit Check ────────────────────────────────────────────────────────────
+
+export interface CreditCheckResult {
+  score: number;
+  band: string;
+  defaults: number;
+  ccjs: number;
+  utilisation: number;
+  provider: string;
+  checkedAt: string;
+}
+
+export const creditCheck = {
+  run: (applicantData: any) =>
+    apiPost<CreditCheckResult>('/api/credit-check/run', {
+      ...applicantData,
+      consent: true,
+      provider: 'synthetic',
+    }),
+};
+
+// ─── Notifications ───────────────────────────────────────────────────────────
+
+export interface Notification {
+  id: string;
+  type: string;
+  channel: string;
+  title: string;
+  message: string;
+  read: boolean;
+  createdAt: string;
+}
+
+export const notifications = {
+  getForUser: (userId: string) =>
+    apiGet<{ notifications: Notification[]; unreadCount: number }>(`/api/notifications/user/${userId}`),
+
+  markRead: (id: string) =>
+    apiPatch<any>(`/api/notifications/${id}/read`, {}),
+
+  markAllRead: (userId: string) =>
+    apiPatch<any>(`/api/notifications/user/${userId}/read-all`, {}),
+};
+
+// ─── Audit ───────────────────────────────────────────────────────────────────
+
+export interface AuditEvent {
+  id: string;
+  applicationId: string;
+  action: string;
+  actor: string;
+  actorType: string;
+  details?: any;
+  createdAt: string;
+}
+
+export const audit = {
+  getForApplication: (applicationId: string) =>
+    apiGet<AuditEvent[]>(`/api/audit/events/${applicationId}`),
+};

@@ -1,6 +1,17 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
+import { useAppContext } from '../../lib/ApplicationContext';
+import {
+  applications,
+  integrations,
+  recommendations,
+  creditCheck,
+  ApiError,
+  SystemCheckResult,
+  Recommendation,
+  CreditCheckResult,
+} from '../../lib/apiClient';
 
 // Section definitions with validation rules
 const SECTIONS = [
@@ -47,12 +58,93 @@ function getSectionStatusRing(status: SectionStatus): string {
 export default function ApplyPage() {
   const [currentSection, setCurrentSection] = useState(0);
   const [formData, setFormData] = useState<Record<string, any>>({});
+  const [apiStatus, setApiStatus] = useState<'idle' | 'connected' | 'offline'>('idle');
+  const [saving, setSaving] = useState(false);
+  const [lastSaved, setLastSaved] = useState<string | null>(null);
+
+  const { application, setApplication, addRecentApplication, setApiConnected } = useAppContext();
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const applicationCreated = useRef(false);
+
+  // Create draft application on first interaction
+  const ensureApplicationExists = useCallback(async () => {
+    if (application.applicationId || applicationCreated.current) return;
+    applicationCreated.current = true;
+
+    try {
+      const response = await applications.create({});
+      setApplication({
+        applicationId: response.data.id,
+        referenceNumber: response.data.referenceNumber,
+        status: 'draft',
+      });
+      setApiStatus('connected');
+      setApiConnected(true);
+    } catch (err) {
+      console.warn('API not available, working offline:', err);
+      setApiStatus('offline');
+      setApiConnected(false);
+      applicationCreated.current = false;
+    }
+  }, [application.applicationId, setApplication, setApiConnected]);
+
+  // Auto-save form data to backend (debounced)
+  const saveToBackend = useCallback(async (data: Record<string, any>) => {
+    if (!application.applicationId || apiStatus === 'offline') return;
+
+    setSaving(true);
+    try {
+      const structuredData = {
+        debtorDetails: data.personal || {},
+        addressHistory: {
+          current: data.address || {},
+          previous: data.address?.previousAddresses || [],
+        },
+        contactDetails: {
+          email: data.address?.email,
+          phone: data.address?.phone,
+        },
+        debtSummary: {
+          totalDebtAmount: (data.debts?.items || []).reduce((s: number, d: any) => s + (parseFloat(d.outstandingAmount) || 0), 0),
+          debts: data.debts?.items || [],
+          creditorsCount: (data.debts?.items || []).length,
+        },
+        incomeExpenditure: {
+          income: data.income || {},
+          expenditure: data.expenditure || {},
+          totalIncome: Object.values(data.income || {}).reduce((s: number, v: any) => s + (parseFloat(v) || 0), 0),
+          totalExpenditure: Object.values(data.expenditure || {}).reduce((s: number, v: any) => s + (parseFloat(v) || 0), 0),
+        },
+        assets: data.assets || {},
+        systemChecks: data.checks || {},
+        creditCheck: data.creditCheckResult || {},
+        recommendation: data.recommendationResult || {},
+      };
+
+      await applications.update(application.applicationId, structuredData);
+      setLastSaved(new Date().toLocaleTimeString());
+    } catch (err) {
+      console.warn('Save failed:', err);
+    } finally {
+      setSaving(false);
+    }
+  }, [application.applicationId, apiStatus]);
 
   const updateField = (section: string, field: string, value: any) => {
-    setFormData(prev => ({
-      ...prev,
-      [section]: { ...prev[section], [field]: value },
-    }));
+    setFormData(prev => {
+      const updated = { ...prev, [section]: { ...prev[section], [field]: value } };
+
+      // Trigger application creation on first interaction
+      if (!application.applicationId && !applicationCreated.current) {
+        ensureApplicationExists();
+      }
+
+      // Debounced save to backend
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+      saveTimeoutRef.current = setTimeout(() => saveToBackend(updated), 1500);
+
+      return updated;
+    });
   };
 
   // Calculate section statuses based on form data
@@ -66,7 +158,6 @@ export default function ApplyPage() {
         const filled = required.filter(f => data[f] && String(data[f]).trim() !== '');
         if (filled.length === 0) return 'not_started';
         if (filled.length === required.length) return 'complete';
-        // Check for invalid entries
         if (data.dateOfBirth && !/^\d{4}-\d{2}-\d{2}$/.test(data.dateOfBirth)) return 'invalid';
         return 'in_progress';
       }
@@ -104,7 +195,7 @@ export default function ApplyPage() {
       }
       case 'documents': {
         if (data.uploaded && data.uploaded > 0) return 'complete';
-        return 'not_started'; // Documents are optional
+        return 'not_started';
       }
       case 'checks': {
         if (data.completed) return 'complete';
@@ -130,7 +221,33 @@ export default function ApplyPage() {
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold mb-2">Apply for Debt Advice</h1>
-      <p className="text-gray-600 mb-6">Complete each section below. You can navigate between sections freely.</p>
+      <p className="text-gray-600 dark:text-gray-400 mb-4">Complete each section below. You can navigate between sections freely.</p>
+
+      {/* API Connection Status + Auto-save indicator */}
+      <div className="flex items-center justify-between mb-6 text-xs">
+        <div className="flex items-center gap-2">
+          {apiStatus === 'connected' && (
+            <span className="flex items-center gap-1 text-green-700 bg-green-50 px-2 py-1 rounded">
+              <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+              Live — saving to API
+              {application.referenceNumber && <span className="font-mono font-bold ml-1">{application.referenceNumber}</span>}
+            </span>
+          )}
+          {apiStatus === 'offline' && (
+            <span className="flex items-center gap-1 text-amber-700 bg-amber-50 px-2 py-1 rounded">
+              <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+              Offline mode — data stored locally
+            </span>
+          )}
+          {apiStatus === 'idle' && (
+            <span className="text-gray-500">Start filling in the form to connect</span>
+          )}
+        </div>
+        <div className="text-gray-500">
+          {saving && <span className="animate-pulse">💾 Saving...</span>}
+          {!saving && lastSaved && <span>✓ Saved at {lastSaved}</span>}
+        </div>
+      </div>
 
       {/* Section navigation — scrollable on mobile, grid on desktop */}
       <div className="flex overflow-x-auto gap-2 pb-2 mb-8 md:grid md:grid-cols-5 lg:grid-cols-9 md:overflow-visible">
@@ -141,7 +258,7 @@ export default function ApplyPage() {
             <button
               key={section.id}
               onClick={() => setCurrentSection(i)}
-              className={`relative p-3 rounded border-2 text-center transition-all min-w-[80px] flex-shrink-0 md:min-w-0 ${isActive ? 'border-blue-600 bg-blue-50 ring-2 ring-blue-300' : 'border-gray-200 hover:border-gray-400 bg-white'}`}
+              className={`relative p-3 rounded border-2 text-center transition-all min-w-[80px] flex-shrink-0 md:min-w-0 ${isActive ? 'border-blue-600 bg-blue-50 dark:bg-blue-950 ring-2 ring-blue-300' : 'border-gray-200 dark:border-gray-700 hover:border-gray-400 bg-white dark:bg-gray-800'}`}
             >
               {/* Status dot */}
               <div className={`absolute top-1 right-1 w-3 h-3 rounded-full border ${getSectionStatusColour(status)}`}
@@ -154,7 +271,7 @@ export default function ApplyPage() {
       </div>
 
       {/* Status legend */}
-      <div className="flex gap-4 mb-6 text-xs text-gray-600 bg-gray-50 p-2 rounded">
+      <div className="flex gap-4 mb-6 text-xs text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 p-2 rounded">
         <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-gray-300 inline-block"></span> Not started</span>
         <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-red-500 inline-block"></span> Has errors</span>
         <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-amber-400 inline-block"></span> In progress</span>
@@ -179,7 +296,7 @@ export default function ApplyPage() {
         {currentSection === 5 && <DocumentsSection formData={formData} updateField={updateField} />}
         {currentSection === 6 && <ChecksSection formData={formData} updateField={updateField} />}
         {currentSection === 7 && <RecommendationSection formData={formData} updateField={updateField} />}
-        {currentSection === 8 && <PaymentSection formData={formData} updateField={updateField} />}
+        {currentSection === 8 && <PaymentSection formData={formData} updateField={updateField} applicationId={application.applicationId} />}
       </div>
 
       {/* Navigation buttons */}
@@ -210,7 +327,6 @@ function PersonalSection({ formData, updateField }: { formData: any; updateField
   const startVerification = (provider: string) => {
     setVerifying(true);
     setTimeout(() => {
-      // Simulate verified identity returned from ScotAccount/GOV.UK
       updateField('personal', 'title', 'Mr');
       updateField('personal', 'firstName', 'John');
       updateField('personal', 'lastName', 'Testerton');
@@ -227,23 +343,23 @@ function PersonalSection({ formData, updateField }: { formData: any; updateField
   return (
     <div className="space-y-4">
       {/* Identity Verification Panel */}
-      <div className="border-2 border-blue-200 rounded-lg p-4 bg-blue-50 mb-6">
+      <div className="border-2 border-blue-200 rounded-lg p-4 bg-blue-50 dark:bg-blue-950 mb-6">
         <h3 className="font-bold text-sm mb-2">🔐 Verify Your Identity</h3>
-        <p className="text-xs text-gray-600 mb-3">Verify your identity using a government service to pre-fill your details securely. This provides a higher assurance level for your application.</p>
+        <p className="text-xs text-gray-600 dark:text-gray-400 mb-3">Verify your identity using a government service to pre-fill your details securely. This provides a higher assurance level for your application.</p>
 
         {!verified && !verifying && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <button onClick={() => startVerification('scotaccount')} className="p-3 border-2 border-blue-300 rounded bg-white hover:border-blue-600 hover:bg-blue-50 text-left transition-all">
+            <button onClick={() => startVerification('scotaccount')} className="p-3 border-2 border-blue-300 rounded bg-white dark:bg-gray-800 hover:border-blue-600 hover:bg-blue-50 text-left transition-all">
               <p className="font-bold text-sm">🏴󠁧󠁢󠁳󠁣󠁴󠁿 ScotAccount</p>
               <p className="text-xs text-gray-500">Scottish Government ID</p>
               <p className="text-xs text-blue-600 mt-1">LOA2 — Medium confidence</p>
             </button>
-            <button onClick={() => startVerification('govuk')} className="p-3 border-2 border-blue-300 rounded bg-white hover:border-blue-600 hover:bg-blue-50 text-left transition-all">
+            <button onClick={() => startVerification('govuk')} className="p-3 border-2 border-blue-300 rounded bg-white dark:bg-gray-800 hover:border-blue-600 hover:bg-blue-50 text-left transition-all">
               <p className="font-bold text-sm">🇬🇧 GOV.UK One Login</p>
               <p className="text-xs text-gray-500">UK Government ID</p>
               <p className="text-xs text-blue-600 mt-1">LOA2 — Medium confidence</p>
             </button>
-            <button onClick={() => setVerified('manual')} className="p-3 border-2 border-gray-300 rounded bg-white hover:border-gray-500 text-left transition-all">
+            <button onClick={() => setVerified('manual')} className="p-3 border-2 border-gray-300 rounded bg-white dark:bg-gray-800 hover:border-gray-500 text-left transition-all">
               <p className="font-bold text-sm">✏️ Manual Entry</p>
               <p className="text-xs text-gray-500">Enter details yourself</p>
               <p className="text-xs text-gray-400 mt-1">LOA1 — Basic</p>
@@ -252,7 +368,7 @@ function PersonalSection({ formData, updateField }: { formData: any; updateField
         )}
 
         {verifying && (
-          <div className="flex items-center gap-3 p-4 bg-white rounded border">
+          <div className="flex items-center gap-3 p-4 bg-white dark:bg-gray-800 rounded border">
             <div className="animate-spin w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full"></div>
             <div>
               <p className="text-sm font-bold">Redirecting to identity provider...</p>
@@ -262,19 +378,19 @@ function PersonalSection({ formData, updateField }: { formData: any; updateField
         )}
 
         {verified && verified !== 'manual' && (
-          <div className="flex items-center gap-3 p-3 bg-green-50 border border-green-200 rounded">
+          <div className="flex items-center gap-3 p-3 bg-green-50 dark:bg-green-950 border border-green-200 rounded">
             <span className="text-xl">✅</span>
             <div>
-              <p className="text-sm font-bold text-green-800">Identity Verified via {verified === 'scotaccount' ? 'ScotAccount' : 'GOV.UK One Login'}</p>
-              <p className="text-xs text-green-600">Assurance Level: LOA2 (Medium confidence) — Details pre-filled from verified source</p>
+              <p className="text-sm font-bold text-green-800 dark:text-green-300">Identity Verified via {verified === 'scotaccount' ? 'ScotAccount' : 'GOV.UK One Login'}</p>
+              <p className="text-xs text-green-600 dark:text-green-400">Assurance Level: LOA2 (Medium confidence) — Details pre-filled from verified source</p>
             </div>
           </div>
         )}
 
         {verified === 'manual' && (
-          <div className="flex items-center gap-2 p-2 bg-gray-100 border border-gray-200 rounded">
+          <div className="flex items-center gap-2 p-2 bg-gray-100 dark:bg-gray-800 border border-gray-200 rounded">
             <span>✏️</span>
-            <p className="text-xs text-gray-600">Manual entry — LOA1 (Basic). Additional document verification may be required.</p>
+            <p className="text-xs text-gray-600 dark:text-gray-400">Manual entry — LOA1 (Basic). Additional document verification may be required.</p>
           </div>
         )}
       </div>
@@ -283,7 +399,7 @@ function PersonalSection({ formData, updateField }: { formData: any; updateField
         <div>
           <label className="block font-bold mb-1 text-sm">Title</label>
           <select value={d.title || ''} onChange={e => updateField('personal', 'title', e.target.value)}
-            className="border-2 border-gray-900 p-2.5 min-h-[44px] w-full">
+            className="border-2 border-gray-900 dark:border-gray-600 dark:bg-gray-800 p-2.5 min-h-[44px] w-full">
             <option value="">Select</option>
             {['Mr', 'Mrs', 'Ms', 'Miss', 'Dr'].map(t => <option key={t}>{t}</option>)}
           </select>
@@ -298,7 +414,7 @@ function PersonalSection({ formData, updateField }: { formData: any; updateField
         <div>
           <label className="block font-bold mb-1 text-sm">Marital status *</label>
           <select value={d.maritalStatus || ''} onChange={e => updateField('personal', 'maritalStatus', e.target.value)}
-            className="border-2 border-gray-900 p-2.5 min-h-[44px] w-full">
+            className="border-2 border-gray-900 dark:border-gray-600 dark:bg-gray-800 p-2.5 min-h-[44px] w-full">
             <option value="">Select</option>
             {['Single','Married','Civil Partnership','Divorced','Widowed','Separated'].map(s => <option key={s} value={s.toLowerCase().replace(' ','_')}>{s}</option>)}
           </select>
@@ -308,27 +424,27 @@ function PersonalSection({ formData, updateField }: { formData: any; updateField
       <div>
         <label className="block font-bold mb-1 text-sm">Employment status *</label>
         <select value={d.employmentStatus || ''} onChange={e => updateField('personal', 'employmentStatus', e.target.value)}
-          className="border-2 border-gray-900 p-2.5 min-h-[44px] w-full md:w-1/2">
+          className="border-2 border-gray-900 dark:border-gray-600 dark:bg-gray-800 p-2.5 min-h-[44px] w-full md:w-1/2">
           <option value="">Select</option>
           {['Employed','Self-employed','Unemployed','Retired','Student','Other'].map(s => <option key={s} value={s.toLowerCase().replace('-','_')}>{s}</option>)}
         </select>
       </div>
 
       {/* Aliases / Other Names */}
-      <div className="mt-6 pt-4 border-t border-gray-200">
+      <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
         <h3 className="font-bold text-sm mb-2">Other Names / Aliases</h3>
         <p className="text-xs text-gray-500 mb-3">Include any other names you are or have been known by (maiden name, previous married name, etc.)</p>
         {(d.aliases || []).map((alias: any, i: number) => (
           <div key={i} className="flex gap-2 items-end mb-2">
-            <div className="flex-1"><input value={alias.firstName || ''} onChange={e => { const a = [...(d.aliases||[])]; a[i]={...a[i],firstName:e.target.value}; updateField('personal','aliases',a); }} placeholder="First name" className="border-2 border-gray-900 p-2.5 min-h-[44px] w-full text-sm" /></div>
-            <div className="flex-1"><input value={alias.lastName || ''} onChange={e => { const a = [...(d.aliases||[])]; a[i]={...a[i],lastName:e.target.value}; updateField('personal','aliases',a); }} placeholder="Last name" className="border-2 border-gray-900 p-2.5 min-h-[44px] w-full text-sm" /></div>
-            <select value={alias.type || ''} onChange={e => { const a = [...(d.aliases||[])]; a[i]={...a[i],type:e.target.value}; updateField('personal','aliases',a); }} className="border-2 border-gray-900 p-2 text-sm">
+            <div className="flex-1"><input value={alias.firstName || ''} onChange={e => { const a = [...(d.aliases||[])]; a[i]={...a[i],firstName:e.target.value}; updateField('personal','aliases',a); }} placeholder="First name" className="border-2 border-gray-900 dark:border-gray-600 dark:bg-gray-800 p-2.5 min-h-[44px] w-full text-sm" /></div>
+            <div className="flex-1"><input value={alias.lastName || ''} onChange={e => { const a = [...(d.aliases||[])]; a[i]={...a[i],lastName:e.target.value}; updateField('personal','aliases',a); }} placeholder="Last name" className="border-2 border-gray-900 dark:border-gray-600 dark:bg-gray-800 p-2.5 min-h-[44px] w-full text-sm" /></div>
+            <select value={alias.type || ''} onChange={e => { const a = [...(d.aliases||[])]; a[i]={...a[i],type:e.target.value}; updateField('personal','aliases',a); }} className="border-2 border-gray-900 dark:border-gray-600 dark:bg-gray-800 p-2 text-sm">
               <option value="">Type</option><option value="maiden">Maiden name</option><option value="previous_married">Previous married</option><option value="other">Other</option>
             </select>
             <button onClick={() => { const a = (d.aliases||[]).filter((_:any,idx:number)=>idx!==i); updateField('personal','aliases',a); }} className="text-red-600 text-xs px-2 py-2 hover:bg-red-50 rounded">✕</button>
           </div>
         ))}
-        <button onClick={() => updateField('personal','aliases',[...(d.aliases||[]),{firstName:'',lastName:'',type:''}])} className="text-sm bg-gray-200 px-3 py-1.5 rounded hover:bg-gray-300">+ Add other name</button>
+        <button onClick={() => updateField('personal','aliases',[...(d.aliases||[]),{firstName:'',lastName:'',type:''}])} className="text-sm bg-gray-200 dark:bg-gray-700 px-3 py-1.5 rounded hover:bg-gray-300">+ Add other name</button>
       </div>
     </div>
   );
@@ -356,7 +472,7 @@ function AddressSection({ formData, updateField }: { formData: any; updateField:
 
   return (
     <div className="space-y-4">
-      <div className="bg-blue-50 border border-blue-200 rounded p-3 mb-4">
+      <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 rounded p-3 mb-4">
         <p className="text-sm"><strong>5-Year Address History Required:</strong> Please provide all addresses you have lived at during the last 5 years. This is needed for credit checks and cross-system verification.</p>
       </div>
 
@@ -368,7 +484,7 @@ function AddressSection({ formData, updateField }: { formData: any; updateField:
         <button onClick={lookupPostcode} type="button" className="bg-blue-700 text-white py-2 px-4 mb-4 text-sm hover:bg-blue-800">Find address</button>
       </div>
       {lookupResults.length > 0 && (
-        <div className="p-3 bg-gray-50 border border-gray-300 rounded mb-4">
+        <div className="p-3 bg-gray-50 dark:bg-gray-800 border border-gray-300 rounded mb-4">
           <p className="text-sm font-bold mb-2">Select an address:</p>
           {lookupResults.map((addr, i) => (
             <button key={i} type="button" className="block text-sm text-blue-700 underline mb-1"
@@ -387,7 +503,7 @@ function AddressSection({ formData, updateField }: { formData: any; updateField:
       <Input label="Resident since *" type="date" value={a.residentSince} onChange={v => updateField('address', 'residentSince', v)} />
 
       {/* Previous Addresses */}
-      <div className="mt-6 pt-4 border-t border-gray-200">
+      <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
         <h3 className="font-bold mb-2">Previous Addresses (last 5 years)</h3>
         {prevAddresses.length === 0 && <p className="text-sm text-gray-500 mb-3">No previous addresses added. If you have lived at your current address for less than 5 years, please add your previous address(es).</p>}
         {prevAddresses.map((prev: any, i: number) => (
@@ -408,7 +524,7 @@ function AddressSection({ formData, updateField }: { formData: any; updateField:
             </div>
           </div>
         ))}
-        <button onClick={addPreviousAddress} className="text-sm bg-gray-200 px-3 py-1.5 rounded hover:bg-gray-300">+ Add previous address</button>
+        <button onClick={addPreviousAddress} className="text-sm bg-gray-200 dark:bg-gray-700 px-3 py-1.5 rounded hover:bg-gray-300">+ Add previous address</button>
       </div>
 
       <h3 className="font-bold mt-6">Contact Details</h3>
@@ -432,22 +548,22 @@ function DebtsSection({ formData, updateField }: { formData: any; updateField: a
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-gray-600">Enter all debts you currently owe. Include credit cards, loans, overdrafts, council tax arrears, etc.</p>
+      <p className="text-sm text-gray-600 dark:text-gray-400">Enter all debts you currently owe. Include credit cards, loans, overdrafts, council tax arrears, etc.</p>
       {totalDebt > 0 && (
-        <div className="bg-blue-50 border-l-4 border-blue-600 p-3">
+        <div className="bg-blue-50 dark:bg-blue-950 border-l-4 border-blue-600 p-3">
           <p className="font-bold">Total debt entered: £{totalDebt.toLocaleString()}</p>
-          <p className="text-sm text-gray-600">{debts.length} creditor{debts.length !== 1 ? 's' : ''}</p>
+          <p className="text-sm text-gray-600 dark:text-gray-400">{debts.length} creditor{debts.length !== 1 ? 's' : ''}</p>
         </div>
       )}
       {debts.map((debt: any, i: number) => (
-        <div key={i} className="border border-gray-300 p-4 rounded relative">
+        <div key={i} className="border border-gray-300 dark:border-gray-700 p-4 rounded relative">
           <button onClick={() => removeDebt(i)} className="absolute top-2 right-2 text-red-600 text-xs hover:underline">Remove</button>
           <p className="font-bold text-sm mb-2">Debt {i + 1}</p>
           <div className="grid md:grid-cols-2 gap-3">
             <Input label="Creditor name *" value={debt.creditorName} onChange={v => updateDebt(i, 'creditorName', v)} />
             <div>
               <label className="block font-bold mb-1 text-sm">Type</label>
-              <select value={debt.creditorType} onChange={e => updateDebt(i, 'creditorType', e.target.value)} className="border-2 border-gray-900 p-2.5 min-h-[44px] w-full">
+              <select value={debt.creditorType} onChange={e => updateDebt(i, 'creditorType', e.target.value)} className="border-2 border-gray-900 dark:border-gray-600 dark:bg-gray-800 p-2.5 min-h-[44px] w-full">
                 {[['bank','Bank'],['credit_card','Credit Card'],['loan_company','Loan'],['utility','Utility'],['council_tax','Council Tax'],['hmrc','HMRC'],['other','Other']].map(([v,l]) => <option key={v} value={v}>{l}</option>)}
               </select>
             </div>
@@ -457,7 +573,7 @@ function DebtsSection({ formData, updateField }: { formData: any; updateField: a
           </div>
         </div>
       ))}
-      <button onClick={addDebt} className="bg-gray-200 text-gray-900 font-bold py-2 px-4 border-b-2 border-gray-400 hover:bg-gray-300 text-sm">+ Add a debt</button>
+      <button onClick={addDebt} className="bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100 font-bold py-2 px-4 border-b-2 border-gray-400 hover:bg-gray-300 text-sm">+ Add a debt</button>
     </div>
   );
 }
@@ -470,7 +586,7 @@ function IncomeSection({ formData, updateField }: { formData: any; updateField: 
 
   return (
     <div className="space-y-4">
-      <div className="bg-blue-50 border border-blue-200 rounded p-3 mb-2">
+      <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 rounded p-3 mb-2">
         <p className="text-xs"><strong>📋 Common Financial Tool (CFT):</strong> Income and expenditure categories below are aligned with the <a href="https://www.aib.gov.uk/common-financial-tool" target="_blank" rel="noopener noreferrer" className="text-blue-700 underline">Common Financial Tool</a> used across all Scottish debt solutions for affordability assessment.</p>
       </div>
       <h3 className="font-bold">Monthly Income</h3>
@@ -480,7 +596,7 @@ function IncomeSection({ formData, updateField }: { formData: any; updateField: 
         <Input label="Pension (£)" type="number" value={inc.pension} onChange={v => updateField('income', 'pension', v)} />
         <Input label="Other income (£)" type="number" value={inc.other} onChange={v => updateField('income', 'other', v)} />
       </div>
-      <div className="bg-blue-50 p-3 rounded"><strong>Total income: £{totalIncome.toLocaleString()}/month</strong></div>
+      <div className="bg-blue-50 dark:bg-blue-950 p-3 rounded"><strong>Total income: £{totalIncome.toLocaleString()}/month</strong></div>
 
       <h3 className="font-bold mt-6">Monthly Expenditure</h3>
       <div className="grid md:grid-cols-2 gap-3">
@@ -493,7 +609,7 @@ function IncomeSection({ formData, updateField }: { formData: any; updateField: 
         <Input label="Childcare (£)" type="number" value={exp.childcare} onChange={v => updateField('expenditure', 'childcare', v)} />
         <Input label="Other (£)" type="number" value={exp.other} onChange={v => updateField('expenditure', 'other', v)} />
       </div>
-      <div className="bg-blue-50 p-3 rounded">
+      <div className="bg-blue-50 dark:bg-blue-950 p-3 rounded">
         <p><strong>Total expenditure: £{totalExp.toLocaleString()}/month</strong></p>
         <p className={`font-bold mt-1 ${totalIncome - totalExp >= 0 ? 'text-green-700' : 'text-red-700'}`}>
           Disposable income: £{(totalIncome - totalExp).toLocaleString()}/month
@@ -520,66 +636,66 @@ function AssetsSection({ formData, updateField }: { formData: any; updateField: 
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-gray-600">Declare all assets you own or have an interest in. This is essential for determining which debt solution is most appropriate.</p>
+      <p className="text-sm text-gray-600 dark:text-gray-400">Declare all assets you own or have an interest in. This is essential for determining which debt solution is most appropriate.</p>
 
       {assets.noAssets ? (
-        <div className="bg-green-50 border border-green-200 rounded p-4">
-          <p className="font-bold text-green-800">✓ No assets declared</p>
+        <div className="bg-green-50 dark:bg-green-950 border border-green-200 rounded p-4">
+          <p className="font-bold text-green-800 dark:text-green-300">✓ No assets declared</p>
           <button onClick={() => updateField('assets', 'noAssets', false)} className="text-sm text-blue-700 underline mt-2">I do have assets to declare</button>
         </div>
       ) : (
         <>
           {totalValue > 0 && (
-            <div className="bg-blue-50 border-l-4 border-blue-600 p-3">
+            <div className="bg-blue-50 dark:bg-blue-950 border-l-4 border-blue-600 p-3">
               <p className="font-bold">Total declared asset value: £{totalValue.toLocaleString()}</p>
             </div>
           )}
 
           {/* Property */}
-          <div className="border border-gray-200 rounded p-4">
+          <div className="border border-gray-200 dark:border-gray-700 rounded p-4">
             <h4 className="font-bold text-sm mb-2">🏠 Property</h4>
             {properties.map((p: any, i: number) => (
-              <div key={i} className="grid md:grid-cols-2 gap-3 mb-3 pb-3 border-b border-gray-100">
+              <div key={i} className="grid md:grid-cols-2 gap-3 mb-3 pb-3 border-b border-gray-100 dark:border-gray-700">
                 <Input label="Property address" value={p.address} onChange={v => updateItem('properties', i, 'address', v)} />
                 <Input label="Estimated value (£)" type="number" value={p.value} onChange={v => updateItem('properties', i, 'value', v)} />
                 <Input label="Outstanding mortgage (£)" type="number" value={p.mortgage} onChange={v => updateItem('properties', i, 'mortgage', v)} />
                 <div><label className="block font-bold mb-1 text-sm">Ownership</label>
-                  <select value={p.ownership||''} onChange={e => updateItem('properties', i, 'ownership', e.target.value)} className="border-2 border-gray-900 p-2.5 min-h-[44px] w-full text-sm">
+                  <select value={p.ownership||''} onChange={e => updateItem('properties', i, 'ownership', e.target.value)} className="border-2 border-gray-900 dark:border-gray-600 dark:bg-gray-800 p-2.5 min-h-[44px] w-full text-sm">
                     <option value="">Select</option><option value="sole">Sole owner</option><option value="joint">Joint owner</option><option value="rented">Rented (not owned)</option>
                   </select>
                 </div>
                 <button onClick={() => removeItem('properties', i)} className="text-red-600 text-xs self-end">Remove</button>
               </div>
             ))}
-            <button onClick={() => addItem('properties', { address: '', value: '', mortgage: '', ownership: '' })} className="text-sm bg-gray-100 px-3 py-1.5 rounded hover:bg-gray-200">+ Add property</button>
+            <button onClick={() => addItem('properties', { address: '', value: '', mortgage: '', ownership: '' })} className="text-sm bg-gray-100 dark:bg-gray-700 px-3 py-1.5 rounded hover:bg-gray-200">+ Add property</button>
           </div>
 
           {/* Vehicles */}
-          <div className="border border-gray-200 rounded p-4">
+          <div className="border border-gray-200 dark:border-gray-700 rounded p-4">
             <h4 className="font-bold text-sm mb-2">🚗 Vehicles</h4>
             {vehicles.map((v: any, i: number) => (
-              <div key={i} className="grid md:grid-cols-2 gap-3 mb-3 pb-3 border-b border-gray-100">
+              <div key={i} className="grid md:grid-cols-2 gap-3 mb-3 pb-3 border-b border-gray-100 dark:border-gray-700">
                 <Input label="Description" value={v.description} onChange={val => updateItem('vehicles', i, 'description', val)} hint="e.g. 2018 Ford Focus" />
                 <Input label="Estimated value (£)" type="number" value={v.value} onChange={val => updateItem('vehicles', i, 'value', val)} />
                 <Input label="Finance outstanding (£)" type="number" value={v.finance} onChange={val => updateItem('vehicles', i, 'finance', val)} />
                 <div><label className="block font-bold mb-1 text-sm">Essential for work?</label>
-                  <select value={v.essential||''} onChange={e => updateItem('vehicles', i, 'essential', e.target.value)} className="border-2 border-gray-900 p-2.5 min-h-[44px] w-full text-sm">
+                  <select value={v.essential||''} onChange={e => updateItem('vehicles', i, 'essential', e.target.value)} className="border-2 border-gray-900 dark:border-gray-600 dark:bg-gray-800 p-2.5 min-h-[44px] w-full text-sm">
                     <option value="">Select</option><option value="yes">Yes — needed for employment</option><option value="no">No</option>
                   </select>
                 </div>
                 <button onClick={() => removeItem('vehicles', i)} className="text-red-600 text-xs self-end">Remove</button>
               </div>
             ))}
-            <button onClick={() => addItem('vehicles', { description: '', value: '', finance: '', essential: '' })} className="text-sm bg-gray-100 px-3 py-1.5 rounded hover:bg-gray-200">+ Add vehicle</button>
+            <button onClick={() => addItem('vehicles', { description: '', value: '', finance: '', essential: '' })} className="text-sm bg-gray-100 dark:bg-gray-700 px-3 py-1.5 rounded hover:bg-gray-200">+ Add vehicle</button>
           </div>
 
           {/* Savings & Investments */}
-          <div className="border border-gray-200 rounded p-4">
+          <div className="border border-gray-200 dark:border-gray-700 rounded p-4">
             <h4 className="font-bold text-sm mb-2">💰 Savings & Investments</h4>
             {savings.map((s: any, i: number) => (
               <div key={i} className="grid md:grid-cols-3 gap-3 mb-2">
                 <div><label className="block font-bold mb-1 text-sm">Type</label>
-                  <select value={s.type||''} onChange={e => updateItem('savings', i, 'type', e.target.value)} className="border-2 border-gray-900 p-2.5 min-h-[44px] w-full text-sm">
+                  <select value={s.type||''} onChange={e => updateItem('savings', i, 'type', e.target.value)} className="border-2 border-gray-900 dark:border-gray-600 dark:bg-gray-800 p-2.5 min-h-[44px] w-full text-sm">
                     <option value="">Select</option><option value="bank_savings">Bank savings</option><option value="isa">ISA</option><option value="stocks">Stocks/shares</option><option value="pension_pot">Pension pot</option><option value="crypto">Cryptocurrency</option><option value="other">Other</option>
                   </select>
                 </div>
@@ -590,11 +706,11 @@ function AssetsSection({ formData, updateField }: { formData: any; updateField: 
                 </div>
               </div>
             ))}
-            <button onClick={() => addItem('savings', { type: '', provider: '', value: '' })} className="text-sm bg-gray-100 px-3 py-1.5 rounded hover:bg-gray-200">+ Add savings/investment</button>
+            <button onClick={() => addItem('savings', { type: '', provider: '', value: '' })} className="text-sm bg-gray-100 dark:bg-gray-700 px-3 py-1.5 rounded hover:bg-gray-200">+ Add savings/investment</button>
           </div>
 
           {/* Other Assets */}
-          <div className="border border-gray-200 rounded p-4">
+          <div className="border border-gray-200 dark:border-gray-700 rounded p-4">
             <h4 className="font-bold text-sm mb-2">📦 Other Assets</h4>
             <p className="text-xs text-gray-500 mb-2">Include valuables, collections, equipment, business assets, etc.</p>
             {otherAssets.map((o: any, i: number) => (
@@ -606,7 +722,7 @@ function AssetsSection({ formData, updateField }: { formData: any; updateField: 
                 </div>
               </div>
             ))}
-            <button onClick={() => addItem('other', { description: '', value: '' })} className="text-sm bg-gray-100 px-3 py-1.5 rounded hover:bg-gray-200">+ Add other asset</button>
+            <button onClick={() => addItem('other', { description: '', value: '' })} className="text-sm bg-gray-100 dark:bg-gray-700 px-3 py-1.5 rounded hover:bg-gray-200">+ Add other asset</button>
           </div>
 
           {/* No assets option */}
@@ -628,15 +744,15 @@ function DocumentsSection({ formData, updateField }: { formData: any; updateFiel
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-gray-600">Upload supporting documents. This is <strong>optional</strong> but may speed up processing.</p>
-      <div className="border-2 border-dashed border-gray-400 p-8 text-center bg-gray-50 cursor-pointer hover:border-gray-600"
+      <p className="text-sm text-gray-600 dark:text-gray-400">Upload supporting documents. This is <strong>optional</strong> but may speed up processing.</p>
+      <div className="border-2 border-dashed border-gray-400 p-8 text-center bg-gray-50 dark:bg-gray-800 cursor-pointer hover:border-gray-600"
         onClick={() => addFile(`document_${files.length + 1}.pdf`)}>
-        <p className="text-gray-700 mb-2">Click to add a document (simulated)</p>
+        <p className="text-gray-700 dark:text-gray-300 mb-2">Click to add a document (simulated)</p>
         <p className="text-sm text-gray-500">In the live app: drag & drop, camera capture on mobile, PDF/JPG/PNG</p>
       </div>
       {files.length > 0 && (
         <ul className="space-y-2">{files.map((f, i) => (
-          <li key={i} className="flex items-center justify-between bg-gray-50 p-3 rounded border">
+          <li key={i} className="flex items-center justify-between bg-gray-50 dark:bg-gray-800 p-3 rounded border">
             <span className="text-sm">📄 {f}</span>
             <span className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded font-bold">Uploaded</span>
           </li>
@@ -648,32 +764,173 @@ function DocumentsSection({ formData, updateField }: { formData: any; updateFiel
 
 function ChecksSection({ formData, updateField }: { formData: any; updateField: any }) {
   const checks = formData.checks || {};
-  const runChecks = () => {
+  const [checkResults, setCheckResults] = useState<SystemCheckResult[]>([]);
+  const [creditResult, setCreditResult] = useState<CreditCheckResult | null>(null);
+  const [runningChecks, setRunningChecks] = useState(false);
+  const [currentCheck, setCurrentCheck] = useState<string | null>(null);
+
+  const SYSTEMS = ['basys', 'eden', 'das', 'cft', 'moratorium', 'roi'];
+  const SYSTEM_LABELS: Record<string, string> = {
+    basys: 'BASYS (Bankruptcy Administration)',
+    eden: 'eDEN/DASH (Debt Arrangement)',
+    das: 'DAS (Programme Register)',
+    cft: 'CFT (Provider Registry)',
+    moratorium: 'Moratorium Register',
+    roi: 'RoI (Register of Insolvencies)',
+  };
+
+  const runChecks = async () => {
     updateField('checks', 'started', true);
-    setTimeout(() => updateField('checks', 'completed', true), 2000);
+    setRunningChecks(true);
+    setCheckResults([]);
+
+    const personal = formData.personal || {};
+    const address = formData.address || {};
+    const debts = formData.debts || {};
+
+    const applicantData = {
+      firstName: personal.firstName || 'John',
+      lastName: personal.lastName || 'Testerton',
+      dateOfBirth: personal.dateOfBirth || '1985-03-15',
+      nationalInsuranceNumber: personal.nationalInsuranceNumber || 'AB123456C',
+      postcode: address.postcode || 'EH1 1AA',
+      totalDebt: (debts.items || []).reduce((s: number, d: any) => s + (parseFloat(d.outstandingAmount) || 0), 0),
+    };
+
+    // Run checks progressively (one at a time for visual effect)
+    try {
+      for (const system of SYSTEMS) {
+        setCurrentCheck(system);
+        try {
+          const response = await integrations.checkSystem(system, applicantData);
+          setCheckResults(prev => [...prev, response.data]);
+        } catch (err) {
+          // If individual check fails, show as error
+          setCheckResults(prev => [...prev, { system, status: 'error', responseTime: 0, error: 'Service unavailable' }]);
+        }
+      }
+
+      // Run credit check
+      setCurrentCheck('credit');
+      try {
+        const creditResponse = await creditCheck.run(applicantData);
+        setCreditResult(creditResponse.data);
+        updateField('creditCheckResult', 'score', creditResponse.data.score);
+        updateField('creditCheckResult', 'band', creditResponse.data.band);
+      } catch (err) {
+        setCreditResult({ score: 520, band: 'Fair', defaults: 0, ccjs: 0, utilisation: 45, provider: 'Fallback', checkedAt: new Date().toISOString() });
+      }
+
+      updateField('checks', 'completed', true);
+    } catch (err) {
+      // Fallback to offline mode
+      console.warn('System checks API not available, using mock data');
+      setCheckResults(SYSTEMS.map(s => ({ system: s, status: 'clear' as const, responseTime: Math.floor(Math.random() * 300) + 100 })));
+      setCreditResult({ score: 520, band: 'Fair', defaults: 0, ccjs: 0, utilisation: 45, provider: 'SyntheticCredit', checkedAt: new Date().toISOString() });
+      updateField('checks', 'completed', true);
+    } finally {
+      setRunningChecks(false);
+      setCurrentCheck(null);
+    }
   };
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-gray-600">We check existing AiB systems to see if you have any current or previous cases.</p>
-      <div className="bg-yellow-50 border-l-4 border-yellow-600 p-3 text-sm">
-        <strong>Note:</strong> These are placeholder integration checks for the POC demonstration.
+      <p className="text-sm text-gray-600 dark:text-gray-400">We check existing AiB systems to see if you have any current or previous cases.</p>
+
+      {/* Demo Tips */}
+      <div className="bg-purple-50 dark:bg-purple-950 border border-purple-200 rounded p-3 text-xs">
+        <p className="font-bold text-purple-800 dark:text-purple-300 mb-1">🎯 Demo Scenarios (trigger different results):</p>
+        <ul className="text-purple-700 dark:text-purple-400 space-y-0.5 list-disc pl-4">
+          <li>NI ending in <code className="bg-purple-100 px-1 rounded">'A'</code> or surname <code className="bg-purple-100 px-1 rounded">SMITH</code> → existing case in BASYS</li>
+          <li>Surname starting with <code className="bg-purple-100 px-1 rounded">'M'</code> → DAS arrangement found in eDEN</li>
+          <li>Postcode starting <code className="bg-purple-100 px-1 rounded">'EH'</code> → active moratorium found</li>
+          <li>Default (NI ending C) → all systems clear</li>
+        </ul>
       </div>
+
       {!checks.completed ? (
-        <button onClick={runChecks} disabled={checks.started} className="bg-blue-700 text-white font-bold py-3 px-6 hover:bg-blue-800 disabled:opacity-50">
-          {checks.started ? '⏳ Running checks...' : '🔍 Run system checks'}
-        </button>
+        <div>
+          <button onClick={runChecks} disabled={runningChecks} className="bg-blue-700 text-white font-bold py-3 px-6 hover:bg-blue-800 disabled:opacity-50">
+            {runningChecks ? '⏳ Running checks...' : '🔍 Run system checks'}
+          </button>
+
+          {/* Progressive results during check */}
+          {runningChecks && (
+            <div className="mt-4 space-y-2">
+              {checkResults.map((result, i) => (
+                <div key={i} className="flex justify-between items-center p-2 bg-gray-50 dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700">
+                  <span className="font-bold text-sm">{SYSTEM_LABELS[result.system] || result.system}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-gray-500">{result.responseTime}ms</span>
+                    {result.status === 'clear' && <span className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded font-bold">✓ Clear</span>}
+                    {result.status === 'found' && <span className="text-xs bg-red-100 text-red-800 px-2 py-0.5 rounded font-bold">⚠ Case Found</span>}
+                    {result.status === 'error' && <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded font-bold">⚠ Error</span>}
+                  </div>
+                </div>
+              ))}
+              {currentCheck && (
+                <div className="flex items-center gap-2 p-2 bg-blue-50 dark:bg-blue-950 rounded border border-blue-200 animate-pulse">
+                  <div className="animate-spin w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full"></div>
+                  <span className="text-sm font-medium">Checking {SYSTEM_LABELS[currentCheck] || currentCheck}...</span>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       ) : (
         <div className="space-y-2">
-          {['BASYS', 'eDEN/DASH', 'DAS', 'CFT', 'Moratorium', 'RoI'].map(sys => (
-            <div key={sys} className="flex justify-between items-center p-2 bg-gray-50 rounded">
-              <span className="font-bold text-sm">{sys}</span>
-              <span className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded font-bold">✓ Clear</span>
+          {checkResults.length > 0 ? checkResults.map((result, i) => (
+            <div key={i} className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700">
+              <div>
+                <span className="font-bold text-sm">{SYSTEM_LABELS[result.system] || result.system}</span>
+                {result.status === 'found' && result.data && (
+                  <p className="text-xs text-red-700 mt-1">Case ref: {result.data.caseId || result.data.reference || 'Found'}</p>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-500">{result.responseTime}ms</span>
+                {result.status === 'clear' && <span className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded font-bold">✓ Clear</span>}
+                {result.status === 'found' && <span className="text-xs bg-red-100 text-red-800 px-2 py-0.5 rounded font-bold">⚠ Case Found</span>}
+                {result.status === 'error' && <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded font-bold">⚠ Error</span>}
+              </div>
             </div>
-          ))}
-          <div className="mt-4 p-3 border rounded">
-            <p className="text-sm font-bold">Credit Check: Score 520 (Fair)</p>
-            <p className="text-xs text-gray-500">Provider: SyntheticCredit Ltd (PLACEHOLDER)</p>
+          )) : (
+            // Fallback display (offline mode)
+            ['BASYS', 'eDEN/DASH', 'DAS', 'CFT', 'Moratorium', 'RoI'].map(sys => (
+              <div key={sys} className="flex justify-between items-center p-2 bg-gray-50 dark:bg-gray-800 rounded">
+                <span className="font-bold text-sm">{sys}</span>
+                <span className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded font-bold">✓ Clear</span>
+              </div>
+            ))
+          )}
+
+          {/* Credit Check Result */}
+          <div className="mt-4 p-4 border rounded bg-white dark:bg-gray-800">
+            <h4 className="font-bold text-sm mb-2">📊 Credit Check Result</h4>
+            {creditResult ? (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div className="text-center p-2 bg-gray-50 dark:bg-gray-700 rounded">
+                  <p className="text-2xl font-bold">{creditResult.score}</p>
+                  <p className="text-xs text-gray-500">Score</p>
+                </div>
+                <div className="text-center p-2 bg-gray-50 dark:bg-gray-700 rounded">
+                  <p className="text-lg font-bold">{creditResult.band}</p>
+                  <p className="text-xs text-gray-500">Band</p>
+                </div>
+                <div className="text-center p-2 bg-gray-50 dark:bg-gray-700 rounded">
+                  <p className="text-lg font-bold">{creditResult.defaults}</p>
+                  <p className="text-xs text-gray-500">Defaults</p>
+                </div>
+                <div className="text-center p-2 bg-gray-50 dark:bg-gray-700 rounded">
+                  <p className="text-lg font-bold">{creditResult.ccjs}</p>
+                  <p className="text-xs text-gray-500">CCJs</p>
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-gray-500">Credit check: Score 520 (Fair)</p>
+            )}
+            <p className="text-xs text-gray-500 mt-2">Provider: {creditResult?.provider || 'SyntheticCredit'} (Sandbox)</p>
           </div>
         </div>
       )}
@@ -683,34 +940,108 @@ function ChecksSection({ formData, updateField }: { formData: any; updateField: 
 
 function RecommendationSection({ formData, updateField }: { formData: any; updateField: any }) {
   const rec = formData.recommendation || {};
-  const getRecommendation = () => setTimeout(() => updateField('recommendation', 'received', true), 1500);
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<Recommendation | null>(null);
+
+  const getRecommendation = async () => {
+    setLoading(true);
+
+    const income = formData.income || {};
+    const expenditure = formData.expenditure || {};
+    const debts = formData.debts?.items || [];
+    const assets = formData.assets || {};
+    const personal = formData.personal || {};
+
+    const totalIncome = Object.values(income).reduce((s: number, v: any) => s + (parseFloat(v) || 0), 0);
+    const totalExpenditure = Object.values(expenditure).reduce((s: number, v: any) => s + (parseFloat(v) || 0), 0);
+    const totalDebt = debts.reduce((s: number, d: any) => s + (parseFloat(d.outstandingAmount) || 0), 0);
+
+    try {
+      const response = await recommendations.get({
+        totalDebt,
+        creditorsCount: debts.length,
+        monthlyIncome: totalIncome,
+        monthlyExpenditure: totalExpenditure,
+        disposableIncome: totalIncome - totalExpenditure,
+        employmentStatus: personal.employmentStatus || 'employed',
+        hasAssets: !assets.noAssets && (assets.properties?.length > 0 || assets.vehicles?.length > 0),
+        existingCases: formData.checks?.results?.some((r: any) => r.status === 'found') || false,
+        hasMoratorium: false,
+      });
+
+      setResult(response.data);
+      updateField('recommendation', 'received', true);
+      updateField('recommendationResult', 'product', response.data.product);
+      updateField('recommendationResult', 'confidence', response.data.confidence);
+      updateField('recommendationResult', 'reasoning', response.data.reasoning);
+    } catch (err) {
+      // Fallback: show static recommendation if API unavailable
+      console.warn('Recommendation API not available, using fallback');
+      setResult({
+        product: 'debt_arrangement_scheme',
+        confidence: 'high',
+        reasoning: 'Based on your debt level and disposable income, DAS provides the best structured repayment path with statutory creditor protection.',
+        factors: [
+          { factor: 'Debt level', weight: 0.3, value: `£${totalDebt.toLocaleString()}` },
+          { factor: 'Disposable income', weight: 0.25, value: `£${(totalIncome - totalExpenditure).toLocaleString()}/month` },
+          { factor: 'Number of creditors', weight: 0.15, value: `${debts.length}` },
+        ],
+      });
+      updateField('recommendation', 'received', true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const PRODUCT_LABELS: Record<string, string> = {
+    debt_arrangement_scheme: 'Debt Arrangement Scheme (DAS)',
+    minimal_asset_process: 'Minimal Asset Process (MAP)',
+    protected_trust_deed: 'Protected Trust Deed',
+    bankruptcy: 'Bankruptcy / Sequestration',
+    moratorium: 'Moratorium (Breathing Space)',
+    debt_payment_programme: 'Debt Payment Programme (DPP)',
+    signposting_advice: 'Signposting to Money Advice',
+  };
 
   return (
     <div className="space-y-4">
       {!rec.received ? (
         <>
-          <p className="text-sm text-gray-600">Based on your information, we can recommend the most suitable debt solution.</p>
-          <button onClick={getRecommendation} className="bg-green-700 text-white font-bold py-3 px-6 hover:bg-green-800">
-            Get my recommendation
+          <p className="text-sm text-gray-600 dark:text-gray-400">Based on your information, our rules engine will recommend the most suitable debt solution.</p>
+          <button onClick={getRecommendation} disabled={loading} className="bg-green-700 text-white font-bold py-3 px-6 hover:bg-green-800 disabled:opacity-50">
+            {loading ? '⏳ Analysing...' : 'Get my recommendation'}
           </button>
         </>
       ) : (
         <>
           <div className="bg-green-700 text-white p-6 rounded text-center">
-            <h3 className="text-xl font-bold text-white">Recommended: Debt Arrangement Scheme (DAS)</h3>
-            <p className="text-green-100 mt-1">Confidence: High</p>
+            <h3 className="text-xl font-bold text-white">Recommended: {result ? PRODUCT_LABELS[result.product] || result.product : 'Debt Arrangement Scheme (DAS)'}</h3>
+            <p className="text-green-100 mt-1">Confidence: {result?.confidence || 'High'}</p>
           </div>
-          <div className="bg-blue-50 border-l-4 border-blue-600 p-4">
-            <h4 className="font-bold mb-2">Why we recommend this</h4>
-            <ul className="list-disc pl-5 text-sm space-y-1">
-              <li>Your debt level is within the DAS eligibility range</li>
-              <li>You have disposable income for structured repayment</li>
-              <li>No existing insolvency proceedings found</li>
-              <li>DAS provides statutory creditor protection</li>
-            </ul>
-          </div>
-          <div className="border border-gray-300 p-4 rounded">
-            <p className="text-sm italic text-gray-600">This is an automated recommendation for information only. Speak with a money adviser before making decisions.</p>
+
+          {result?.reasoning && (
+            <div className="bg-blue-50 dark:bg-blue-950 border-l-4 border-blue-600 p-4">
+              <h4 className="font-bold mb-2">Why we recommend this</h4>
+              <p className="text-sm">{result.reasoning}</p>
+            </div>
+          )}
+
+          {result?.factors && result.factors.length > 0 && (
+            <div className="border border-gray-200 dark:border-gray-700 rounded p-4">
+              <h4 className="font-bold text-sm mb-2">Decision Factors</h4>
+              <div className="space-y-2">
+                {result.factors.map((f, i) => (
+                  <div key={i} className="flex justify-between items-center text-sm">
+                    <span>{f.factor}</span>
+                    <span className="font-mono text-gray-600 dark:text-gray-400">{f.value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="border border-gray-300 dark:border-gray-700 p-4 rounded">
+            <p className="text-sm italic text-gray-600 dark:text-gray-400">This is an automated recommendation for information only. Speak with a money adviser before making decisions.</p>
           </div>
         </>
       )}
@@ -718,15 +1049,44 @@ function RecommendationSection({ formData, updateField }: { formData: any; updat
   );
 }
 
-function PaymentSection({ formData, updateField }: { formData: any; updateField: any }) {
+function PaymentSection({ formData, updateField, applicationId }: { formData: any; updateField: any; applicationId: string | null }) {
   const payment = formData.payment || {};
+  const { application, setApplication, addRecentApplication } = useAppContext();
+  const [submitting, setSubmitting] = useState(false);
+  const [submitRef, setSubmitRef] = useState<string | null>(null);
+
+  const handleSubmit = async () => {
+    setSubmitting(true);
+    try {
+      if (applicationId) {
+        const response = await applications.submit(applicationId);
+        setSubmitRef(response.data.referenceNumber);
+        setApplication({ status: 'submitted' });
+        addRecentApplication(applicationId);
+      } else {
+        // Offline fallback
+        setSubmitRef(`IAAS-2026-${String(Math.floor(Math.random()*99999)).padStart(5,'0')}`);
+      }
+      updateField('payment', 'completed', true);
+    } catch (err) {
+      console.warn('Submit failed, using offline reference:', err);
+      setSubmitRef(`IAAS-2026-${String(Math.floor(Math.random()*99999)).padStart(5,'0')}`);
+      updateField('payment', 'completed', true);
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   if (payment.completed) {
     return (
       <div className="bg-green-700 text-white p-8 rounded text-center">
         <h3 className="text-2xl font-bold text-white mb-2">Application Submitted ✓</h3>
-        <p className="text-xl text-white">Reference: IAAS-2026-{String(Math.floor(Math.random()*99999)).padStart(5,'0')}</p>
+        <p className="text-xl text-white font-mono">{submitRef || application.referenceNumber || 'IAAS-2026-XXXXX'}</p>
         <p className="text-green-200 mt-2">Payment of £90.00 received (SANDBOX)</p>
+        <div className="mt-4 text-sm text-green-100">
+          <p>Your application is now in the AiB review queue.</p>
+          <p className="mt-1">Switch to the <a href="/dashboard" className="underline font-bold text-white">Dashboard</a> to see it from a staff perspective.</p>
+        </div>
       </div>
     );
   }
@@ -734,20 +1094,20 @@ function PaymentSection({ formData, updateField }: { formData: any; updateField:
   return (
     <div className="space-y-4">
       <p className="text-sm">Application fee: <strong>£90.00</strong></p>
-      <div className="bg-yellow-50 border-l-4 border-yellow-600 p-3 text-sm"><strong>Sandbox:</strong> No real payment processed.</div>
+      <div className="bg-yellow-50 dark:bg-yellow-950 border-l-4 border-yellow-600 p-3 text-sm"><strong>Sandbox:</strong> No real payment processed.</div>
       <h3 className="font-bold">Choose payment method</h3>
       <div className="grid grid-cols-3 gap-3">
         {[['apple_pay','🍎 Apple Pay'],['google_pay','G Pay'],['card','💳 Card']].map(([id, label]) => (
           <button key={id} onClick={() => updateField('payment', 'method', id)}
-            className={`p-4 border-2 rounded text-center font-bold text-sm ${payment.method === id ? 'border-blue-600 bg-blue-50' : 'border-gray-300 hover:border-gray-500'}`}>
+            className={`p-4 border-2 rounded text-center font-bold text-sm ${payment.method === id ? 'border-blue-600 bg-blue-50 dark:bg-blue-950' : 'border-gray-300 dark:border-gray-700 hover:border-gray-500'}`}>
             {label}
           </button>
         ))}
       </div>
       {payment.method && (
-        <button onClick={() => updateField('payment', 'completed', true)}
-          className="bg-green-700 text-white font-bold py-3 px-8 hover:bg-green-800 w-full text-center">
-          Complete Payment & Submit (Sandbox) — £90.00
+        <button onClick={handleSubmit} disabled={submitting}
+          className="bg-green-700 text-white font-bold py-3 px-8 hover:bg-green-800 w-full text-center disabled:opacity-50">
+          {submitting ? '⏳ Processing...' : 'Complete Payment & Submit (Sandbox) — £90.00'}
         </button>
       )}
     </div>
@@ -765,7 +1125,7 @@ function Input({ label, type = 'text', value, onChange, hint, error }: {
       {hint && <p className="text-xs text-gray-500 mb-1">{hint}</p>}
       {error && <p className="text-xs text-red-600 font-bold mb-1">⚠ {error}</p>}
       <input type={type} value={value || ''} onChange={e => onChange(e.target.value)}
-        className={`border-2 ${error ? 'border-red-500' : 'border-gray-900'} p-2.5 w-full text-base min-h-[44px] focus:outline-2 focus:outline-yellow-400`} />
+        className={`border-2 ${error ? 'border-red-500' : 'border-gray-900 dark:border-gray-600'} dark:bg-gray-800 p-2.5 w-full text-base min-h-[44px] focus:outline-2 focus:outline-yellow-400`} />
     </div>
   );
 }

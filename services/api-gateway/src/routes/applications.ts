@@ -116,12 +116,51 @@ applicationsRouter.post('/:id/submit', (req: Request, res: Response) => {
   });
 });
 
+// Update application status (staff action: approve/reject/request-info)
+applicationsRouter.patch('/:id/status', (req: Request, res: Response) => {
+  const db = getDatabase();
+  const { id } = req.params;
+  const { status, notes } = req.body;
+
+  const validTransitions: Record<string, string[]> = {
+    submitted: ['under_review', 'additional_info_required', 'rejected'],
+    under_review: ['recommendation_issued', 'additional_info_required', 'rejected', 'approved'],
+    additional_info_required: ['under_review', 'submitted'],
+    recommendation_issued: ['approved', 'rejected', 'additional_info_required'],
+  };
+
+  const existing = db.prepare('SELECT id, status FROM applications WHERE id = ?').get(id) as any;
+  if (!existing) {
+    res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Application not found' } });
+    return;
+  }
+
+  const allowed = validTransitions[existing.status] || [];
+  if (!allowed.includes(status)) {
+    res.status(400).json({
+      success: false,
+      error: { code: 'INVALID_TRANSITION', message: `Cannot transition from '${existing.status}' to '${status}'` },
+    });
+    return;
+  }
+
+  db.prepare(`UPDATE applications SET status = ?, updated_at = datetime('now') WHERE id = ?`).run(status, id);
+
+  db.prepare(`
+    INSERT INTO audit_events (id, application_id, action, actor, actor_type, details)
+    VALUES (?, ?, ?, 'aib_staff', 'staff', ?)
+  `).run(uuid(), id, `status_changed_to_${status}`, JSON.stringify({ previousStatus: existing.status, notes }));
+
+  res.json({ success: true, data: { id, status, updatedAt: new Date().toISOString() } });
+});
+
 // List applications (admin)
 applicationsRouter.get('/', (req: Request, res: Response) => {
   const db = getDatabase();
   const page = parseInt(req.query.page as string) || 1;
   const pageSize = parseInt(req.query.pageSize as string) || 20;
   const status = req.query.status as string;
+  const referenceNumber = req.query.referenceNumber as string;
   const offset = (page - 1) * pageSize;
 
   let whereClause = '';
@@ -130,6 +169,11 @@ applicationsRouter.get('/', (req: Request, res: Response) => {
   if (status) {
     whereClause = 'WHERE status = ?';
     params.push(status);
+  }
+
+  if (referenceNumber) {
+    whereClause = whereClause ? `${whereClause} AND reference_number = ?` : 'WHERE reference_number = ?';
+    params.push(referenceNumber);
   }
 
   const countRow = db.prepare(`SELECT COUNT(*) as count FROM applications ${whereClause}`).get(...params) as any;
