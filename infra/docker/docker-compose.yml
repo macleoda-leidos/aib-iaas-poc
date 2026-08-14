@@ -167,6 +167,21 @@ services:
       start_period: 120s  # ClamAV takes time to load virus definitions
     restart: unless-stopped
 
+  # Auto-seed demo data after API gateway starts
+  seed:
+    build:
+      context: ../../
+      dockerfile: infra/docker/Dockerfile.service
+      args:
+        SERVICE_NAME: api-gateway
+    command: npx tsx /app/scripts/seed-demo-data.ts
+    environment:
+      - API_URL=http://api-gateway:3001
+    depends_on:
+      api-gateway:
+        condition: service_started
+    restart: "no"
+
 volumes:
   app-data:
   uploads:

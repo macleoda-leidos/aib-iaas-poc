@@ -12,6 +12,7 @@ const DEMO_USERS = [
   { id: 'USR-007', name: 'Sarah Mitchell', role: 'creditor', roleDisplay: 'Creditor', org: 'Royal Bank of Scotland (Sample)' },
   { id: 'USR-008', name: 'Robert Henderson', role: 'supplier', roleDisplay: 'Supplier/Trustee', org: 'Sample Insolvency Practitioners LLP' },
   { id: 'USR-009', name: 'John Testerton', role: 'debtor', roleDisplay: 'Debtor', org: null },
+  { id: 'USR-010', name: 'Dr. Helen Fraser', role: 'aib_statistician', roleDisplay: 'AiB Statistician', org: 'Accountant in Bankruptcy — Reporting & Analytics' },
 ];
 
 export default function DashboardPage() {
@@ -37,7 +38,8 @@ export default function DashboardPage() {
       </div>
 
       {/* Render appropriate dashboard */}
-      {(selectedUser.role.startsWith('aib') || selectedUser.role === 'system_admin') && <AibDashboard user={selectedUser} />}
+      {(selectedUser.role.startsWith('aib') || selectedUser.role === 'system_admin') && selectedUser.role !== 'aib_statistician' && <AibDashboard user={selectedUser} />}
+      {selectedUser.role === 'aib_statistician' && <StatisticianDashboard user={selectedUser} />}
       {selectedUser.role === 'money_adviser' && <AdviserDashboard user={selectedUser} />}
       {selectedUser.role === 'creditor' && <CreditorDashboard user={selectedUser} />}
       {selectedUser.role === 'supplier' && <SupplierDashboard user={selectedUser} />}
@@ -1184,6 +1186,71 @@ function SupplierDashboard({ user }: { user: any }) {
           {activePanel === 'upload' && <DebtorUploadPanel />}
         </div>
       )}
+    </div>
+  );
+}
+
+function StatisticianDashboard({ user }: { user: any }) {
+  return (
+    <div>
+      <h1>AiB Statistics & Reporting</h1>
+      <p className="text-gray-600 mb-6">Welcome, {user.name} — Reporting & Analytics Division</p>
+
+      {/* Quick Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <KpiCard label="Total Cases" value="156" trend="across all products" colour="blue" />
+        <KpiCard label="This Month" value="47" trend="↑ 8% vs last month" colour="green" />
+        <KpiCard label="SLA Compliance" value="87%" trend="above 85% target" colour="green" />
+        <KpiCard label="Avg Processing" value="3.2d" trend="↓ 0.3d improvement" colour="purple" />
+      </div>
+
+      {/* Link to full statistics */}
+      <div className="bg-blue-50 dark:bg-blue-950 border-2 border-blue-300 rounded-lg p-6 mb-6 text-center">
+        <h2 className="text-xl font-bold mb-2">📊 Full Analytics Dashboard</h2>
+        <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+          Interactive charts, product breakdowns, SLA performance gauges, geographic analysis, and financial reporting.
+        </p>
+        <a href="/statistics" className="inline-block bg-gov-blue text-white font-bold py-3 px-8 rounded hover:bg-blue-800 text-sm">
+          Open Statistics Dashboard →
+        </a>
+      </div>
+
+      {/* Quick Reports */}
+      <div className="grid md:grid-cols-2 gap-6">
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded p-4">
+          <h3 className="font-bold mb-3">📋 Available Reports</h3>
+          <div className="space-y-2">
+            <a href="/statistics" className="block p-3 bg-gray-50 dark:bg-gray-700 rounded hover:bg-gray-100 text-sm">
+              <span className="font-bold">Weekly Performance Report</span>
+              <span className="block text-xs text-gray-500 mt-0.5">Applications, SLA compliance, product breakdown</span>
+            </a>
+            <a href="/statistics" className="block p-3 bg-gray-50 dark:bg-gray-700 rounded hover:bg-gray-100 text-sm">
+              <span className="font-bold">Financial Summary</span>
+              <span className="block text-xs text-gray-500 mt-0.5">Total debt, recovery rates, distribution analysis</span>
+            </a>
+            <a href="/statistics" className="block p-3 bg-gray-50 dark:bg-gray-700 rounded hover:bg-gray-100 text-sm">
+              <span className="font-bold">Organisation Activity</span>
+              <span className="block text-xs text-gray-500 mt-0.5">Money adviser performance, creditor engagement</span>
+            </a>
+            <a href="/statistics" className="block p-3 bg-gray-50 dark:bg-gray-700 rounded hover:bg-gray-100 text-sm">
+              <span className="font-bold">Geographic Distribution</span>
+              <span className="block text-xs text-gray-500 mt-0.5">Applications by region across Scotland</span>
+            </a>
+          </div>
+        </div>
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded p-4">
+          <h3 className="font-bold mb-3">⚡ Quick Actions</h3>
+          <div className="space-y-2">
+            <ActionButton label="Export Weekly Report (CSV)" icon="📊" onClick={() => window.open('http://localhost:3001/api/reports/export/weekly-report', '_blank')} />
+            <ActionButton label="Export Monthly Report (CSV)" icon="📈" onClick={() => window.open('http://localhost:3001/api/reports/export/monthly-report', '_blank')} />
+            <ActionButton label="View Full Dashboard" icon="🖥️" onClick={() => window.location.href = '/statistics'} />
+            <ActionButton label="View Audit Trail" icon="📋" onClick={() => {}} />
+          </div>
+          <p className="text-xs text-gray-500 mt-4">
+            Reports generated from live application data. Updated in real-time.
+          </p>
+        </div>
+      </div>
     </div>
   );
 }
