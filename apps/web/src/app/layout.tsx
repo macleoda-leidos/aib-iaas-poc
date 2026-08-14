@@ -15,15 +15,12 @@ export const metadata: Metadata = {
 
 import { ThemeToggle } from './ThemeToggle';
 import { Providers } from './Providers';
-import { CookieBanner } from '../components/CookieBanner';
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="min-h-screen flex flex-col bg-white dark:bg-gray-900 text-gov-black dark:text-gray-100 transition-colors">
       <Providers>
-        {/* Cookie Consent Banner */}
-        <CookieBanner />
 
         {/* GOV.UK-style header */}
         <header className="gov-header">
