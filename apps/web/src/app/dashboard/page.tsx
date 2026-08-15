@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { applications as applicationsApi, ApplicationSummary, ApiError } from '../../lib/apiClient';
 import { navigateTo } from '../../lib/navigation';
 
@@ -221,7 +222,7 @@ function AibDashboard({ user }: { user: any }) {
           <tbody>
             {apps.map(app => (
               <tr key={app.ref} onClick={() => setSelectedApp(selectedApp?.ref === app.ref ? null : app)} className="border-b border-gray-100 hover:bg-blue-50 cursor-pointer">
-                <td className="p-3 text-sm font-mono"><a href={`/case/${app.ref}`} className="text-blue-700 underline hover:text-blue-900" onClick={e => e.stopPropagation()}>{app.ref}</a></td>
+                <td className="p-3 text-sm font-mono"><Link href={`/case/${app.ref}`} className="text-blue-700 underline hover:text-blue-900" onClick={e => e.stopPropagation()}>{app.ref}</Link></td>
                 <td className="p-3 text-sm">{app.name}</td>
                 <td className="p-3 text-sm">{app.product}</td>
                 <td className="p-3"><span className={`text-xs font-bold px-2 py-0.5 rounded ${app.result === 'PASS' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>{app.result}</span></td>

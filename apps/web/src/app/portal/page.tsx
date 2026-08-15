@@ -2,6 +2,7 @@
 
 import { useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 
 const USERS: Record<string, any> = {
   admin: { name: 'Admin User', role: 'System Admin', org: 'Accountant in Bankruptcy', realm: 'aib-internal' },
@@ -112,7 +113,7 @@ function PortalContent({ userId }: { userId: string }) {
               <p className="text-sm font-medium">{user.name}</p>
               <p className="text-xs text-blue-200">{user.role}</p>
             </div>
-            <a href="/login" className="text-xs bg-white/10 px-3 py-1.5 rounded hover:bg-white/20">Sign Out</a>
+            <Link href="/login" className="text-xs bg-white/10 px-3 py-1.5 rounded hover:bg-white/20">Sign Out</Link>
           </div>
         </div>
       </div>
@@ -234,18 +235,18 @@ function PortalContent({ userId }: { userId: string }) {
 
         {/* Navigation to other pages */}
         <div className="mt-8 grid md:grid-cols-3 gap-4">
-          <a href="/dashboard" className="block p-4 bg-white border border-gray-200 rounded-lg hover:border-blue-500 hover:shadow transition-all no-underline">
+          <Link href="/dashboard" className="block p-4 bg-white border border-gray-200 rounded-lg hover:border-blue-500 hover:shadow transition-all no-underline">
             <p className="font-bold text-sm text-gray-800">📊 Role Dashboard</p>
             <p className="text-xs text-gray-500">View your role-specific dashboard</p>
-          </a>
-          <a href="/apply" className="block p-4 bg-white border border-gray-200 rounded-lg hover:border-blue-500 hover:shadow transition-all no-underline">
+          </Link>
+          <Link href="/apply" className="block p-4 bg-white border border-gray-200 rounded-lg hover:border-blue-500 hover:shadow transition-all no-underline">
             <p className="font-bold text-sm text-gray-800">📝 New Application</p>
             <p className="text-xs text-gray-500">Start a new IAAS application</p>
-          </a>
-          <a href="/login" className="block p-4 bg-white border border-gray-200 rounded-lg hover:border-blue-500 hover:shadow transition-all no-underline">
+          </Link>
+          <Link href="/login" className="block p-4 bg-white border border-gray-200 rounded-lg hover:border-blue-500 hover:shadow transition-all no-underline">
             <p className="font-bold text-sm text-gray-800">🔄 Switch User (Demo)</p>
             <p className="text-xs text-gray-500">Sign in as a different demo user</p>
-          </a>
+          </Link>
         </div>
       </div>
     </div>
