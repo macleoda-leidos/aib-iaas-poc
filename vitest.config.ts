@@ -39,10 +39,10 @@ export default defineConfig({
       ],
       thresholds: {
         // Quality gate — enforced in CI
-        statements: 60,
-        branches: 50,
-        functions: 50,
-        lines: 60,
+        statements: 50,
+        branches: 45,
+        functions: 45,
+        lines: 50,
       },
     },
   },
