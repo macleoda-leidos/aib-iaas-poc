@@ -26,9 +26,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <header className="gov-header">
           <div className="max-w-6xl mx-auto px-4 flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <a href="/" className="text-lg font-bold no-underline">
-                <span className="text-white">AiB</span>
-                <span className="text-gray-300 text-sm ml-2">Accountant in Bankruptcy</span>
+              <a href="/" className="flex items-center gap-3 no-underline">
+                <img src="/aib-logo.svg" alt="Accountant in Bankruptcy" className="h-8 md:h-10 brightness-0 invert" />
+                <span className="text-gray-300 text-xs md:text-sm hidden sm:inline">Initial Application Advice Service</span>
               </a>
             </div>
             <div className="flex items-center gap-2">
