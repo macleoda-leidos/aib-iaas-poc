@@ -1,15 +1,18 @@
 'use client';
 
 import { useState } from 'react';
+import { navigateTo } from '../../lib/navigation';
 
 const DEMO_ACCOUNTS = [
-  { id: 'admin', name: 'Admin User', email: 'admin@aib.example.gov.scot', role: 'System Admin', realm: 'aib-internal' },
-  { id: 'karen', name: 'Karen MacLeod', email: 'senior.officer@aib.example.gov.scot', role: 'AiB Senior Officer', realm: 'aib-internal' },
-  { id: 'james', name: 'James Wilson', email: 'officer@aib.example.gov.scot', role: 'AiB Case Officer', realm: 'aib-internal' },
-  { id: 'fiona', name: 'Fiona Campbell', email: 'adviser@cas.example.org', role: 'Money Adviser', realm: 'external-advisers' },
-  { id: 'sarah', name: 'Sarah Mitchell', email: 'collections@rbs.example.com', role: 'Creditor', realm: 'creditors' },
-  { id: 'robert', name: 'Robert Henderson', email: 'trustee@sample-ip.example.com', role: 'Trustee', realm: 'external-advisers' },
-  { id: 'john', name: 'John Testerton', email: 'john.testerton@example.com', role: 'Debtor', realm: 'public-debtors' },
+  { id: 'admin', name: 'Admin User', email: 'admin@aib.example.gov.scot', role: 'System Admin', realm: 'aib-internal', destination: '/dashboard' },
+  { id: 'karen', name: 'Karen MacLeod', email: 'senior.officer@aib.example.gov.scot', role: 'AiB Senior Officer', realm: 'aib-internal', destination: '/dashboard' },
+  { id: 'james', name: 'James Wilson', email: 'officer@aib.example.gov.scot', role: 'AiB Case Officer', realm: 'aib-internal', destination: '/dashboard' },
+  { id: 'fiona', name: 'Fiona Campbell', email: 'adviser@cas.example.org', role: 'Money Adviser', realm: 'external-advisers', destination: '/dashboard' },
+  { id: 'sarah', name: 'Sarah Mitchell', email: 'collections@rbs.example.com', role: 'Creditor', realm: 'creditors', destination: '/dashboard' },
+  { id: 'robert', name: 'Robert Henderson', email: 'trustee@sample-ip.example.com', role: 'Trustee', realm: 'external-advisers', destination: '/dashboard' },
+  { id: 'john', name: 'John Testerton', email: 'john.testerton@example.com', role: 'Debtor', realm: 'public-debtors', destination: '/portal' },
+  { id: 'helen', name: 'Dr. Helen Fraser', email: 'helen.fraser@aib.example.gov.scot', role: 'AiB Statistician', realm: 'aib-internal', destination: '/statistics' },
+  { id: 'ryan', name: 'Ryan MacIntyre', email: 'ryan.macintyre@aib.example.gov.scot', role: 'CyberOps Analyst', realm: 'aib-internal', destination: '/security' },
 ];
 
 export default function LoginPage() {
@@ -32,7 +35,7 @@ export default function LoginPage() {
     setMfaRequired(false);
     setSessionEstablished(true);
     setTimeout(() => {
-      window.location.href = `/portal?user=${selectedAccount.id}`;
+      navigateTo(selectedAccount.destination || `/portal?user=${selectedAccount.id}`);
     }, 2000);
   };
 

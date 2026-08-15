@@ -25,22 +25,22 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="min-h-screen flex flex-col bg-white dark:bg-gray-900 text-gov-black dark:text-gray-100 transition-colors">
       <Providers>
 
-        {/* Header — clean two-row layout like gov.scot */}
-        <header className="bg-[#0065bd] text-white">
+        {/* Header — AiB brand red */}
+        <header className="bg-[#d32205] text-white">
           {/* Top bar: Logo left, dark mode right */}
           <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
             <Link href="/" className="flex items-center gap-3 no-underline">
               <img src={`${BASE}/aib-logo.svg`} alt="Accountant in Bankruptcy" className="h-10 md:h-12 brightness-0 invert" />
               <div className="hidden sm:block">
                 <span className="text-white font-bold text-sm block leading-tight">Accountant in Bankruptcy</span>
-                <span className="text-blue-200 text-xs">Initial Application Advice Service</span>
+                <span className="text-red-200 text-xs">Initial Application Advice Service</span>
               </div>
             </Link>
             <ThemeToggle />
           </div>
 
           {/* Navigation bar */}
-          <nav aria-label="Main navigation" className="bg-[#004d99] border-t border-blue-400/30">
+          <nav aria-label="Main navigation" className="bg-[#a81b03] border-t border-red-400/30">
             <div className="max-w-6xl mx-auto px-4">
               <ul className="flex items-center gap-0 overflow-x-auto text-sm -mb-px">
                 <NavItem href="/">Home</NavItem>

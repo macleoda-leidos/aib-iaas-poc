@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { applications as applicationsApi, ApplicationSummary, ApiError } from '../../lib/apiClient';
+import { navigateTo } from '../../lib/navigation';
 
 // Role selection for POC demo purposes
 const DEMO_USERS = [
@@ -280,7 +281,7 @@ function AibDashboard({ user }: { user: any }) {
             <ActionButton label="Run Integration Health Check" icon="🔍" onClick={() => setActivePanel(activePanel === 'health' ? 'none' : 'health')} />
             <ActionButton label="View Audit Log" icon="📋" onClick={() => setActivePanel(activePanel === 'audit' ? 'none' : 'audit')} />
             {isAdmin && <ActionButton label="Generate Weekly Report" icon="📊" onClick={() => setActivePanel(activePanel === 'report' ? 'none' : 'report')} />}
-            {isAdmin && <ActionButton label="Manage Users (500)" icon="👥" onClick={() => { window.location.href = '/manage-users'; }} />}
+            {isAdmin && <ActionButton label="Manage Users (500)" icon="👥" onClick={() => { navigateTo('/manage-users'); }} />}
             {!isAdmin && <p className="text-xs text-gray-400 italic mt-2">🔒 Report & User management requires System Admin or Senior Officer role</p>}
           </div>
         </div>
@@ -1304,7 +1305,7 @@ function StatisticianDashboard({ user }: { user: any }) {
           <div className="space-y-2">
             <ActionButton label="Export Weekly Report (CSV)" icon="📊" onClick={() => window.open('http://localhost:3001/api/reports/export/weekly-report', '_blank')} />
             <ActionButton label="Export Monthly Report (CSV)" icon="📈" onClick={() => window.open('http://localhost:3001/api/reports/export/monthly-report', '_blank')} />
-            <ActionButton label="View Full Dashboard" icon="🖥️" onClick={() => window.location.href = '/statistics'} />
+            <ActionButton label="View Full Dashboard" icon="🖥️" onClick={() => navigateTo('/statistics')} />
             <ActionButton label="View Audit Trail" icon="📋" onClick={() => {}} />
           </div>
           <p className="text-xs text-gray-500 mt-4">
