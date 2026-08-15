@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useState, useMemo } from 'react';
 
 // Generate 500 synthetic users
@@ -105,7 +106,7 @@ export default function ManageUsersPage() {
     <div className="max-w-7xl mx-auto px-4 py-8">
       <div className="flex justify-between items-start mb-6">
         <div>
-          <a href="/dashboard" className="text-blue-700 text-sm underline mb-2 inline-block">← Back to Dashboard</a>
+          <Link href="/dashboard" className="text-blue-700 text-sm underline mb-2 inline-block">← Back to Dashboard</Link>
           <h1 className="text-2xl font-bold">User Management</h1>
           <p className="text-sm text-gray-500">{ALL_USERS.length} users across {ALL_ORGS.length} organisations • {ALL_ROLES.length} role levels</p>
         </div>

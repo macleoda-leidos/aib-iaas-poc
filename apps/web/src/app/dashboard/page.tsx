@@ -1225,9 +1225,9 @@ function CyberOpsDashboard({ user }: { user: any }) {
         <p className="text-sm text-gray-300 mb-4">
           Live event stream, attack timeline, Sophos endpoints, Tenable vulnerabilities, Sysmon process alerts, incident management.
         </p>
-        <a href="/security" className="inline-block bg-red-700 text-white font-bold py-3 px-8 rounded hover:bg-red-800 text-sm">
+        <Link href="/security" className="inline-block bg-red-700 text-white font-bold py-3 px-8 rounded hover:bg-red-800 text-sm">
           Open SOC Dashboard →
-        </a>
+        </Link>
       </div>
 
       {/* Recent Critical Alerts */}
@@ -1273,9 +1273,9 @@ function StatisticianDashboard({ user }: { user: any }) {
         <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
           Interactive charts, product breakdowns, SLA performance gauges, geographic analysis, and financial reporting.
         </p>
-        <a href="/statistics" className="inline-block bg-gov-blue text-white font-bold py-3 px-8 rounded hover:bg-blue-800 text-sm">
+        <Link href="/statistics" className="inline-block bg-gov-blue text-white font-bold py-3 px-8 rounded hover:bg-blue-800 text-sm">
           Open Statistics Dashboard →
-        </a>
+        </Link>
       </div>
 
       {/* Quick Reports */}
@@ -1283,22 +1283,22 @@ function StatisticianDashboard({ user }: { user: any }) {
         <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded p-4">
           <h3 className="font-bold mb-3">📋 Available Reports</h3>
           <div className="space-y-2">
-            <a href="/statistics" className="block p-3 bg-gray-50 dark:bg-gray-700 rounded hover:bg-gray-100 text-sm">
+            <Link href="/statistics" className="block p-3 bg-gray-50 dark:bg-gray-700 rounded hover:bg-gray-100 text-sm">
               <span className="font-bold">Weekly Performance Report</span>
               <span className="block text-xs text-gray-500 mt-0.5">Applications, SLA compliance, product breakdown</span>
-            </a>
-            <a href="/statistics" className="block p-3 bg-gray-50 dark:bg-gray-700 rounded hover:bg-gray-100 text-sm">
+            </Link>
+            <Link href="/statistics" className="block p-3 bg-gray-50 dark:bg-gray-700 rounded hover:bg-gray-100 text-sm">
               <span className="font-bold">Financial Summary</span>
               <span className="block text-xs text-gray-500 mt-0.5">Total debt, recovery rates, distribution analysis</span>
-            </a>
-            <a href="/statistics" className="block p-3 bg-gray-50 dark:bg-gray-700 rounded hover:bg-gray-100 text-sm">
+            </Link>
+            <Link href="/statistics" className="block p-3 bg-gray-50 dark:bg-gray-700 rounded hover:bg-gray-100 text-sm">
               <span className="font-bold">Organisation Activity</span>
               <span className="block text-xs text-gray-500 mt-0.5">Money adviser performance, creditor engagement</span>
-            </a>
-            <a href="/statistics" className="block p-3 bg-gray-50 dark:bg-gray-700 rounded hover:bg-gray-100 text-sm">
+            </Link>
+            <Link href="/statistics" className="block p-3 bg-gray-50 dark:bg-gray-700 rounded hover:bg-gray-100 text-sm">
               <span className="font-bold">Geographic Distribution</span>
               <span className="block text-xs text-gray-500 mt-0.5">Applications by region across Scotland</span>
-            </a>
+            </Link>
           </div>
         </div>
         <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded p-4">

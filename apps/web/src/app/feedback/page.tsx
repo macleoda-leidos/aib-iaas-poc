@@ -1,4 +1,5 @@
 'use client';
+import Link from 'next/link';
 
 import { useState } from 'react';
 
@@ -20,7 +21,7 @@ export default function FeedbackPage() {
           <p className="text-gray-700 dark:text-gray-300">
             Your feedback helps us improve this service. We review all submissions and use them to prioritise improvements.
           </p>
-          <a href="/" className="inline-block mt-4 text-blue-700 underline">Return to home page</a>
+          <Link href="/" className="inline-block mt-4 text-blue-700 underline">Return to home page</Link>
         </div>
       </div>
     );

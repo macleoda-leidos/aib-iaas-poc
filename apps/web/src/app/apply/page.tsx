@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useAppContext } from '../../lib/ApplicationContext';
 import {
@@ -1106,7 +1107,7 @@ function PaymentSection({ formData, updateField, applicationId }: { formData: an
         <p className="text-green-200 mt-2">Payment of £90.00 received (SANDBOX)</p>
         <div className="mt-4 text-sm text-green-100">
           <p>Your application is now in the AiB review queue.</p>
-          <p className="mt-1">Switch to the <a href="/dashboard" className="underline font-bold text-white">Dashboard</a> to see it from a staff perspective.</p>
+          <p className="mt-1">Switch to the <a href="javascript:void(0)" onClick={() => navigateTo('/dashboard')} className="underline font-bold text-white cursor-pointer">Dashboard</a> to see it from a staff perspective.</p>
         </div>
       </div>
     );

@@ -6,7 +6,7 @@ export default function NotFound() {
         The page you are looking for does not exist or has been moved.
       </p>
       <a
-        href="/"
+        href="./"
         className="inline-block bg-gov-green text-white font-bold py-3 px-8 no-underline hover:bg-green-800"
       >
         Go to homepage
