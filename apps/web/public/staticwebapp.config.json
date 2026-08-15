@@ -1,20 +1,6 @@
 {
   "navigationFallback": {
     "rewrite": "/index.html",
-    "exclude": ["/_next/*", "/images/*", "/*.css", "/*.js", "/*.ico", "/*.svg", "/*.png"]
-  },
-  "routes": [
-    {
-      "route": "/aib-logo.svg",
-      "headers": {
-        "Cache-Control": "public, max-age=86400"
-      }
-    }
-  ],
-  "globalHeaders": {
-    "X-Frame-Options": "DENY",
-    "X-Content-Type-Options": "nosniff",
-    "Referrer-Policy": "strict-origin-when-cross-origin"
-  },
-  "trailingSlash": "auto"
+    "exclude": ["/_next/*", "/*.css", "/*.js", "/*.svg", "/*.png", "/*.ico", "/*.txt"]
+  }
 }
