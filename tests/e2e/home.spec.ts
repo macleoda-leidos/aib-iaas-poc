@@ -3,8 +3,7 @@ import { test, expect } from '@playwright/test';
 test.describe('Home Page', () => {
   test('loads and shows AiB branding', async ({ page }) => {
     await page.goto('/');
-    await expect(page.locator('text=AiB')).toBeVisible();
-    await expect(page.locator('text=Accountant in Bankruptcy')).toBeVisible();
+    await expect(page.locator('img[alt="Accountant in Bankruptcy"]')).toBeVisible();
   });
 
   test('has "Start your application" call to action', async ({ page }) => {
@@ -23,9 +22,10 @@ test.describe('Home Page', () => {
     await expect(page.locator('text=Debt Payment Programme')).toBeVisible();
   });
 
-  test('has POC phase banner', async ({ page }) => {
+  test('has BETA phase banner', async ({ page }) => {
     await page.goto('/');
-    await expect(page.locator('text=Proof of Concept')).toBeVisible();
+    await expect(page.locator('text=BETA')).toBeVisible();
+    await expect(page.locator('text=feedback')).toBeVisible();
   });
 
   test('navigation links work', async ({ page }) => {

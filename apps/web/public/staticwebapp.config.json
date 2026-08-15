@@ -1,22 +1,20 @@
 {
-  "routes": [
-    {
-      "route": "/api/*",
-      "allowedRoles": ["anonymous"],
-      "rewrite": "/.auth/login/aad"
-    }
-  ],
   "navigationFallback": {
     "rewrite": "/index.html",
-    "exclude": ["/_next/*", "/images/*", "/*.css", "/*.js", "/*.ico"]
+    "exclude": ["/_next/*", "/images/*", "/*.css", "/*.js", "/*.ico", "/*.svg", "/*.png"]
   },
+  "routes": [
+    {
+      "route": "/aib-logo.svg",
+      "headers": {
+        "Cache-Control": "public, max-age=86400"
+      }
+    }
+  ],
   "globalHeaders": {
     "X-Frame-Options": "DENY",
     "X-Content-Type-Options": "nosniff",
-    "Referrer-Policy": "strict-origin-when-cross-origin",
-    "X-POC-Notice": "This is a demonstration POC - not a live service"
+    "Referrer-Policy": "strict-origin-when-cross-origin"
   },
-  "platform": {
-    "apiRuntime": "node:20"
-  }
+  "trailingSlash": "auto"
 }
