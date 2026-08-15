@@ -37,6 +37,7 @@ jobs:
         env:
           NEXT_TELEMETRY_DISABLED: "1"
           GITHUB_PAGES: "true"
+          NEXT_PUBLIC_BASE_PATH: "/aib-iaas-poc"
 
       - name: Add .nojekyll
         run: touch apps/web/out/.nojekyll
