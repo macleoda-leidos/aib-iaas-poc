@@ -1,6 +1,5 @@
 name: Deploy to Azure Static Web Apps
 
-# Only deploy AFTER CI pipeline passes (quality gate)
 on:
   workflow_run:
     workflows: ["CI Pipeline — Build, Test & Quality Gate"]
@@ -11,7 +10,6 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    # Only deploy if CI succeeded (not on failure)
     if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     name: Build and Deploy (after quality gate)
 
@@ -23,27 +21,25 @@ jobs:
         with:
           node-version: 20
 
-      - name: Install dependencies (monorepo root)
+      - name: Install dependencies
         run: npm ci
-        env:
-          NEXT_TELEMETRY_DISABLED: "1"
 
-      - name: Build Static Export
-        working-directory: apps/web
-        run: NEXT_OUTPUT=export npm run build
-        env:
-          NEXT_TELEMETRY_DISABLED: "1"
+      - name: Build static site
+        run: cd apps/web && NEXT_OUTPUT=export npm run build
 
-      - name: Ensure SWA config in output
+      - name: Prepare deploy directory
         run: |
-          cp apps/web/public/staticwebapp.config.json apps/web/out/staticwebapp.config.json
-          echo "=== SWA config ==="
-          cat apps/web/out/staticwebapp.config.json
-          echo ""
-          echo "=== Output directory ==="
-          ls apps/web/out/
-          echo "=== index.html size ==="
-          wc -c apps/web/out/index.html
+          # Copy the static output to a clean deploy directory at repo root
+          cp -r apps/web/out deploy
+          # Ensure SWA config is present
+          cp apps/web/public/staticwebapp.config.json deploy/
+          # Log what we're deploying
+          echo "=== Deploy directory contents ==="
+          ls deploy/
+          echo "=== index.html exists ==="
+          head -1 deploy/index.html
+          echo "=== staticwebapp.config.json ==="
+          cat deploy/staticwebapp.config.json
 
       - name: Deploy to Azure Static Web Apps
         uses: Azure/static-web-apps-deploy@v1
@@ -52,5 +48,5 @@ jobs:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           action: "upload"
           skip_app_build: true
-          app_location: "apps/web/out"
+          app_location: "deploy"
           output_location: ""
