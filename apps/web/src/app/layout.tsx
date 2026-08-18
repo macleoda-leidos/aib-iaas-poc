@@ -16,6 +16,7 @@ export const metadata: Metadata = {
 
 import { ThemeToggle } from './ThemeToggle';
 import { Providers } from './Providers';
+import { UserNavItem } from './UserNavItem';
 
 const BASE = process.env.GITHUB_PAGES === 'true' ? '/aib-iaas-poc' : '';
 
@@ -52,7 +53,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 <NavItem href="/search">Search</NavItem>
                 <NavItem href="/correspondence">Letters</NavItem>
                 <NavItem href="/architecture">Architecture</NavItem>
-                <NavItem href="/login">Sign In</NavItem>
+                <UserNavItem />
               </ul>
             </div>
           </nav>

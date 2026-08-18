@@ -34,6 +34,13 @@ export default function LoginPage() {
   const handleMfaVerify = () => {
     setMfaRequired(false);
     setSessionEstablished(true);
+    // Store logged-in user in sessionStorage (read by UserNavItem in header)
+    sessionStorage.setItem('iaas-current-user', JSON.stringify({
+      id: selectedAccount.id,
+      name: selectedAccount.name,
+      role: selectedAccount.role,
+      email: selectedAccount.email,
+    }));
     setTimeout(() => {
       navigateTo(selectedAccount.destination || `/portal?user=${selectedAccount.id}`);
     }, 2000);

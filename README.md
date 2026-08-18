@@ -4,36 +4,48 @@
 
 ## Overview
 
-This repository contains a complete Proof of Concept for the AiB Initial Application Advice Service. It demonstrates how a debtor or representative can navigate a unified application journey to receive a recommendation for the most suitable Scottish debt solution.
+This repository contains a fully functional Proof of Concept for the Accountant in Bankruptcy's Initial Application Advice Service. It demonstrates how debtors, money advisers, creditors, and AiB staff interact with a unified applications gateway to receive recommendations for the most suitable Scottish debt solution.
 
-**⚠️ This is a POC — not production software. All data is synthetic. No real payments, credit checks, or system integrations are performed.**
+The POC implements a complete end-to-end journey: identity verification, multi-step application form, real-time system checks against 6 AiB databases, rules-based recommendation across 7 Scottish debt products, correspondence generation, case management, statistics dashboards, and a Security Operations Centre.
+
+**Live Demo:** https://macleoda-leidos.github.io/aib-iaas-poc/
+
+**This is a POC — not production software. All data is synthetic. No real payments, credit checks, or system integrations are performed.**
+
+---
 
 ## Quick Start
 
 ### Prerequisites
-- Node.js 20+
-- Docker & Docker Compose (for containerised deployment)
 
-### Local Development (without Docker)
+- Node.js 20+
+- npm 10+
+- Docker & Docker Compose (optional, for containerised deployment)
+
+### Local Development
 
 ```bash
-# Install dependencies
+# Clone the repository
+git clone https://github.com/macleoda-leidos/aib-iaas-poc.git
+cd aib-iaas-poc
+
+# Install all dependencies (monorepo — installs everything)
 npm install
 
-# Start all backend services
+# Seed demo data
+npm run seed
+
+# Start all backend services (13 microservices)
 npm run dev:services
 
-# In a separate terminal, start the web portal
+# In a separate terminal — start the web portal
 npm run dev:web
-
-# In a separate terminal, start the admin portal  
-npm run dev:admin
 ```
 
 ### Docker Deployment
 
 ```bash
-# Build and run all services
+# Build and run full stack (all services + web portal)
 docker compose -f infra/docker/docker-compose.yml up --build
 ```
 
@@ -41,44 +53,150 @@ docker compose -f infra/docker/docker-compose.yml up --build
 
 | Service | URL | Description |
 |---------|-----|-------------|
-| Web Portal | http://localhost:3000 | Public-facing application form |
-| Admin Portal | http://localhost:3010 | Internal AiB staff review |
-| API Gateway | http://localhost:3001 | Backend API |
+| Web Portal | http://localhost:3000 | Public-facing application portal |
+| API Gateway | http://localhost:3001 | Backend BFF API |
+| Recommendation Service | http://localhost:3002 | Rules engine |
+| Document Service | http://localhost:3003 | Upload & storage |
+| Integration Orchestrator | http://localhost:3004 | System checks |
 | Mock Integrations | http://localhost:3005 | Stub AiB system APIs |
+| Payment Service | http://localhost:3006 | Payment simulation |
+| Audit Service | http://localhost:3007 | Event logging |
 
-## What This Demonstrates
+---
 
-1. ✅ Multi-step application form (personal details, address, debts, income, documents)
-2. ✅ Placeholder postcode lookup
-3. ✅ Placeholder credit check
-4. ✅ Cross-system case checks (BASYS, eDEN/DASH, DAS, CFT, Moratorium, RoI)
-5. ✅ Rules-based product recommendation engine
-6. ✅ AI-assisted explanation (mock)
-7. ✅ Payment simulation (Apple Pay, Google Pay, Card)
-8. ✅ Document upload
-9. ✅ Admin review portal
-10. ✅ Full audit trail
-11. ✅ Mobile-responsive, accessible design
-12. ✅ API-first architecture
-13. ✅ Infrastructure-as-code (Terraform)
-14. ✅ CI/CD pipeline (GitHub Actions)
-15. ✅ Contract tests for integrations
+## Architecture
+
+```
+                         ┌─────────────────────────────┐
+                         │   GitHub Pages (Static)      │
+                         │   Next.js 15 + React 19      │
+                         │   https://macleoda-leidos.   │
+                         │   github.io/aib-iaas-poc/    │
+                         └──────────────┬──────────────┘
+                                        │
+                                        ▼
+┌──────────────────────────────────────────────────────────────────┐
+│                     API Gateway (port 3001)                       │
+│         Express.js BFF — Auth, Rate Limiting, Routing            │
+└───────┬───────┬───────┬───────┬───────┬───────┬───────┬─────────┘
+        │       │       │       │       │       │       │
+        ▼       ▼       ▼       ▼       ▼       ▼       ▼
+┌───────┐ ┌─────┐ ┌─────┐ ┌─────┐ ┌─────┐ ┌─────┐ ┌───────────┐
+│Recomm.│ │Doc  │ │Integ│ │Paym.│ │Audit│ │Cred.│ │Identity   │
+│Engine │ │Svc  │ │Orch │ │Svc  │ │Svc  │ │Check│ │Svc        │
+│:3002  │ │:3003│ │:3004│ │:3006│ │:3007│ │     │ │           │
+└───────┘ └─────┘ └──┬──┘ └─────┘ └─────┘ └─────┘ └───────────┘
+                      │
+                      ▼
+        ┌─────────────────────────────┐
+        │   Mock Integrations (:3005) │
+        │   BASYS │ eDEN │ DAS │ CFT  │
+        │   Moratorium │ RoI          │
+        └─────────────────────────────┘
+
+Additional: user-service, organisation-service, notification-service,
+            consolidated-api (13 services total)
+```
+
+---
+
+## Pages & Features
+
+### Public Pages
+
+| Page | Path | Description |
+|------|------|-------------|
+| Landing | `/` | Service start page with "Start now" CTA |
+| Identity Verification | `/` (start flow) | ScotAccount / GOV.UK One Login simulation |
+| Application Form | `/apply` | 9-section multi-step form with auto-save |
+| Debtor Portal | `/portal` | Personal dashboard for applicants |
+| Accessibility | `/accessibility` | Accessibility statement |
+| Feedback | `/feedback` | User feedback form |
+| Cookie Consent | (banner) | GDPR-compliant cookie notice |
+
+### Staff / Authenticated Pages
+
+| Page | Path | Description |
+|------|------|-------------|
+| Login | `/login` | Role-selector with MFA simulation |
+| Dashboard | `/dashboard` | Role-specific case management view |
+| Case Detail | `/case/[ref]` | Full application data with collapsible sections |
+| Search | `/search` | Global search across all cases |
+| Correspondence | `/correspondence` | Letter generator with GOV.UK templates |
+| Statistics | `/statistics` | Charts & analytics (Recharts) |
+| Security (SOC) | `/security` | CyberOps dark-themed monitoring dashboard |
+| Manage Users | `/manage-users` | User administration |
+| Architecture | `/architecture` | System architecture visualisation |
+| Demo Controls | `/demo-controls` | POC demonstration utilities |
+
+### Application Form Sections (9 Steps)
+
+1. Personal Details
+2. Address & Contact
+3. Employment & Income
+4. Expenditure
+5. Debts & Liabilities
+6. Assets
+7. Supporting Documents
+8. Declaration
+9. Review & Submit
+
+### Key Capabilities
+
+- **Rules-based Recommendation Engine** — evaluates eligibility across 7 Scottish debt products (Bankruptcy, MAP, DAS, Trust Deed, LILA, MAS, Moratorium)
+- **Real-time System Checks** — parallel queries against BASYS, eDEN, DAS, CFT, Moratorium Register, and Register of Insolvencies
+- **Credit Check Service** — score and band display with affordability indicators
+- **Statistics & Analytics** — line charts, area charts, bar charts, pie charts, and gauge visualisations using Recharts
+- **CyberOps SOC** — dark-themed security dashboard with live event stream (Sophos, Tenable, Sysmon, CloudWatch)
+- **Correspondence Generator** — GOV.UK-compliant letter templates for all case stages
+- **Identity Verification** — ScotAccount and GOV.UK One Login simulation flows
+- **MFA Simulation** — TOTP authenticator, WebAuthn (passkey), and email code options
+- **Keycloak SSO Design** — architecture for production single sign-on
+- **Auto-save** — application progress persisted to API on every section change
+- **Dark/Light Mode** — system preference detection with manual toggle
+- **Mobile Responsive** — fully responsive tables and layouts
+- **Global Search** — search across case references, names, and statuses
+
+---
+
+## Demo Accounts
+
+Select any account on the login screen. All passwords are pre-filled; MFA codes are accepted automatically.
+
+| Name | Role | Email | Destination |
+|------|------|-------|-------------|
+| Admin User | System Admin | admin@aib.example.gov.scot | Dashboard |
+| Karen MacLeod | AiB Senior Officer | senior.officer@aib.example.gov.scot | Dashboard |
+| James Wilson | AiB Case Officer | officer@aib.example.gov.scot | Dashboard |
+| Fiona Campbell | Money Adviser | adviser@cas.example.org | Dashboard |
+| Sarah Mitchell | Creditor | collections@rbs.example.com | Dashboard |
+| Robert Henderson | Trustee | trustee@sample-ip.example.com | Dashboard |
+| John Testerton | Debtor | john.testerton@example.com | Portal |
+| Dr. Helen Fraser | AiB Statistician | helen.fraser@aib.example.gov.scot | Statistics |
+| Ryan MacIntyre | CyberOps Analyst | ryan.macintyre@aib.example.gov.scot | Security SOC |
+
+---
 
 ## Repository Structure
 
 ```
 /apps
-  /web          → IAAS responsive web portal (Next.js)
-  /admin        → Internal administration portal (Next.js)
+  /web              → Public portal (Next.js 15, deployed to GitHub Pages)
 
 /services
-  /api-gateway              → Public API / BFF
-  /recommendation-service   → Rules-based product engine
+  /api-gateway              → Public API / BFF (auth, rate limiting, routing)
+  /recommendation-service   → Rules-based product engine (7 products)
   /document-service         → Upload and document management
-  /integration-orchestrator → Parallel system checks
-  /mock-integrations        → Stub APIs for all AiB systems
+  /integration-orchestrator → Parallel system checks (6 systems)
+  /mock-integrations        → Stub APIs for all AiB backend systems
   /payment-service          → Payment simulation
-  /audit-service            → Audit event capture
+  /audit-service            → Audit event capture & trail
+  /credit-check-service     → Credit scoring & affordability
+  /identity-service         → Identity verification flows
+  /user-service             → User management
+  /organisation-service     → Organisation registry
+  /notification-service     → Notification delivery
+  /consolidated-api         → Aggregated API layer
 
 /packages
   /shared-types    → TypeScript type definitions
@@ -90,39 +208,94 @@ docker compose -f infra/docker/docker-compose.yml up --build
   /terraform       → AWS infrastructure modules
   /docker          → Docker Compose & Dockerfiles
 
-/docs              → Architecture, API, integration, data model docs
+/docs              → Architecture, API, integration, data model documentation
+/.github/workflows → CI/CD pipelines
 ```
+
+---
 
 ## Technology Stack
 
-| Layer | Technology | Justification |
-|-------|-----------|---------------|
-| Frontend | Next.js 14, React 18, Tailwind CSS | Enterprise-ready, SSR, accessible |
-| API | Express.js, TypeScript | Rapid development, type-safe |
-| Database | SQLite (POC) → PostgreSQL (prod) | Zero-config local, production path |
-| Storage | Local FS (POC) → S3 (prod) | Free local, scalable cloud |
-| Infrastructure | Docker, Terraform, GitHub Actions | Industry standard, repeatable |
-| Validation | Zod | Shared FE/BE schemas |
+| Layer | Technology | Purpose |
+|-------|-----------|---------|
+| Frontend | Next.js 15, React 19 | Server-side rendering, static export |
+| Styling | Tailwind CSS | Utility-first responsive design |
+| Charts | Recharts | Statistics & analytics visualisations |
+| Backend | Express.js, TypeScript | Microservices API layer |
+| Database | SQLite (POC) | Zero-config local development |
+| Validation | Zod | Shared FE/BE schema validation |
+| Testing | Vitest, Playwright | Unit/integration + E2E |
+| Build | TypeScript 5, tsx | Type-safe rapid development |
+| CI/CD | GitHub Actions | Automated test + deploy pipeline |
+| Containers | Docker Compose | Local full-stack orchestration |
+| Infrastructure | Terraform | AWS infrastructure-as-code |
+| Security | Helmet, CORS, rate limiting | Defence in depth |
 
-## Environment Strategy
+---
 
-| Environment | Purpose | Deployment |
-|-------------|---------|-----------|
-| Local | Development & POC demo | Docker Compose |
-| FAT | Automated functional testing | AWS ECS (Terraform) |
-| UAT | User acceptance testing | AWS ECS (Terraform) |
+## Deployment
+
+### GitHub Pages (Current)
+
+The frontend is automatically deployed to GitHub Pages on every push to `main`:
+
+1. **CI Pipeline** runs tests and quality gates
+2. **Deploy Pipeline** triggers on CI success — builds Next.js static export and publishes to Pages
+
+URL: https://macleoda-leidos.github.io/aib-iaas-poc/
+
+### CI/CD Pipelines
+
+| Workflow | Trigger | Purpose |
+|----------|---------|---------|
+| `ci.yml` | Push / PR to main | Build, test, quality gate |
+| `deploy-pages.yml` | CI success on main | Deploy static frontend to GitHub Pages |
+| `deploy-azure.yml` | Manual | Azure deployment (alternative) |
+| `deploy-swa.yml` | Manual | Azure Static Web Apps (alternative) |
+
+### Production Path (Design)
+
+| Environment | Purpose | Infrastructure |
+|-------------|---------|---------------|
+| Local | Development & demo | Docker Compose |
+| FAT | Functional testing | AWS ECS (Terraform) |
+| UAT | User acceptance | AWS ECS (Terraform) |
 | PreProd | Pre-production validation | AWS ECS (mirrors prod) |
 | Production | Live service | AWS ECS (full HA) |
 
-## Cost Profile
+---
 
-| Component | POC Cost | Production Cost |
-|-----------|----------|-----------------|
-| Compute | Free (local Docker) | ECS Fargate (~£200/month FAT) |
-| Database | Free (SQLite) | RDS PostgreSQL (~£30/month FAT) |
-| Storage | Free (local FS) | S3 (~£5/month) |
-| CI/CD | Free (GitHub Actions) | Free (public repo) / £0-44/month |
-| DNS/SSL | N/A | Route53 + ACM (~£5/month) |
+## Testing
+
+```bash
+# Run all unit/integration tests
+npm test
+
+# Run tests for a specific service
+npm test --workspace=services/recommendation-service
+
+# Run E2E tests (requires running app)
+npx playwright test
+
+# Run contract tests
+npm run test:contracts
+
+# Lint all workspaces
+npm run lint
+```
+
+---
+
+## Design Patterns
+
+- **GOV.UK Design System** — consistent UI patterns, typography, spacing, and colour
+- **AiB Branding** — red header (#d32205) with official AiB logo
+- **Mobile-first** — responsive breakpoints, collapsible navigation, touch-friendly controls
+- **Accessibility** — WCAG 2.1 AA target, semantic HTML, ARIA labels, keyboard navigation
+- **API-first** — all features backed by documented REST endpoints
+- **12-factor** — environment-driven configuration, stateless services
+
+---
 
 ## Documentation
 
@@ -132,6 +305,8 @@ docker compose -f infra/docker/docker-compose.yml up --build
 - [Data Model](docs/data-model.md)
 - [Context & Assumptions](docs/context-and-assumptions.md)
 
+---
+
 ## License
 
-Crown Copyright © Accountant in Bankruptcy. POC demonstration only.
+Crown Copyright - Accountant in Bankruptcy. POC demonstration only.
