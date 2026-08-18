@@ -10,17 +10,89 @@ const NOTIFICATION_CHANNELS = [
   { id: 'in_app', label: 'In-App', description: 'Notifications shown when you log in to IAAS' },
 ];
 
-const NOTIFICATION_TYPES = [
-  { id: 'application_status', label: 'Application Status Changes', description: 'When your application moves to a new stage (submitted, under review, approved, etc.)', defaultOn: true },
-  { id: 'document_requests', label: 'Document Requests', description: 'When additional documents or information are requested by AiB staff', defaultOn: true },
-  { id: 'credit_check', label: 'Credit Check Results', description: 'When your credit check has been completed', defaultOn: true },
-  { id: 'recommendation', label: 'Product Recommendation', description: 'When a debt solution recommendation is issued for your case', defaultOn: true },
-  { id: 'adviser_assigned', label: 'Money Adviser Assignment', description: 'When a money adviser is assigned to your case', defaultOn: true },
-  { id: 'case_updates', label: 'General Case Updates', description: 'Any other updates or notes added to your case', defaultOn: false },
-  { id: 'system_maintenance', label: 'System Maintenance', description: 'Planned downtime or maintenance windows affecting IAAS', defaultOn: false },
-  { id: 'policy_changes', label: 'Policy & Regulation Changes', description: 'Changes to Scottish debt solution policies that may affect you', defaultOn: false },
-  { id: 'weekly_digest', label: 'Weekly Digest', description: 'A weekly summary of all activity on your case(s)', defaultOn: false },
-];
+// Role-specific notification types
+const NOTIFICATION_TYPES_BY_ROLE: Record<string, Array<{ id: string; label: string; description: string; defaultOn: boolean }>> = {
+  // Debtors - care about their own case progress
+  debtor: [
+    { id: 'application_status', label: 'Application Status Changes', description: 'When your application moves to a new stage (submitted, under review, approved, etc.)', defaultOn: true },
+    { id: 'document_requests', label: 'Document Requests', description: 'When additional documents or information are requested', defaultOn: true },
+    { id: 'credit_check', label: 'Credit Check Results', description: 'When your credit check has been completed', defaultOn: true },
+    { id: 'recommendation', label: 'Product Recommendation', description: 'When a debt solution recommendation is issued for your case', defaultOn: true },
+    { id: 'adviser_assigned', label: 'Money Adviser Assignment', description: 'When a money adviser is assigned to your case', defaultOn: true },
+    { id: 'case_updates', label: 'General Case Updates', description: 'Any other updates or notes added to your case', defaultOn: false },
+    { id: 'weekly_digest', label: 'Weekly Summary', description: 'A weekly summary of activity on your case', defaultOn: false },
+  ],
+  // AiB Staff (admin, senior officer, case officer) - care about workload and system health
+  staff: [
+    { id: 'new_applications', label: 'New Applications Received', description: 'When new applications are submitted and enter the queue', defaultOn: true },
+    { id: 'sla_warnings', label: 'SLA Breach Warnings', description: 'When cases are approaching or have breached processing targets', defaultOn: true },
+    { id: 'assignments', label: 'Case Assignments', description: 'When cases are assigned to you or your team', defaultOn: true },
+    { id: 'staff_actions', label: 'Staff Actions on Your Cases', description: 'When other staff take actions (approve, reject, add notes) on your assigned cases', defaultOn: true },
+    { id: 'system_health', label: 'System Integration Alerts', description: 'When BASYS, eDEN, DAS or other integrations have issues', defaultOn: true },
+    { id: 'weekly_report', label: 'Weekly Performance Report', description: 'Automated weekly KPI summary emailed every Monday', defaultOn: true },
+    { id: 'security_alerts', label: 'Security Incidents', description: 'Critical security events requiring attention', defaultOn: true },
+    { id: 'policy_changes', label: 'Policy & Regulation Updates', description: 'Changes to Scottish debt solution legislation or AiB procedures', defaultOn: false },
+    { id: 'system_maintenance', label: 'Planned Maintenance', description: 'Scheduled downtime or deployment notifications', defaultOn: false },
+  ],
+  // Money Advisers - care about their clients
+  money_adviser: [
+    { id: 'client_applications', label: 'Client Application Updates', description: 'When applications you submitted change status', defaultOn: true },
+    { id: 'new_referrals', label: 'New Client Referrals', description: 'When new clients are referred to you by AiB', defaultOn: true },
+    { id: 'document_uploads', label: 'Client Document Uploads', description: 'When your clients upload documents to their applications', defaultOn: true },
+    { id: 'decisions', label: 'Application Decisions', description: 'When decisions are made on your clients\' applications', defaultOn: true },
+    { id: 'sla_reminders', label: 'Action Reminders', description: 'Reminders when client cases need your attention', defaultOn: true },
+    { id: 'policy_changes', label: 'Policy Updates', description: 'Changes to debt solution policies affecting your clients', defaultOn: false },
+    { id: 'weekly_digest', label: 'Weekly Client Summary', description: 'Summary of all client case activity this week', defaultOn: true },
+  ],
+  // CyberOps - care about security
+  cyber_ops: [
+    { id: 'critical_alerts', label: 'Critical Security Alerts', description: 'Immediate notification of critical threats or breaches', defaultOn: true },
+    { id: 'incident_updates', label: 'Incident Status Changes', description: 'When security incidents are updated, escalated, or resolved', defaultOn: true },
+    { id: 'vuln_scans', label: 'Vulnerability Scan Results', description: 'When Tenable scans complete with new findings', defaultOn: true },
+    { id: 'endpoint_alerts', label: 'Endpoint Protection Alerts', description: 'Sophos malware detections, quarantine events', defaultOn: true },
+    { id: 'access_anomalies', label: 'Access Anomalies', description: 'Failed MFA, account lockouts, unusual login patterns', defaultOn: true },
+    { id: 'waf_blocks', label: 'WAF Attack Blocks', description: 'SQL injection, XSS, and other attack attempts blocked', defaultOn: false },
+    { id: 'compliance_reports', label: 'Compliance Reports', description: 'Weekly security posture and compliance summaries', defaultOn: true },
+  ],
+  // Statistician - care about data and reports
+  statistician: [
+    { id: 'report_ready', label: 'Scheduled Reports Ready', description: 'When weekly/monthly/quarterly reports are generated', defaultOn: true },
+    { id: 'data_anomalies', label: 'Data Anomalies Detected', description: 'When statistical outliers or data quality issues are found', defaultOn: true },
+    { id: 'threshold_breaches', label: 'KPI Threshold Breaches', description: 'When key performance indicators fall outside targets', defaultOn: true },
+    { id: 'trend_alerts', label: 'Significant Trend Changes', description: 'When application volumes or patterns shift significantly', defaultOn: false },
+    { id: 'data_exports', label: 'Data Export Completions', description: 'When large data extracts or exports are ready for download', defaultOn: true },
+    { id: 'system_maintenance', label: 'Reporting System Maintenance', description: 'Planned downtime affecting reporting databases', defaultOn: true },
+  ],
+  // Creditors - care about their cases and dividends
+  creditor: [
+    { id: 'case_involvement', label: 'New Case Involvement', description: 'When you are listed as a creditor in a new application', defaultOn: true },
+    { id: 'dividend_notifications', label: 'Dividend Payments', description: 'When dividend payments are scheduled or made', defaultOn: true },
+    { id: 'voting_required', label: 'Voting Required', description: 'When trust deed proposals require your vote', defaultOn: true },
+    { id: 'claim_updates', label: 'Claim Status Updates', description: 'When your filed claims are adjudicated or updated', defaultOn: true },
+    { id: 'annual_statements', label: 'Annual Statements', description: 'When annual case statements are available', defaultOn: true },
+    { id: 'case_closures', label: 'Case Closures', description: 'When cases involving your organisation are discharged or closed', defaultOn: false },
+  ],
+  // Trustees/Suppliers - care about case management
+  supplier: [
+    { id: 'new_assignments', label: 'New Case Assignments', description: 'When new cases are assigned to you as trustee', defaultOn: true },
+    { id: 'distribution_due', label: 'Distributions Due', description: 'When creditor distributions are scheduled', defaultOn: true },
+    { id: 'report_deadlines', label: 'Report Deadlines', description: 'Reminders for annual reports and regulatory filings', defaultOn: true },
+    { id: 'case_milestones', label: 'Case Milestones', description: 'Discharge dates, review periods, key deadlines', defaultOn: true },
+    { id: 'regulatory_updates', label: 'Regulatory Updates', description: 'AiB regulatory changes affecting trustees', defaultOn: false },
+    { id: 'weekly_digest', label: 'Weekly Case Summary', description: 'Summary of all case activity under your management', defaultOn: true },
+  ],
+};
+
+function getNotificationTypesForRole(role: string): typeof NOTIFICATION_TYPES_BY_ROLE['debtor'] {
+  if (role === 'Debtor') return NOTIFICATION_TYPES_BY_ROLE.debtor;
+  if (role === 'Money Adviser') return NOTIFICATION_TYPES_BY_ROLE.money_adviser;
+  if (role === 'CyberOps Analyst') return NOTIFICATION_TYPES_BY_ROLE.cyber_ops;
+  if (role === 'AiB Statistician') return NOTIFICATION_TYPES_BY_ROLE.statistician;
+  if (role === 'Creditor') return NOTIFICATION_TYPES_BY_ROLE.creditor;
+  if (role === 'Trustee' || role === 'Supplier/Trustee') return NOTIFICATION_TYPES_BY_ROLE.supplier;
+  // Default: staff (admin, senior officer, case officer)
+  return NOTIFICATION_TYPES_BY_ROLE.staff;
+}
 
 export default function AccountPage() {
   const [user, setUser] = useState<any>(null);
@@ -31,12 +103,16 @@ export default function AccountPage() {
   useEffect(() => {
     const stored = sessionStorage.getItem('iaas-current-user');
     if (stored) {
-      try { setUser(JSON.parse(stored)); } catch { /* ignore */ }
+      try {
+        const parsed = JSON.parse(stored);
+        setUser(parsed);
+        // Initialize subscriptions from role-specific defaults
+        const types = getNotificationTypesForRole(parsed.role);
+        const defaults: Record<string, boolean> = {};
+        types.forEach(t => { defaults[t.id] = t.defaultOn; });
+        setSubscriptions(defaults);
+      } catch { /* ignore */ }
     }
-    // Initialize subscriptions from defaults
-    const defaults: Record<string, boolean> = {};
-    NOTIFICATION_TYPES.forEach(t => { defaults[t.id] = t.defaultOn; });
-    setSubscriptions(defaults);
   }, []);
 
   const handleSave = () => {
@@ -107,9 +183,9 @@ export default function AccountPage() {
       {/* Notification Subscriptions */}
       <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6 mb-6">
         <h2 className="text-lg font-bold mb-4">🔔 Notification Subscriptions</h2>
-        <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">Choose which events you want to be notified about. You can change these at any time.</p>
+        <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">Choose which events you want to be notified about. These are tailored to your role as <strong>{user.role}</strong>.</p>
         <div className="space-y-2">
-          {NOTIFICATION_TYPES.map(type => (
+          {getNotificationTypesForRole(user.role).map(type => (
             <label key={type.id} className="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-700 rounded cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-650">
               <input type="checkbox" checked={subscriptions[type.id] || false}
                 onChange={e => setSubscriptions(prev => ({ ...prev, [type.id]: e.target.checked }))}
