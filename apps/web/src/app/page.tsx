@@ -1,3 +1,5 @@
+import Link from 'next/link';
+
 export default function Home() {
   return (
     <div className="gov-main">
@@ -52,13 +54,13 @@ export default function Home() {
         </div>
       </div>
 
-      <a
+      <Link
         href="/apply"
         className="inline-block bg-gov-green text-white font-bold py-3 px-8 no-underline hover:bg-green-800 focus:outline-2 focus:outline-gov-yellow"
         role="button"
       >
         Start your application
-      </a>
+      </Link>
 
       <div className="mt-8 gov-inset">
         <p className="text-sm text-gray-600">

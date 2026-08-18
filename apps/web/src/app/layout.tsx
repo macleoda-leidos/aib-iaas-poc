@@ -13,7 +13,7 @@ export const metadata: Metadata = {
   title: 'AiB - Initial Application Advice Service',
   description: 'Accountant in Bankruptcy - Find the right debt solution for your situation',
   icons: {
-    icon: '/favicon.svg',
+    icon: `${process.env.GITHUB_PAGES === 'true' ? '/aib-iaas-poc' : ''}/favicon.svg`,
   },
 };
 
