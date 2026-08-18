@@ -12,6 +12,9 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   title: 'AiB - Initial Application Advice Service',
   description: 'Accountant in Bankruptcy - Find the right debt solution for your situation',
+  icons: {
+    icon: '/favicon.svg',
+  },
 };
 
 import { ThemeToggle } from './ThemeToggle';
