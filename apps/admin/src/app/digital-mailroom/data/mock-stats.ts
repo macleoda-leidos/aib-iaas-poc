@@ -1,0 +1,55 @@
+import { DailyStats } from './types';
+
+export const DAILY_STATS: DailyStats[] = [
+  { date: '22 Jul', received: 42, processed: 41, autoRouted: 37, humanReview: 4, avgProcessingMs: 3200, ocrConfidenceAvg: 87 },
+  { date: '23 Jul', received: 38, processed: 38, autoRouted: 34, humanReview: 4, avgProcessingMs: 2900, ocrConfidenceAvg: 89 },
+  { date: '24 Jul', received: 45, processed: 44, autoRouted: 40, humanReview: 4, avgProcessingMs: 3400, ocrConfidenceAvg: 86 },
+  { date: '25 Jul', received: 51, processed: 50, autoRouted: 45, humanReview: 5, avgProcessingMs: 3800, ocrConfidenceAvg: 85 },
+  { date: '26 Jul', received: 35, processed: 35, autoRouted: 32, humanReview: 3, avgProcessingMs: 2800, ocrConfidenceAvg: 91 },
+  { date: '27 Jul', received: 37, processed: 37, autoRouted: 33, humanReview: 4, avgProcessingMs: 3100, ocrConfidenceAvg: 88 },
+  { date: '28 Jul', received: 48, processed: 47, autoRouted: 42, humanReview: 5, avgProcessingMs: 3600, ocrConfidenceAvg: 86 },
+  { date: '29 Jul', received: 44, processed: 44, autoRouted: 40, humanReview: 4, avgProcessingMs: 3300, ocrConfidenceAvg: 87 },
+  { date: '30 Jul', received: 39, processed: 39, autoRouted: 35, humanReview: 4, avgProcessingMs: 3000, ocrConfidenceAvg: 89 },
+  { date: '31 Jul', received: 53, processed: 52, autoRouted: 47, humanReview: 5, avgProcessingMs: 4100, ocrConfidenceAvg: 84 },
+  { date: '1 Aug', received: 46, processed: 45, autoRouted: 41, humanReview: 4, avgProcessingMs: 3500, ocrConfidenceAvg: 88 },
+  { date: '2 Aug', received: 41, processed: 41, autoRouted: 37, humanReview: 4, avgProcessingMs: 3100, ocrConfidenceAvg: 89 },
+  { date: '3 Aug', received: 36, processed: 36, autoRouted: 32, humanReview: 4, avgProcessingMs: 2800, ocrConfidenceAvg: 90 },
+  { date: '4 Aug', received: 49, processed: 48, autoRouted: 43, humanReview: 5, avgProcessingMs: 3700, ocrConfidenceAvg: 86 },
+  { date: '5 Aug', received: 55, processed: 54, autoRouted: 49, humanReview: 5, avgProcessingMs: 4200, ocrConfidenceAvg: 85 },
+  { date: '6 Aug', received: 43, processed: 43, autoRouted: 39, humanReview: 4, avgProcessingMs: 3200, ocrConfidenceAvg: 88 },
+  { date: '7 Aug', received: 47, processed: 46, autoRouted: 41, humanReview: 5, avgProcessingMs: 3500, ocrConfidenceAvg: 87 },
+  { date: '8 Aug', received: 40, processed: 40, autoRouted: 36, humanReview: 4, avgProcessingMs: 3000, ocrConfidenceAvg: 89 },
+  { date: '9 Aug', received: 38, processed: 38, autoRouted: 34, humanReview: 4, avgProcessingMs: 2900, ocrConfidenceAvg: 90 },
+  { date: '10 Aug', received: 44, processed: 43, autoRouted: 39, humanReview: 4, avgProcessingMs: 3300, ocrConfidenceAvg: 88 },
+  { date: '11 Aug', received: 50, processed: 49, autoRouted: 44, humanReview: 5, avgProcessingMs: 3900, ocrConfidenceAvg: 86 },
+  { date: '12 Aug', received: 52, processed: 51, autoRouted: 46, humanReview: 5, avgProcessingMs: 4000, ocrConfidenceAvg: 85 },
+  { date: '13 Aug', received: 41, processed: 41, autoRouted: 37, humanReview: 4, avgProcessingMs: 3100, ocrConfidenceAvg: 89 },
+  { date: '14 Aug', received: 45, processed: 44, autoRouted: 40, humanReview: 4, avgProcessingMs: 3400, ocrConfidenceAvg: 87 },
+  { date: '15 Aug', received: 37, processed: 37, autoRouted: 33, humanReview: 4, avgProcessingMs: 2800, ocrConfidenceAvg: 91 },
+  { date: '16 Aug', received: 43, processed: 42, autoRouted: 38, humanReview: 4, avgProcessingMs: 3200, ocrConfidenceAvg: 88 },
+  { date: '17 Aug', received: 48, processed: 47, autoRouted: 43, humanReview: 4, avgProcessingMs: 3600, ocrConfidenceAvg: 87 },
+  { date: '18 Aug', received: 54, processed: 53, autoRouted: 48, humanReview: 5, avgProcessingMs: 4500, ocrConfidenceAvg: 84 },
+  { date: '19 Aug', received: 46, processed: 45, autoRouted: 41, humanReview: 4, avgProcessingMs: 3400, ocrConfidenceAvg: 88 },
+  { date: '20 Aug', received: 42, processed: 41, autoRouted: 37, humanReview: 4, avgProcessingMs: 3100, ocrConfidenceAvg: 89 },
+];
+
+export const DOC_TYPE_ACCURACY = [
+  { type: 'Court Decree', total: 142, correct: 138, overridden: 4, accuracy: 97.2 },
+  { type: 'Bank Statement', total: 198, correct: 194, overridden: 4, accuracy: 98.0 },
+  { type: 'Creditor Claim', total: 156, correct: 149, overridden: 7, accuracy: 95.5 },
+  { type: 'DAS Application', total: 89, correct: 82, overridden: 7, accuracy: 92.1 },
+  { type: 'Sequestration Petition', total: 34, correct: 33, overridden: 1, accuracy: 97.1 },
+  { type: 'Identity Document', total: 112, correct: 108, overridden: 4, accuracy: 96.4 },
+  { type: 'General Correspondence', total: 178, correct: 162, overridden: 16, accuracy: 91.0 },
+  { type: 'DAS Review Form', total: 67, correct: 63, overridden: 4, accuracy: 94.0 },
+  { type: 'Court Order', total: 45, correct: 43, overridden: 2, accuracy: 95.6 },
+  { type: 'Creditor Notification', total: 38, correct: 34, overridden: 4, accuracy: 89.5 },
+];
+
+export const PROCESSING_TIME_BY_STAGE = [
+  { stage: 'Virus Scan', avgMs: 480 },
+  { stage: 'OCR', avgMs: 1820 },
+  { stage: 'NER', avgMs: 790 },
+  { stage: 'Classification', avgMs: 420 },
+  { stage: 'Routing', avgMs: 310 },
+];

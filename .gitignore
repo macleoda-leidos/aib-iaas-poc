@@ -14,7 +14,8 @@ Thumbs.db
 *.tfstate
 *.tfstate.backup
 .terraform.lock.hcl
-data/
+# Runtime database files (not source code data/ directories)
+/data/
 services/*/data/
 
 # Build artifacts

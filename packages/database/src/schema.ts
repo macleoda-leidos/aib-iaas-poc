@@ -238,18 +238,46 @@ export function initializeSchema(db: Database.Database): void {
     CREATE INDEX IF NOT EXISTS idx_payments_app ON payments(application_id);
   `);
 
-  // Seed default admin user for testing (matches original api-gateway behaviour)
+  // Seed default roles and users for testing (matches original api-gateway behaviour)
+  // Roles MUST be inserted before users (FK constraint)
   db.exec(`
+    INSERT OR IGNORE INTO roles (id, name, display_name, description, level, created_at)
+    VALUES ('role-sysadmin', 'system_admin', 'System Administrator', 'Full access', 100, datetime('now'));
+
+    INSERT OR IGNORE INTO roles (id, name, display_name, description, level, created_at)
+    VALUES ('role-officer', 'aib_officer', 'AiB Case Officer', 'Process applications', 60, datetime('now'));
+
+    INSERT OR IGNORE INTO roles (id, name, display_name, description, level, created_at)
+    VALUES ('role-senior', 'aib_senior_officer', 'AiB Senior Officer', 'Approve applications', 80, datetime('now'));
+
+    INSERT OR IGNORE INTO roles (id, name, display_name, description, level, created_at)
+    VALUES ('role-adviser', 'money_adviser', 'Money Adviser', 'Submit on behalf of clients', 50, datetime('now'));
+
+    INSERT OR IGNORE INTO roles (id, name, display_name, description, level, created_at)
+    VALUES ('role-debtor', 'debtor', 'Debtor', 'Apply for debt solutions', 10, datetime('now'));
+
+    INSERT OR IGNORE INTO roles (id, name, display_name, description, level, created_at)
+    VALUES ('role-cyberops', 'cyberops_analyst', 'CyberOps Analyst', 'Security monitoring and incident response', 70, datetime('now'));
+
+    INSERT OR IGNORE INTO roles (id, name, display_name, description, level, created_at)
+    VALUES ('role-statistician', 'statistician', 'AiB Statistician', 'Analytics and reporting', 40, datetime('now'));
+
+    INSERT OR IGNORE INTO roles (id, name, display_name, description, level, created_at)
+    VALUES ('role-creditor', 'creditor', 'Creditor', 'View cases and submit claims', 30, datetime('now'));
+
+    INSERT OR IGNORE INTO roles (id, name, display_name, description, level, created_at)
+    VALUES ('role-supplier', 'supplier_trustee', 'Supplier/Trustee', 'Manage assigned cases', 40, datetime('now'));
+
     INSERT OR IGNORE INTO users (id, email, first_name, last_name, display_name, role_id, status, password_hash, mfa_enabled, created_at, updated_at)
     VALUES ('user-admin', 'admin@aib-poc.example.com', 'Admin', 'User', 'Admin User', 'role-sysadmin', 'active', 'not-a-real-hash', 0, datetime('now'), datetime('now'));
 
     INSERT OR IGNORE INTO users (id, email, first_name, last_name, display_name, role_id, status, password_hash, mfa_enabled, created_at, updated_at)
     VALUES ('user-demo', 'demo@example.com', 'Demo', 'User', 'Demo User', 'role-officer', 'active', 'not-a-real-hash', 0, datetime('now'), datetime('now'));
 
-    INSERT OR IGNORE INTO roles (id, name, display_name, description, level, created_at)
-    VALUES ('role-sysadmin', 'system_admin', 'System Administrator', 'Full access', 100, datetime('now'));
+    INSERT OR IGNORE INTO users (id, email, first_name, last_name, display_name, role_id, status, password_hash, mfa_enabled, created_at, updated_at)
+    VALUES ('user-cyberops', 'david.chen@aib.gov.uk', 'David', 'Chen', 'David Chen', 'role-cyberops', 'active', 'not-a-real-hash', 0, datetime('now'), datetime('now'));
 
-    INSERT OR IGNORE INTO roles (id, name, display_name, description, level, created_at)
-    VALUES ('role-officer', 'aib_officer', 'AiB Case Officer', 'Process applications', 60, datetime('now'));
+    INSERT OR IGNORE INTO users (id, email, first_name, last_name, display_name, role_id, status, password_hash, mfa_enabled, created_at, updated_at)
+    VALUES ('user-stats', 'stats@aib.gov.uk', 'Analytics', 'User', 'Analytics User', 'role-statistician', 'active', 'not-a-real-hash', 0, datetime('now'), datetime('now'));
   `);
 }
