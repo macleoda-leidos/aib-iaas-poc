@@ -56,12 +56,249 @@ function getSectionStatusRing(status: SectionStatus): string {
   }
 }
 
+// ============ VALIDATION LOGIC ============
+
+function validateStep(step: number, formData: Record<string, any>): Record<string, string> {
+  const errors: Record<string, string> = {};
+
+  if (step === 0) {
+    // Personal Details
+    const d = formData.personal || {};
+    const nameRegex = /^[a-zA-Z\s\-']+$/;
+
+    if (!d.firstName || d.firstName.trim().length === 0) {
+      errors.firstName = 'First name is required';
+    } else if (d.firstName.trim().length < 2) {
+      errors.firstName = 'First name must be at least 2 characters';
+    } else if (d.firstName.trim().length > 50) {
+      errors.firstName = 'First name must be 50 characters or fewer';
+    } else if (!nameRegex.test(d.firstName)) {
+      errors.firstName = 'First name can only contain letters, hyphens, and spaces';
+    }
+
+    if (!d.lastName || d.lastName.trim().length === 0) {
+      errors.lastName = 'Last name is required';
+    } else if (d.lastName.trim().length < 2) {
+      errors.lastName = 'Last name must be at least 2 characters';
+    } else if (d.lastName.trim().length > 50) {
+      errors.lastName = 'Last name must be 50 characters or fewer';
+    } else if (!nameRegex.test(d.lastName)) {
+      errors.lastName = 'Last name can only contain letters, hyphens, and spaces';
+    }
+
+    if (!d.dateOfBirth) {
+      errors.dateOfBirth = 'Date of birth is required';
+    } else {
+      const dob = new Date(d.dateOfBirth);
+      const today = new Date();
+      if (isNaN(dob.getTime())) {
+        errors.dateOfBirth = 'Please enter a valid date';
+      } else if (dob > today) {
+        errors.dateOfBirth = 'Date of birth cannot be in the future';
+      } else {
+        const age = today.getFullYear() - dob.getFullYear() - (today < new Date(today.getFullYear(), dob.getMonth(), dob.getDate()) ? 1 : 0);
+        if (age < 16) {
+          errors.dateOfBirth = 'You must be at least 16 years old';
+        }
+      }
+    }
+
+    if (!d.nationalInsuranceNumber || d.nationalInsuranceNumber.trim().length === 0) {
+      errors.nationalInsuranceNumber = 'National Insurance number is required';
+    } else {
+      const ni = d.nationalInsuranceNumber.replace(/\s/g, '').toUpperCase();
+      const niRegex = /^[A-Z]{2}\d{6}[A-Z]$/;
+      const invalidPrefixes = ['BG', 'GB', 'NK', 'KN', 'TN', 'NT', 'ZZ'];
+      if (!niRegex.test(ni)) {
+        errors.nationalInsuranceNumber = 'NI number must be in format AB123456C (2 letters, 6 digits, 1 letter)';
+      } else if (invalidPrefixes.includes(ni.substring(0, 2))) {
+        errors.nationalInsuranceNumber = 'NI number cannot start with BG, GB, NK, KN, TN, NT, or ZZ';
+      }
+    }
+
+    if (!d.employmentStatus) {
+      errors.employmentStatus = 'Employment status is required';
+    } else {
+      const validStatuses = ['employed', 'self_employed', 'unemployed', 'retired', 'student', 'other'];
+      if (!validStatuses.includes(d.employmentStatus)) {
+        errors.employmentStatus = 'Please select a valid employment status';
+      }
+    }
+
+    if (!d.maritalStatus) {
+      errors.maritalStatus = 'Marital status is required';
+    }
+
+    if (d.dependants === undefined || d.dependants === null || d.dependants === '') {
+      errors.dependants = 'Number of dependants is required';
+    } else {
+      const dep = parseInt(d.dependants);
+      if (isNaN(dep) || dep < 0) {
+        errors.dependants = 'Dependants must be 0 or more';
+      } else if (dep > 20) {
+        errors.dependants = 'Dependants cannot exceed 20';
+      }
+    }
+  }
+
+  if (step === 1) {
+    // Address
+    const a = formData.address || {};
+    const ukPostcodeRegex = /^[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2}$/i;
+
+    if (!a.line1 || a.line1.trim().length === 0) {
+      errors['address.line1'] = 'Address line 1 is required';
+    } else if (a.line1.trim().length < 3) {
+      errors['address.line1'] = 'Address line 1 must be at least 3 characters';
+    }
+
+    if (!a.city || a.city.trim().length === 0) {
+      errors['address.city'] = 'City is required';
+    } else if (a.city.trim().length < 2) {
+      errors['address.city'] = 'City must be at least 2 characters';
+    }
+
+    if (!a.postcode || a.postcode.trim().length === 0) {
+      errors['address.postcode'] = 'Postcode is required';
+    } else if (!ukPostcodeRegex.test(a.postcode.trim())) {
+      errors['address.postcode'] = 'Please enter a valid UK postcode (e.g. EH3 5AA, G2 1AB)';
+    }
+
+    if (!a.residentSince) {
+      errors['address.residentSince'] = 'Resident since date is required';
+    } else {
+      const resDate = new Date(a.residentSince);
+      if (isNaN(resDate.getTime())) {
+        errors['address.residentSince'] = 'Please enter a valid date';
+      } else if (resDate > new Date()) {
+        errors['address.residentSince'] = 'Resident since date cannot be in the future';
+      }
+    }
+  }
+
+  if (step === 2) {
+    // Debts
+    const debts = formData.debts?.items || [];
+
+    if (debts.length === 0) {
+      errors['debts.required'] = 'At least one debt entry is required';
+    } else {
+      debts.forEach((debt: any, i: number) => {
+        if (!debt.creditorName || debt.creditorName.trim().length === 0) {
+          errors[`debts.${i}.creditorName`] = 'Creditor name is required';
+        } else if (debt.creditorName.trim().length < 2) {
+          errors[`debts.${i}.creditorName`] = 'Creditor name must be at least 2 characters';
+        }
+
+        if (!debt.creditorType) {
+          errors[`debts.${i}.creditorType`] = 'Debt type is required';
+        }
+
+        const amount = parseFloat(debt.outstandingAmount);
+        if (!debt.outstandingAmount && debt.outstandingAmount !== 0) {
+          errors[`debts.${i}.outstandingAmount`] = 'Outstanding amount is required';
+        } else if (isNaN(amount) || amount <= 0) {
+          errors[`debts.${i}.outstandingAmount`] = 'Amount must be greater than 0';
+        } else if (amount > 10000000) {
+          errors[`debts.${i}.outstandingAmount`] = 'Amount cannot exceed £10,000,000';
+        }
+
+        const monthly = parseFloat(debt.monthlyPayment);
+        if (debt.monthlyPayment !== undefined && debt.monthlyPayment !== '' && !isNaN(monthly) && monthly < 0) {
+          errors[`debts.${i}.monthlyPayment`] = 'Monthly payment must be 0 or more';
+        }
+      });
+    }
+  }
+
+  if (step === 3) {
+    // Income & Expenditure
+    const inc = formData.income || {};
+    const exp = formData.expenditure || {};
+
+    const incomeFields = ['wages', 'benefits', 'pension', 'other'];
+    const expFields = ['rent', 'councilTax', 'utilities', 'food', 'transport', 'insurance', 'childcare', 'other'];
+
+    let hasIncome = false;
+    incomeFields.forEach(field => {
+      const val = parseFloat(inc[field]);
+      if (!isNaN(val) && val > 0) hasIncome = true;
+      if (!isNaN(val) && val < 0) {
+        errors[`income.${field}`] = 'Amount must be 0 or more';
+      }
+      if (!isNaN(val) && val > 99999) {
+        errors[`income.${field}`] = 'Amount cannot exceed £99,999';
+      }
+    });
+
+    if (!hasIncome) {
+      errors['income.required'] = 'At least one income field must be greater than 0';
+    }
+
+    expFields.forEach(field => {
+      const val = parseFloat(exp[field]);
+      if (!isNaN(val) && val < 0) {
+        errors[`expenditure.${field}`] = 'Amount must be 0 or more';
+      }
+      if (!isNaN(val) && val > 99999) {
+        errors[`expenditure.${field}`] = 'Amount cannot exceed £99,999';
+      }
+    });
+  }
+
+  if (step === 4) {
+    // Assets
+    const assets = formData.assets || {};
+    if (!assets.noAssets) {
+      const allItems = [
+        ...(assets.properties || []),
+        ...(assets.vehicles || []),
+        ...(assets.savings || []),
+        ...(assets.other || []),
+      ];
+
+      if (allItems.length === 0) {
+        errors['assets.required'] = 'Please add at least one asset, or check "I have no assets to declare"';
+      }
+
+      (assets.properties || []).forEach((p: any, i: number) => {
+        const val = parseFloat(p.value);
+        if (!isNaN(val) && val < 0) errors[`assets.properties.${i}.value`] = 'Value must be 0 or more';
+      });
+
+      (assets.vehicles || []).forEach((v: any, i: number) => {
+        if (!v.description || v.description.trim().length === 0) {
+          errors[`assets.vehicles.${i}.description`] = 'Description is required';
+        }
+        const val = parseFloat(v.value);
+        if (!isNaN(val) && val < 0) errors[`assets.vehicles.${i}.value`] = 'Value must be 0 or more';
+      });
+
+      (assets.savings || []).forEach((s: any, i: number) => {
+        const val = parseFloat(s.value);
+        if (!isNaN(val) && val < 0) errors[`assets.savings.${i}.value`] = 'Value must be 0 or more';
+      });
+
+      (assets.other || []).forEach((o: any, i: number) => {
+        if (!o.description || o.description.trim().length === 0) {
+          errors[`assets.other.${i}.description`] = 'Description is required';
+        }
+        const val = parseFloat(o.value);
+        if (!isNaN(val) && val < 0) errors[`assets.other.${i}.value`] = 'Value must be 0 or more';
+      });
+    }
+  }
+
+  return errors;
+}
+
 export default function ApplyPage() {
   const [currentSection, setCurrentSection] = useState(0);
   const [formData, setFormData] = useState<Record<string, any>>({});
   const [apiStatus, setApiStatus] = useState<'idle' | 'connected' | 'offline'>('idle');
   const [saving, setSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<string | null>(null);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   const { application, setApplication, addRecentApplication, setApiConnected } = useAppContext();
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -146,6 +383,23 @@ export default function ApplyPage() {
 
       return updated;
     });
+
+    // Clear relevant error when user updates a field
+    setErrors(prev => {
+      const updated = { ...prev };
+      // Clear direct field match
+      delete updated[field];
+      // Clear section.field style errors
+      delete updated[`${section}.${field}`];
+      // Clear any indexed errors for this section (e.g. debts.0.creditorName)
+      Object.keys(updated).forEach(key => {
+        if (key.startsWith(`${section}.`)) {
+          // Keep other indexed errors but clear the general "required" ones on any change
+          if (key === `${section}.required`) delete updated[key];
+        }
+      });
+      return updated;
+    });
   };
 
   // Calculate section statuses based on form data
@@ -216,8 +470,19 @@ export default function ApplyPage() {
     }
   }, [formData]);
 
-  const nextSection = () => setCurrentSection(s => Math.min(s + 1, SECTIONS.length - 1));
-  const prevSection = () => setCurrentSection(s => Math.max(s - 1, 0));
+  const nextSection = () => {
+    // Validate steps 0-4 (user input steps); steps 5+ don't need validation to proceed
+    if (currentSection <= 4) {
+      const stepErrors = validateStep(currentSection, formData);
+      if (Object.keys(stepErrors).length > 0) {
+        setErrors(stepErrors);
+        return;
+      }
+    }
+    setErrors({});
+    setCurrentSection(s => Math.min(s + 1, SECTIONS.length - 1));
+  };
+  const prevSection = () => { setErrors({}); setCurrentSection(s => Math.max(s - 1, 0)); };
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
@@ -289,11 +554,18 @@ export default function ApplyPage() {
           </span>
         </div>
 
-        {currentSection === 0 && <PersonalSection formData={formData} updateField={updateField} />}
-        {currentSection === 1 && <AddressSection formData={formData} updateField={updateField} />}
-        {currentSection === 2 && <DebtsSection formData={formData} updateField={updateField} />}
-        {currentSection === 3 && <IncomeSection formData={formData} updateField={updateField} />}
-        {currentSection === 4 && <AssetsSection formData={formData} updateField={updateField} />}
+        {Object.keys(errors).length > 0 && (
+          <div className="bg-red-50 dark:bg-red-950 border-l-4 border-red-600 p-4 mb-4" role="alert">
+            <h3 className="font-bold text-red-800 dark:text-red-300 text-sm mb-1">There are errors in this section</h3>
+            <p className="text-xs text-red-700 dark:text-red-400">Please correct the highlighted fields before continuing.</p>
+          </div>
+        )}
+
+        {currentSection === 0 && <PersonalSection formData={formData} updateField={updateField} errors={errors} />}
+        {currentSection === 1 && <AddressSection formData={formData} updateField={updateField} errors={errors} />}
+        {currentSection === 2 && <DebtsSection formData={formData} updateField={updateField} errors={errors} />}
+        {currentSection === 3 && <IncomeSection formData={formData} updateField={updateField} errors={errors} />}
+        {currentSection === 4 && <AssetsSection formData={formData} updateField={updateField} errors={errors} />}
         {currentSection === 5 && <DocumentsSection formData={formData} updateField={updateField} />}
         {currentSection === 6 && <ChecksSection formData={formData} updateField={updateField} />}
         {currentSection === 7 && <RecommendationSection formData={formData} updateField={updateField} />}
@@ -320,7 +592,7 @@ export default function ApplyPage() {
 
 // ============ SECTION COMPONENTS ============
 
-function PersonalSection({ formData, updateField }: { formData: any; updateField: any }) {
+function PersonalSection({ formData, updateField, errors }: { formData: any; updateField: any; errors: Record<string, string> }) {
   const d = formData.personal || {};
   const [verifying, setVerifying] = useState(false);
   const [verified, setVerified] = useState<string | null>(d.verifiedVia || null);
@@ -406,29 +678,31 @@ function PersonalSection({ formData, updateField }: { formData: any; updateField
           </select>
         </div>
         <div></div>
-        <Input label="First name *" value={d.firstName} onChange={v => updateField('personal', 'firstName', v)} error={d.firstName === '' ? 'Required' : undefined} />
-        <Input label="Last name *" value={d.lastName} onChange={v => updateField('personal', 'lastName', v)} />
+        <Input label="First name *" value={d.firstName} onChange={v => updateField('personal', 'firstName', v)} error={errors.firstName} />
+        <Input label="Last name *" value={d.lastName} onChange={v => updateField('personal', 'lastName', v)} error={errors.lastName} />
       </div>
-      <Input label="Date of birth *" type="date" value={d.dateOfBirth} onChange={v => updateField('personal', 'dateOfBirth', v)} hint="YYYY-MM-DD format" />
-      <Input label="National Insurance number" value={d.nationalInsuranceNumber} onChange={v => updateField('personal', 'nationalInsuranceNumber', v)} hint="e.g. QQ 12 34 56 C" />
+      <Input label="Date of birth *" type="date" value={d.dateOfBirth} onChange={v => updateField('personal', 'dateOfBirth', v)} hint="YYYY-MM-DD format" error={errors.dateOfBirth} />
+      <Input label="National Insurance number *" value={d.nationalInsuranceNumber} onChange={v => updateField('personal', 'nationalInsuranceNumber', v)} hint="e.g. QQ 12 34 56 C" error={errors.nationalInsuranceNumber} />
       <div className="grid md:grid-cols-2 gap-4">
         <div>
           <label className="block font-bold mb-1 text-sm">Marital status *</label>
           <select value={d.maritalStatus || ''} onChange={e => updateField('personal', 'maritalStatus', e.target.value)}
-            className="border-2 border-gray-900 dark:border-gray-600 dark:bg-gray-800 p-2.5 min-h-[44px] w-full">
+            className={`border-2 ${errors.maritalStatus ? 'border-red-500' : 'border-gray-900 dark:border-gray-600'} dark:bg-gray-800 p-2.5 min-h-[44px] w-full`}>
             <option value="">Select</option>
             {['Single','Married','Civil Partnership','Divorced','Widowed','Separated'].map(s => <option key={s} value={s.toLowerCase().replace(' ','_')}>{s}</option>)}
           </select>
+          {errors.maritalStatus && <p className="text-red-600 text-xs mt-1">{errors.maritalStatus}</p>}
         </div>
-        <Input label="Number of dependants" type="number" value={d.dependants} onChange={v => updateField('personal', 'dependants', parseInt(v) || 0)} />
+        <Input label="Number of dependants *" type="number" value={d.dependants} onChange={v => updateField('personal', 'dependants', parseInt(v) || 0)} error={errors.dependants} />
       </div>
       <div>
         <label className="block font-bold mb-1 text-sm">Employment status *</label>
         <select value={d.employmentStatus || ''} onChange={e => updateField('personal', 'employmentStatus', e.target.value)}
-          className="border-2 border-gray-900 dark:border-gray-600 dark:bg-gray-800 p-2.5 min-h-[44px] w-full md:w-1/2">
+          className={`border-2 ${errors.employmentStatus ? 'border-red-500' : 'border-gray-900 dark:border-gray-600'} dark:bg-gray-800 p-2.5 min-h-[44px] w-full md:w-1/2`}>
           <option value="">Select</option>
           {['Employed','Self-employed','Unemployed','Retired','Student','Other'].map(s => <option key={s} value={s.toLowerCase().replace('-','_')}>{s}</option>)}
         </select>
+        {errors.employmentStatus && <p className="text-red-600 text-xs mt-1">{errors.employmentStatus}</p>}
       </div>
 
       {/* Aliases / Other Names */}
@@ -451,7 +725,7 @@ function PersonalSection({ formData, updateField }: { formData: any; updateField
   );
 }
 
-function AddressSection({ formData, updateField }: { formData: any; updateField: any }) {
+function AddressSection({ formData, updateField, errors }: { formData: any; updateField: any; errors: Record<string, string> }) {
   const a = formData.address || {};
   const prevAddresses = a.previousAddresses || [];
   const [lookupResults, setLookupResults] = useState<any[]>([]);
@@ -480,7 +754,7 @@ function AddressSection({ formData, updateField }: { formData: any; updateField:
       <h3 className="font-bold">Current Address</h3>
       <div className="flex gap-2 items-end">
         <div className="flex-1">
-          <Input label="Postcode *" value={a.postcode} onChange={v => updateField('address', 'postcode', v)} hint="Enter postcode to look up" />
+          <Input label="Postcode *" value={a.postcode} onChange={v => updateField('address', 'postcode', v)} hint="Enter postcode to look up" error={errors['address.postcode']} />
         </div>
         <button onClick={lookupPostcode} type="button" className="bg-blue-700 text-white py-2 px-4 mb-4 text-sm hover:bg-blue-800">Find address</button>
       </div>
@@ -495,13 +769,13 @@ function AddressSection({ formData, updateField }: { formData: any; updateField:
           ))}
         </div>
       )}
-      <Input label="Address line 1 *" value={a.line1} onChange={v => updateField('address', 'line1', v)} />
+      <Input label="Address line 1 *" value={a.line1} onChange={v => updateField('address', 'line1', v)} error={errors['address.line1']} />
       <Input label="Address line 2" value={a.line2} onChange={v => updateField('address', 'line2', v)} />
       <div className="grid md:grid-cols-2 gap-4">
-        <Input label="City *" value={a.city} onChange={v => updateField('address', 'city', v)} />
+        <Input label="City *" value={a.city} onChange={v => updateField('address', 'city', v)} error={errors['address.city']} />
         <Input label="County" value={a.county} onChange={v => updateField('address', 'county', v)} />
       </div>
-      <Input label="Resident since *" type="date" value={a.residentSince} onChange={v => updateField('address', 'residentSince', v)} />
+      <Input label="Resident since *" type="date" value={a.residentSince} onChange={v => updateField('address', 'residentSince', v)} error={errors['address.residentSince']} />
 
       {/* Previous Addresses */}
       <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
@@ -537,7 +811,7 @@ function AddressSection({ formData, updateField }: { formData: any; updateField:
   );
 }
 
-function DebtsSection({ formData, updateField }: { formData: any; updateField: any }) {
+function DebtsSection({ formData, updateField, errors }: { formData: any; updateField: any; errors: Record<string, string> }) {
   const debts = formData.debts?.items || [];
   const totalDebt = debts.reduce((s: number, d: any) => s + (parseFloat(d.outstandingAmount) || 0), 0);
 
@@ -550,6 +824,7 @@ function DebtsSection({ formData, updateField }: { formData: any; updateField: a
   return (
     <div className="space-y-4">
       <p className="text-sm text-gray-600 dark:text-gray-400">Enter all debts you currently owe. Include credit cards, loans, overdrafts, council tax arrears, etc.</p>
+      {errors['debts.required'] && <p className="text-red-600 text-sm font-bold">{errors['debts.required']}</p>}
       {totalDebt > 0 && (
         <div className="bg-blue-50 dark:bg-blue-950 border-l-4 border-blue-600 p-3">
           <p className="font-bold">Total debt entered: £{totalDebt.toLocaleString()}</p>
@@ -561,16 +836,17 @@ function DebtsSection({ formData, updateField }: { formData: any; updateField: a
           <button onClick={() => removeDebt(i)} className="absolute top-2 right-2 text-red-600 text-xs hover:underline">Remove</button>
           <p className="font-bold text-sm mb-2">Debt {i + 1}</p>
           <div className="grid md:grid-cols-2 gap-3">
-            <Input label="Creditor name *" value={debt.creditorName} onChange={v => updateDebt(i, 'creditorName', v)} />
+            <Input label="Creditor name *" value={debt.creditorName} onChange={v => updateDebt(i, 'creditorName', v)} error={errors[`debts.${i}.creditorName`]} />
             <div>
-              <label className="block font-bold mb-1 text-sm">Type</label>
-              <select value={debt.creditorType} onChange={e => updateDebt(i, 'creditorType', e.target.value)} className="border-2 border-gray-900 dark:border-gray-600 dark:bg-gray-800 p-2.5 min-h-[44px] w-full">
+              <label className="block font-bold mb-1 text-sm">Type *</label>
+              <select value={debt.creditorType} onChange={e => updateDebt(i, 'creditorType', e.target.value)} className={`border-2 ${errors[`debts.${i}.creditorType`] ? 'border-red-500' : 'border-gray-900 dark:border-gray-600'} dark:bg-gray-800 p-2.5 min-h-[44px] w-full`}>
                 {[['bank','Bank'],['credit_card','Credit Card'],['loan_company','Loan'],['utility','Utility'],['council_tax','Council Tax'],['hmrc','HMRC'],['other','Other']].map(([v,l]) => <option key={v} value={v}>{l}</option>)}
               </select>
+              {errors[`debts.${i}.creditorType`] && <p className="text-red-600 text-xs mt-1">{errors[`debts.${i}.creditorType`]}</p>}
             </div>
             <Input label="Outstanding amount (£) *" type="number" value={debt.outstandingAmount} onChange={v => updateDebt(i, 'outstandingAmount', v)}
-              error={debt.creditorName && parseFloat(debt.outstandingAmount) <= 0 ? 'Must be > 0' : undefined} />
-            <Input label="Monthly payment (£)" type="number" value={debt.monthlyPayment} onChange={v => updateDebt(i, 'monthlyPayment', v)} />
+              error={errors[`debts.${i}.outstandingAmount`]} />
+            <Input label="Monthly payment (£)" type="number" value={debt.monthlyPayment} onChange={v => updateDebt(i, 'monthlyPayment', v)} error={errors[`debts.${i}.monthlyPayment`]} />
           </div>
         </div>
       ))}
@@ -579,7 +855,7 @@ function DebtsSection({ formData, updateField }: { formData: any; updateField: a
   );
 }
 
-function IncomeSection({ formData, updateField }: { formData: any; updateField: any }) {
+function IncomeSection({ formData, updateField, errors }: { formData: any; updateField: any; errors: Record<string, string> }) {
   const inc = formData.income || {};
   const exp = formData.expenditure || {};
   const totalIncome = (parseFloat(inc.wages)||0) + (parseFloat(inc.benefits)||0) + (parseFloat(inc.pension)||0) + (parseFloat(inc.other)||0);
@@ -590,25 +866,26 @@ function IncomeSection({ formData, updateField }: { formData: any; updateField: 
       <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 rounded p-3 mb-2">
         <p className="text-xs"><strong>📋 Common Financial Tool (CFT):</strong> Income and expenditure categories below are aligned with the <a href="https://www.aib.gov.uk/common-financial-tool" target="_blank" rel="noopener noreferrer" className="text-blue-700 underline">Common Financial Tool</a> used across all Scottish debt solutions for affordability assessment.</p>
       </div>
+      {errors['income.required'] && <p className="text-red-600 text-sm font-bold">{errors['income.required']}</p>}
       <h3 className="font-bold">Monthly Income</h3>
       <div className="grid md:grid-cols-2 gap-3">
-        <Input label="Wages/Salary (£)" type="number" value={inc.wages} onChange={v => updateField('income', 'wages', v)} />
-        <Input label="Benefits (£)" type="number" value={inc.benefits} onChange={v => updateField('income', 'benefits', v)} />
-        <Input label="Pension (£)" type="number" value={inc.pension} onChange={v => updateField('income', 'pension', v)} />
-        <Input label="Other income (£)" type="number" value={inc.other} onChange={v => updateField('income', 'other', v)} />
+        <Input label="Wages/Salary (£)" type="number" value={inc.wages} onChange={v => updateField('income', 'wages', v)} error={errors['income.wages']} />
+        <Input label="Benefits (£)" type="number" value={inc.benefits} onChange={v => updateField('income', 'benefits', v)} error={errors['income.benefits']} />
+        <Input label="Pension (£)" type="number" value={inc.pension} onChange={v => updateField('income', 'pension', v)} error={errors['income.pension']} />
+        <Input label="Other income (£)" type="number" value={inc.other} onChange={v => updateField('income', 'other', v)} error={errors['income.other']} />
       </div>
       <div className="bg-blue-50 dark:bg-blue-950 p-3 rounded"><strong>Total income: £{totalIncome.toLocaleString()}/month</strong></div>
 
       <h3 className="font-bold mt-6">Monthly Expenditure</h3>
       <div className="grid md:grid-cols-2 gap-3">
-        <Input label="Rent/Mortgage (£)" type="number" value={exp.rent} onChange={v => updateField('expenditure', 'rent', v)} />
-        <Input label="Council Tax (£)" type="number" value={exp.councilTax} onChange={v => updateField('expenditure', 'councilTax', v)} />
-        <Input label="Utilities (£)" type="number" value={exp.utilities} onChange={v => updateField('expenditure', 'utilities', v)} />
-        <Input label="Food (£)" type="number" value={exp.food} onChange={v => updateField('expenditure', 'food', v)} />
-        <Input label="Transport (£)" type="number" value={exp.transport} onChange={v => updateField('expenditure', 'transport', v)} />
-        <Input label="Insurance (£)" type="number" value={exp.insurance} onChange={v => updateField('expenditure', 'insurance', v)} />
-        <Input label="Childcare (£)" type="number" value={exp.childcare} onChange={v => updateField('expenditure', 'childcare', v)} />
-        <Input label="Other (£)" type="number" value={exp.other} onChange={v => updateField('expenditure', 'other', v)} />
+        <Input label="Rent/Mortgage (£)" type="number" value={exp.rent} onChange={v => updateField('expenditure', 'rent', v)} error={errors['expenditure.rent']} />
+        <Input label="Council Tax (£)" type="number" value={exp.councilTax} onChange={v => updateField('expenditure', 'councilTax', v)} error={errors['expenditure.councilTax']} />
+        <Input label="Utilities (£)" type="number" value={exp.utilities} onChange={v => updateField('expenditure', 'utilities', v)} error={errors['expenditure.utilities']} />
+        <Input label="Food (£)" type="number" value={exp.food} onChange={v => updateField('expenditure', 'food', v)} error={errors['expenditure.food']} />
+        <Input label="Transport (£)" type="number" value={exp.transport} onChange={v => updateField('expenditure', 'transport', v)} error={errors['expenditure.transport']} />
+        <Input label="Insurance (£)" type="number" value={exp.insurance} onChange={v => updateField('expenditure', 'insurance', v)} error={errors['expenditure.insurance']} />
+        <Input label="Childcare (£)" type="number" value={exp.childcare} onChange={v => updateField('expenditure', 'childcare', v)} error={errors['expenditure.childcare']} />
+        <Input label="Other (£)" type="number" value={exp.other} onChange={v => updateField('expenditure', 'other', v)} error={errors['expenditure.other']} />
       </div>
       <div className="bg-blue-50 dark:bg-blue-950 p-3 rounded">
         <p><strong>Total expenditure: £{totalExp.toLocaleString()}/month</strong></p>
@@ -620,7 +897,7 @@ function IncomeSection({ formData, updateField }: { formData: any; updateField: 
   );
 }
 
-function AssetsSection({ formData, updateField }: { formData: any; updateField: any }) {
+function AssetsSection({ formData, updateField, errors }: { formData: any; updateField: any; errors: Record<string, string> }) {
   const assets = formData.assets || {};
   const properties = assets.properties || [];
   const vehicles = assets.vehicles || [];
@@ -638,6 +915,7 @@ function AssetsSection({ formData, updateField }: { formData: any; updateField: 
   return (
     <div className="space-y-4">
       <p className="text-sm text-gray-600 dark:text-gray-400">Declare all assets you own or have an interest in. This is essential for determining which debt solution is most appropriate.</p>
+      {errors['assets.required'] && <p className="text-red-600 text-sm font-bold">{errors['assets.required']}</p>}
 
       {assets.noAssets ? (
         <div className="bg-green-50 dark:bg-green-950 border border-green-200 rounded p-4">

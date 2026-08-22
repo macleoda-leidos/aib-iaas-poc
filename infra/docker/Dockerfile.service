@@ -1,29 +1,31 @@
 FROM node:20-alpine AS base
 WORKDIR /app
 
-# Install dependencies
+# Install all dependencies (monorepo-aware)
 FROM base AS deps
-COPY package.json package-lock.json* ./
+COPY package.json package-lock.json ./
+COPY packages/database/package.json ./packages/database/
+COPY packages/integration-contracts/package.json ./packages/integration-contracts/
+COPY packages/shared-types/package.json ./packages/shared-types/
+COPY packages/validation/package.json ./packages/validation/
 ARG SERVICE_NAME
 COPY services/${SERVICE_NAME}/package.json ./services/${SERVICE_NAME}/
-RUN cd services/${SERVICE_NAME} && npm install
-
-# Build
-FROM base AS builder
-ARG SERVICE_NAME
-COPY --from=deps /app/services/${SERVICE_NAME}/node_modules ./services/${SERVICE_NAME}/node_modules
-COPY services/${SERVICE_NAME} ./services/${SERVICE_NAME}
-RUN cd services/${SERVICE_NAME} && npx tsc || true
+RUN npm ci --workspace=packages/database --workspace=packages/integration-contracts --workspace=services/${SERVICE_NAME} --include-workspace-root 2>/dev/null || npm install
 
 # Runner
 FROM base AS runner
 ARG SERVICE_NAME
 ENV NODE_ENV=production
 RUN mkdir -p /app/data /app/uploads
-COPY --from=deps /app/services/${SERVICE_NAME}/node_modules ./node_modules
-COPY services/${SERVICE_NAME}/src ./src
-COPY services/${SERVICE_NAME}/package.json ./
+COPY --from=deps /app/node_modules ./node_modules
+COPY packages/database ./packages/database
+COPY packages/integration-contracts ./packages/integration-contracts
+COPY packages/shared-types ./packages/shared-types
+COPY services/${SERVICE_NAME}/src ./services/${SERVICE_NAME}/src
+COPY services/${SERVICE_NAME}/package.json ./services/${SERVICE_NAME}/
+COPY package.json ./
 # Use tsx for running TypeScript directly in POC
 RUN npm install -g tsx
+WORKDIR /app/services/${SERVICE_NAME}
 EXPOSE 3000
 CMD ["tsx", "src/index.ts"]

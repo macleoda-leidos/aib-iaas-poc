@@ -4,9 +4,116 @@ import { applications, audit } from '../db';
 
 export const applicationsRouter = Router();
 
+// Validation helpers
+function validateNINumber(ni: string): string | null {
+  if (!ni) return null; // NI is only validated if provided
+  const cleaned = ni.replace(/\s/g, '').toUpperCase();
+  const niRegex = /^[A-Z]{2}\d{6}[A-Z]$/;
+  const invalidPrefixes = ['BG', 'GB', 'NK', 'KN', 'TN', 'NT', 'ZZ'];
+
+  if (!niRegex.test(cleaned)) {
+    return 'NI number must be in format AB123456C (2 letters, 6 digits, 1 letter)';
+  }
+  if (invalidPrefixes.includes(cleaned.substring(0, 2))) {
+    return 'NI number cannot start with BG, GB, NK, KN, TN, NT, or ZZ';
+  }
+  return null;
+}
+
+function validateApplicationBody(body: any): string[] {
+  const errors: string[] = [];
+
+  // If body has debtorDetails, validate them
+  const debtor = body.debtorDetails;
+  if (debtor) {
+    if (debtor.firstName !== undefined && (!debtor.firstName || debtor.firstName.trim().length < 2)) {
+      errors.push('First name must be at least 2 characters');
+    }
+    if (debtor.lastName !== undefined && (!debtor.lastName || debtor.lastName.trim().length < 2)) {
+      errors.push('Last name must be at least 2 characters');
+    }
+    if (debtor.nationalInsuranceNumber) {
+      const niError = validateNINumber(debtor.nationalInsuranceNumber);
+      if (niError) errors.push(niError);
+    }
+    if (debtor.dateOfBirth) {
+      const dob = new Date(debtor.dateOfBirth);
+      if (isNaN(dob.getTime())) {
+        errors.push('Date of birth must be a valid date');
+      } else if (dob > new Date()) {
+        errors.push('Date of birth cannot be in the future');
+      }
+    }
+    if (debtor.employmentStatus) {
+      const validStatuses = ['employed', 'self_employed', 'unemployed', 'retired', 'student', 'other'];
+      if (!validStatuses.includes(debtor.employmentStatus)) {
+        errors.push('Employment status must be one of: ' + validStatuses.join(', '));
+      }
+    }
+    if (debtor.dependants !== undefined) {
+      const dep = parseInt(debtor.dependants);
+      if (isNaN(dep) || dep < 0 || dep > 20) {
+        errors.push('Dependants must be between 0 and 20');
+      }
+    }
+  }
+
+  // Validate debt summary if present
+  const debtSummary = body.debtSummary;
+  if (debtSummary && debtSummary.debts && Array.isArray(debtSummary.debts)) {
+    debtSummary.debts.forEach((debt: any, i: number) => {
+      if (debt.creditorName !== undefined && (!debt.creditorName || debt.creditorName.trim().length < 2)) {
+        errors.push(`Debt ${i + 1}: Creditor name must be at least 2 characters`);
+      }
+      const amount = parseFloat(debt.outstandingAmount);
+      if (!isNaN(amount) && amount <= 0) {
+        errors.push(`Debt ${i + 1}: Outstanding amount must be greater than 0`);
+      }
+      if (!isNaN(amount) && amount > 10000000) {
+        errors.push(`Debt ${i + 1}: Outstanding amount cannot exceed 10,000,000`);
+      }
+    });
+  }
+
+  // Validate income/expenditure if present
+  const ie = body.incomeExpenditure;
+  if (ie) {
+    if (ie.income) {
+      Object.entries(ie.income).forEach(([key, val]) => {
+        const num = parseFloat(val as string);
+        if (!isNaN(num) && num < 0) errors.push(`Income ${key}: amount must be 0 or more`);
+        if (!isNaN(num) && num > 99999) errors.push(`Income ${key}: amount cannot exceed 99,999`);
+      });
+    }
+    if (ie.expenditure) {
+      Object.entries(ie.expenditure).forEach(([key, val]) => {
+        const num = parseFloat(val as string);
+        if (!isNaN(num) && num < 0) errors.push(`Expenditure ${key}: amount must be 0 or more`);
+        if (!isNaN(num) && num > 99999) errors.push(`Expenditure ${key}: amount cannot exceed 99,999`);
+      });
+    }
+  }
+
+  return errors;
+}
+
 // Create new application
 applicationsRouter.post('/', (req: Request, res: Response) => {
   try {
+    // Validate input if body contains structured data
+    const validationErrors = validateApplicationBody(req.body);
+    if (validationErrors.length > 0) {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Invalid input data',
+          details: validationErrors,
+        },
+      });
+      return;
+    }
+
     const app = applications.create({
       status: 'draft',
       ...req.body,
@@ -59,6 +166,20 @@ applicationsRouter.put('/:id', (req: Request, res: Response) => {
 
     if (existing.status !== 'draft' && existing.status !== 'additional_info_required') {
       res.status(400).json({ success: false, error: { code: 'INVALID_STATE', message: 'Application cannot be edited in current status' } });
+      return;
+    }
+
+    // Validate input
+    const validationErrors = validateApplicationBody(req.body);
+    if (validationErrors.length > 0) {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Invalid input data',
+          details: validationErrors,
+        },
+      });
       return;
     }
 

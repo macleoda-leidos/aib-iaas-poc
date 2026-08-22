@@ -23,10 +23,11 @@ Users are provisioned through the Keycloak administration console or via the IAA
 5. Submit — user receives onboarding email with MFA setup instructions
 
 **Via Keycloak Console (System Administrators):**
-1. Access Keycloak at `https://auth.iaas.aib.gov.uk/admin`
-2. Navigate to Users → Add User
-3. Configure attributes, role mappings, and required actions
-4. Set "Verify Email" and "Configure OTP" as required actions
+1. Access Keycloak at `http://localhost:8080` (local) or `https://auth.iaas.aib.gov.uk/admin` (production)
+2. Login with admin credentials (local: admin/admin)
+3. Navigate to Users → Add User
+4. Configure attributes, role mappings, and required actions
+5. Set "Verify Email" and "Configure OTP" as required actions
 
 ### Assigning Roles
 
@@ -89,7 +90,9 @@ A user may hold multiple roles where business need is demonstrated. Restrictions
 |----------|-------------|---------|----------|
 | `NODE_ENV` | Runtime environment | `development` | Yes |
 | `API_GATEWAY_PORT` | API Gateway listen port | `3001` | Yes |
-| `DATABASE_URL` | Database connection string | `sqlite://./data/iaas.db` | Yes |
+| `DATABASE_URL` | Database connection string (PostgreSQL) | `postgresql://iaas:iaas@localhost:5432/iaas` | Prod |
+| `DATABASE_PATH` | SQLite database path (local dev / CI) | `./data/iaas.db` (or `:memory:` for CI) | Dev |
+| `INTEGRATION_MODE` | Integration factory mode | `mock` (or `live` for production) | No |
 | `KEYCLOAK_URL` | Keycloak server URL | `http://localhost:8080` | Yes |
 | `KEYCLOAK_REALM` | Keycloak realm name | `iaas` | Yes |
 | `KEYCLOAK_CLIENT_ID` | OIDC client identifier | `iaas-web` | Yes |
@@ -120,6 +123,48 @@ Feature flags control progressive rollout of capabilities:
 ### Service Ports
 
 See Section 11 for the complete service ports reference table.
+
+### Database Management
+
+**Seeding the Database:**
+
+```bash
+# Seed the database with synthetic data (applications, users, organisations)
+npx tsx packages/database/src/seed.ts
+
+# Use in-memory database for testing
+DATABASE_PATH=:memory: npm test
+```
+
+**PostgreSQL (Docker Compose):**
+
+The full-stack Docker Compose setup includes PostgreSQL 15:
+
+```bash
+# Start full stack including PostgreSQL
+docker-compose up -d
+
+# PostgreSQL is available on port 5432
+# Connection: postgresql://iaas:iaas@localhost:5432/iaas
+
+# Connect directly to PostgreSQL
+docker-compose exec postgres psql -U iaas -d iaas
+```
+
+**Keycloak Administration:**
+
+Keycloak 25.0 runs in Docker Compose with a pre-configured realm:
+
+```bash
+# Start Keycloak
+docker-compose up -d keycloak
+
+# Admin console: http://localhost:8080
+# Credentials: admin / admin
+# Pre-configured realm: aib-iaas
+# Pre-seeded: 10 users across 9 roles
+# Federation placeholders: SAML (ScotAccount), OIDC (GOV.UK Login)
+```
 
 ---
 
@@ -387,7 +432,9 @@ Production ← Manual Approval ← Staging Deploy ← Automated Deploy
 | User Service | 3010 | `/api/health` | User profile management and preferences |
 | Notification Service | 3011 | `/api/health` | Email, SMS, in-app notification dispatch |
 | Admin Portal (Next.js) | 3010 | `/api/health` | Internal staff administration interface |
-| Keycloak | 8080 | `/health` | Identity provider and federation broker |
+| ClamAV | 3310 | TCP connection | Virus scanning daemon |
+| PostgreSQL | 5432 | TCP connection | Database server (Docker Compose) |
+| Keycloak | 8080 | `/health` | Identity provider and federation broker (admin: admin/admin) |
 
 ---
 
@@ -433,9 +480,4 @@ curl -s http://localhost:8080/realms/iaas/.well-known/openid-configuration | jq 
 
 1. **L1 — On-call engineer:** Service restarts, configuration fixes, known issue resolution
 2. **L2 — Development team:** Code-level investigation, emergency patches
-3. **L3 — Architecture/Security:** Design issues, security incidents, data integrity concerns
-4. **Vendor escalation:** Keycloak, infrastructure provider, dependency maintainers
-
----
-
-*Document Control: This guide is maintained by the platform operations team and updated with each release.*
+3. **L3 — Architecture/Security:** Design issues, security i

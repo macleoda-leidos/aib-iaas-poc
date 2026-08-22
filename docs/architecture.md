@@ -270,6 +270,8 @@ service/
 | `@aib-iaas/validation` | Zod schemas — single source of truth for input validation | API Gateway, Web Portal |
 | `@aib-iaas/ui-components` | GOV.UK-style React components: StatusBadge, KpiCard, Panel, Input | Web Portal, Admin Portal |
 | `@aib-iaas/test-data` | Synthetic data generators, persona presets, seeding utilities | Tests, database seeding |
+| `@aib-iaas/database` | Repository pattern data access layer (ApplicationRepository, AuditRepository, UserRepository); works with SQLite (local) and PostgreSQL (Docker/production) | All services requiring persistence |
+| `@aib-iaas/integration-contracts` | Factory pattern for integrations — `createBasysClient()`, `createEdenClient()`, etc. return mock or live implementations based on `INTEGRATION_MODE` env var | Integration Orchestrator, services requiring external system access |
 
 ---
 
@@ -381,18 +383,28 @@ stateDiagram-v2
 
 | Environment | Technology | Justification |
 |-------------|-----------|---------------|
-| POC / Development | SQLite via `better-sqlite3` | Zero-configuration, embedded, single-file database; enables instant project startup and portable demo |
+| Local Development | SQLite via `better-sqlite3` (or `:memory:` in CI) | Zero-configuration, embedded, single-file database; enables instant project startup and portable demo |
+| Docker Compose (Full Stack) | PostgreSQL 15 (container on port 5432) | Full production parity with concurrent access; used alongside Keycloak and ClamAV |
 | Staging / Production | PostgreSQL 15+ via AWS RDS | ACID compliance, concurrent access, connection pooling (PgBouncer), mature replication, managed backups |
+
+**Data Access Layer — `@aib-iaas/database` Package:**
+
+The `@aib-iaas/database` package provides a repository pattern abstraction that works identically across SQLite and PostgreSQL. Services import repository classes (ApplicationRepository, AuditRepository, UserRepository) and never interact with raw SQL or database drivers directly. The active database is determined by the `DATABASE_PATH` environment variable:
+
+- `DATABASE_PATH=:memory:` — in-memory SQLite for CI tests (fast, ephemeral)
+- `DATABASE_PATH=./data/app.db` — file-based SQLite for local development
+- `DATABASE_URL=postgresql://...` — PostgreSQL for Docker Compose and production
 
 **Migration Path:**
 
-The data access layer uses parameterised SQL statements designed for portability. Migration to PostgreSQL involves:
+The repository pattern eliminates manual migration effort. The same repository interfaces work with both engines:
 
-1. Schema translation (SQLite DDL to PostgreSQL DDL — data types, sequences, constraints)
-2. Connection pool configuration (`pg-pool` with PgBouncer for connection multiplexing)
+1. Schema creation handled by repository initialisation (auto-detects engine)
+2. Connection pool configuration (`pg-pool` with PgBouncer for production)
 3. UUID generation (PostgreSQL `gen_random_uuid()` replacing application-side `uuid()`)
 4. Index optimisation (B-tree indexes on `referenceNumber`, `status`, `createdAt`)
 5. Partitioning strategy for audit tables (time-based partitioning for retention)
+6. Seed data: `npx tsx packages/database/src/seed.ts`
 
 ### 6.4 Data Classification
 
@@ -477,13 +489,45 @@ interface IntegrationResponse {
 }
 ```
 
+### 7.4 Integration Abstraction — `@aib-iaas/integration-contracts`
+
+The `@aib-iaas/integration-contracts` package implements a **factory pattern** for all external system integrations. Each integration is accessed through a factory function that returns either a mock or live client based on the `INTEGRATION_MODE` environment variable:
+
+```typescript
+// Usage in services
+import { createBasysClient } from '@aib-iaas/integration-contracts';
+
+const basys = createBasysClient(); // returns mock or live based on INTEGRATION_MODE
+
+// Factory behaviour
+// INTEGRATION_MODE=mock (default) → returns mock client with synthetic data
+// INTEGRATION_MODE=live           → returns client configured with real API credentials
+```
+
+**Available Factories:**
+
+| Factory Function | System | Mock Behaviour |
+|-----------------|--------|----------------|
+| `createBasysClient()` | BASYS | NI ending "A" or surname "SMITH" triggers match |
+| `createEdenClient()` | eDEN/DASH | Surname starting "M" triggers DAS arrangement |
+| `createDasClient()` | DAS Register | Debt £5k-£20k triggers existing application |
+| `createCftClient()` | CFT | Always returns 3 registered providers |
+| `createMoratoriumClient()` | Moratorium | Postcode "EH*" triggers active moratorium |
+| `createRoiClient()` | RoI | Surname containing "TEST" triggers entry |
+
+This pattern ensures:
+- Zero code changes when transitioning from mocks to live integrations
+- Consistent interface contracts enforced by TypeScript
+- Easy testing via dependency injection of mock clients
+- Production credentials managed via AWS Secrets Manager (live mode only)
+
 ---
 
 ## 8. Security Architecture
 
 ### 8.1 Identity and Access Management
 
-IAAS implements a federated identity model supporting multiple identity providers through Keycloak as the central identity broker:
+IAAS implements a federated identity model supporting multiple identity providers through Keycloak 25.0 as the central identity broker. In the POC, Keycloak runs in Docker Compose with a pre-configured `aib-iaas` realm containing 10 users across 9 roles, MFA enforcement, and SAML/OIDC federation placeholders for ScotAccount and GOV.UK Login. Admin console available at `localhost:8080` (credentials: admin/admin).
 
 ```mermaid
 sequenceDiagram
@@ -577,8 +621,8 @@ IAAS implements a 9-role hierarchy with fine-grained permission codes:
 
 The POC operates in two modes to serve different stakeholder needs:
 
-1. **Static Demo (GitHub Pages):** Next.js static export; pre-rendered pages for stakeholder review without any backend infrastructure
-2. **Full Stack (Local Docker Compose):** All 12 services + 2 frontends orchestrated locally; complete feature demonstration
+1. **Static Demo (GitHub Pages):** Next.js static export deployed via GitHub Actions CI/CD; pre-rendered pages for stakeholder review without any backend infrastructure
+2. **Full Stack (Docker Compose):** All 12 services + 2 frontends + PostgreSQL + Keycloak 25.0 + ClamAV orchestrated via Docker Compose; complete feature demonstration with production-grade identity and persistence
 
 ### 9.2 Production Target Architecture (AWS)
 
@@ -669,28 +713,41 @@ graph TB
 
 ### 9.3 CI/CD Pipeline
 
+The current POC CI/CD pipeline deploys static frontends to GitHub Pages and validates all code with automated testing:
+
 ```mermaid
 graph LR
     subgraph "Developer Workflow"
         commit["Git Push to<br/>feature branch"]
     end
 
-    subgraph "GitHub Actions Pipeline"
+    subgraph "GitHub Actions Pipeline (Current POC)"
         lint["1. Lint<br/>ESLint + TypeScript"]
-        test["2. Unit Tests<br/>Vitest (215+ tests)"]
-        build["3. Docker Build<br/>Multi-stage, distroless"]
-        scan["4. Security Scan<br/>Trivy + npm audit"]
-        staging["5. Deploy Staging<br/>ECS rolling update"]
-        e2e["6. E2E Tests<br/>Playwright"]
-        approve["7. Manual Approval<br/>Change Advisory Board"]
-        prod["8. Deploy Production<br/>Blue/Green via CodeDeploy"]
+        test["2. Unit + Integration Tests<br/>Vitest (298 tests, 26 files)"]
+        build["3. Next.js Build<br/>Static export"]
+        deploy["4. Deploy<br/>GitHub Pages"]
     end
 
-    commit --> lint --> test --> build --> scan
-    scan --> staging --> e2e --> approve --> prod
+    subgraph "Production Pipeline (Target)"
+        scan["Security Scan<br/>Trivy + npm audit"]
+        staging["Deploy Staging<br/>ECS rolling update"]
+        e2e["E2E Tests<br/>Playwright"]
+        approve["Manual Approval<br/>Change Advisory Board"]
+        prod["Deploy Production<br/>Blue/Green via CodeDeploy"]
+    end
+
+    commit --> lint --> test --> build --> deploy
+    build --> scan --> staging --> e2e --> approve --> prod
 ```
 
-**Deployment Strategy:**
+**POC Deployment (Current):**
+- GitHub Actions runs Vitest (298 tests across 26 files)
+- Next.js static export builds the web frontend
+- Deploys to GitHub Pages for stakeholder review
+- Full stack available via `docker-compose up` (PostgreSQL + Keycloak + ClamAV + all services)
+- CI uses `DATABASE_PATH=:memory:` for fast ephemeral test databases
+
+**Production Deployment Strategy (Target):**
 - Blue/Green deployment via ECS with CodeDeploy
 - Database migrations executed as pre-deployment step
 - Health check validation before traffic cutover
@@ -816,7 +873,7 @@ All services emit structured JSON logs with consistent fields:
 | **HTTP Client** | Axios | 1 | Configurable timeouts, request/response interceptors, automatic JSON parsing |
 | **Security Headers** | Helmet | 7 | Best-practice security headers with single middleware call |
 | **Rate Limiting** | express-rate-limit | 7 | Configurable per-route, sliding window, custom key generation |
-| **Identity Broker** | Keycloak | 24+ | OpenID Connect + SAML 2.0, social login, MFA, admin UI, Kubernetes-native |
+| **Identity Broker** | Keycloak | 25.0 | OpenID Connect + SAML 2.0, social login, MFA, admin UI, Docker Compose with pre-configured realm (10 users, 9 roles) |
 | **Testing** | Vitest | 1 | ESM-native, Jest-compatible API, fast execution, built-in coverage |
 | **Containerisation** | Docker | 24+ | Multi-stage builds, distroless runtime images, consistent environments |
 | **Orchestration (Dev)** | Docker Compose | 2 | Single-command local environment, service dependency management |
@@ -965,6 +1022,9 @@ All services emit structured JSON logs with consistent fields:
 | 12 | User Service | 3011 | GET /api/health |
 | 13 | Notification Service | 3012 | GET /api/health |
 | 14 | Identity Service | 3013 | GET /api/health |
+| 15 | PostgreSQL | 5432 | TCP connection |
+| 16 | Keycloak | 8080 | GET /health |
+| 17 | ClamAV | 3310 | TCP connection |
 
 ---
 
