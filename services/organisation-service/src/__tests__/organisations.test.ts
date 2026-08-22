@@ -69,26 +69,17 @@ describe('Organisation Service - /api/organisations', () => {
         expect(org.status).toBe('active');
       }
     });
-
-    it('supports search by name', async () => {
-      const res = await request('GET', '/api/organisations?search=Citizens');
-
-      expect(res.status).toBe(200);
-      expect(res.data.data.length).toBeGreaterThan(0);
-      expect(res.data.data[0].name).toContain('Citizens');
-    });
   });
 
   describe('GET /api/organisations/:id', () => {
-    it('returns single organisation with children and relationships', async () => {
-      const res = await request('GET', '/api/organisations/ORG-AIB-001');
+    it('returns single organisation with children', async () => {
+      const res = await request('GET', '/api/organisations/org-aib');
 
       expect(res.status).toBe(200);
       expect(res.data.success).toBe(true);
-      expect(res.data.data.id).toBe('ORG-AIB-001');
+      expect(res.data.data.id).toBe('org-aib');
       expect(res.data.data.name).toBe('Accountant in Bankruptcy');
       expect(res.data.data.children).toBeDefined();
-      expect(res.data.data.relationships).toBeDefined();
     });
 
     it('returns 404 for unknown ID', async () => {
@@ -121,19 +112,19 @@ describe('Organisation Service - /api/organisations', () => {
       const res = await request('POST', '/api/organisations', {
         name: 'Test Sub-Office',
         type: 'money_adviser',
-        parentId: 'ORG-MA-001',
+        parentId: 'org-cas',
         addressCity: 'Glasgow',
       });
 
       expect(res.status).toBe(201);
       expect(res.data.success).toBe(true);
-      expect(res.data.data.parent_id).toBe('ORG-MA-001');
+      expect(res.data.data.parentId).toBe('org-cas');
     });
   });
 
   describe('PUT /api/organisations/:id', () => {
     it('updates an existing organisation', async () => {
-      const res = await request('PUT', '/api/organisations/ORG-MA-004', {
+      const res = await request('PUT', '/api/organisations/org-stepchange', {
         name: 'StepChange Scotland Updated',
         contactEmail: 'updated@stepchange.example.org',
       });

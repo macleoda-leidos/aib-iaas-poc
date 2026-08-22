@@ -53,7 +53,7 @@ describe('API Gateway - Applications', () => {
 
   it('POST /api/applications creates an application', async () => {
     const res = await request('POST', '/api/applications', {
-      debtorDetails: { firstName: 'Test', lastName: 'User' },
+      applicant: { firstName: 'Test', lastName: 'User' },
     });
     expect(res.status).toBe(201);
     expect(res.data.success).toBe(true);
@@ -63,13 +63,13 @@ describe('API Gateway - Applications', () => {
   });
 
   it('GET /api/applications/:id retrieves the application', async () => {
-    const create = await request('POST', '/api/applications', { debtorDetails: { firstName: 'Get', lastName: 'Test' } });
+    const create = await request('POST', '/api/applications', { applicant: { firstName: 'Get', lastName: 'Test' } });
     const id = create.data.data.id;
 
     const res = await request('GET', `/api/applications/${id}`);
     expect(res.status).toBe(200);
     expect(res.data.success).toBe(true);
-    expect(res.data.data.debtorDetails.firstName).toBe('Get');
+    expect(res.data.data.applicant.firstName).toBe('Get');
   });
 
   it('GET /api/applications/:id returns 404 for unknown ID', async () => {
@@ -79,16 +79,16 @@ describe('API Gateway - Applications', () => {
   });
 
   it('PUT /api/applications/:id updates the application', async () => {
-    const create = await request('POST', '/api/applications', { debtorDetails: { firstName: 'Old', lastName: 'Name' } });
+    const create = await request('POST', '/api/applications', { applicant: { firstName: 'Old', lastName: 'Name' } });
     const id = create.data.data.id;
 
-    const res = await request('PUT', `/api/applications/${id}`, { debtorDetails: { firstName: 'New', lastName: 'Name' } });
+    const res = await request('PUT', `/api/applications/${id}`, { applicant: { firstName: 'New', lastName: 'Name' } });
     expect(res.status).toBe(200);
     expect(res.data.success).toBe(true);
   });
 
   it('POST /api/applications/:id/submit changes status to submitted', async () => {
-    const create = await request('POST', '/api/applications', { debtorDetails: { firstName: 'Submit', lastName: 'Me' } });
+    const create = await request('POST', '/api/applications', { applicant: { firstName: 'Submit', lastName: 'Me' } });
     const id = create.data.data.id;
 
     const res = await request('POST', `/api/applications/${id}/submit`, {});
@@ -97,11 +97,11 @@ describe('API Gateway - Applications', () => {
   });
 
   it('PUT on submitted application returns 400', async () => {
-    const create = await request('POST', '/api/applications', { debtorDetails: { firstName: 'Lock', lastName: 'Me' } });
+    const create = await request('POST', '/api/applications', { applicant: { firstName: 'Lock', lastName: 'Me' } });
     const id = create.data.data.id;
     await request('POST', `/api/applications/${id}/submit`, {});
 
-    const res = await request('PUT', `/api/applications/${id}`, { debtorDetails: { firstName: 'Changed' } });
+    const res = await request('PUT', `/api/applications/${id}`, { applicant: { firstName: 'Changed' } });
     expect(res.status).toBe(400);
     expect(res.data.error.code).toBe('INVALID_STATE');
   });
@@ -124,7 +124,7 @@ describe('API Gateway - Applications', () => {
   });
 
   it('POST /api/applications/:id/notes adds a staff note', async () => {
-    const create = await request('POST', '/api/applications', { debtorDetails: { firstName: 'Note', lastName: 'Test' } });
+    const create = await request('POST', '/api/applications', { applicant: { firstName: 'Note', lastName: 'Test' } });
     const id = create.data.data.id;
 
     const res = await request('POST', `/api/applications/${id}/notes`, {

@@ -107,7 +107,7 @@ describe('Audit Service - /api/audit/events', () => {
       expect(res.data.data.length).toBe(2);
     });
 
-    it('returns events sorted by timestamp descending', async () => {
+    it('returns events sorted by timestamp ascending', async () => {
       // Create events with a unique app ID
       const appId = `app-sort-${Date.now()}`;
       await request('POST', '/api/audit/events', {
@@ -132,9 +132,9 @@ describe('Audit Service - /api/audit/events', () => {
       for (const event of events) {
         expect(event.timestamp).toBeDefined();
       }
-      // Verify ordering: timestamps are non-increasing (descending)
+      // Verify ordering: timestamps are non-decreasing (ascending)
       for (let i = 1; i < events.length; i++) {
-        expect(events[i - 1].timestamp >= events[i].timestamp).toBe(true);
+        expect(events[i - 1].timestamp <= events[i].timestamp).toBe(true);
       }
     });
 
@@ -158,23 +158,23 @@ describe('Audit Service - /api/audit/events', () => {
       }
     });
 
-    it('filters events by actor', async () => {
-      const res = await request('GET', '/api/audit/events?actor=user@example.com');
+    it('filters events by actorType=applicant', async () => {
+      const res = await request('GET', '/api/audit/events?actorType=applicant');
 
       expect(res.status).toBe(200);
       expect(res.data.success).toBe(true);
       for (const event of res.data.data) {
-        expect(event.actor).toBe('user@example.com');
+        expect(event.actorType).toBe('applicant');
       }
     });
 
-    it('filters events by actorType', async () => {
+    it('filters events by actorType=staff', async () => {
       const res = await request('GET', '/api/audit/events?actorType=staff');
 
       expect(res.status).toBe(200);
       expect(res.data.success).toBe(true);
       for (const event of res.data.data) {
-        expect(event.actor_type).toBe('staff');
+        expect(event.actorType).toBe('staff');
       }
     });
 

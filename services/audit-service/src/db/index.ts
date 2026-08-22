@@ -1,7 +1,11 @@
-import { createRepositories } from '@aib-iaas/database';
+import { createRepositories, getDatabase } from '@aib-iaas/database';
 
 export const repos = createRepositories();
 export const { audit, applications } = repos;
+
+// Disable FK enforcement for the audit service — it's an independent microservice
+// that logs events referencing application IDs from other services' databases.
+getDatabase().pragma('foreign_keys = OFF');
 
 // Legacy aliases for backwards compatibility
 export const getAuditDb = () => {

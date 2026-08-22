@@ -268,16 +268,77 @@ export function initializeSchema(db: Database.Database): void {
     INSERT OR IGNORE INTO roles (id, name, display_name, description, level, created_at)
     VALUES ('role-supplier', 'supplier_trustee', 'Supplier/Trustee', 'Manage assigned cases', 40, datetime('now'));
 
-    INSERT OR IGNORE INTO users (id, email, first_name, last_name, display_name, role_id, status, password_hash, mfa_enabled, created_at, updated_at)
-    VALUES ('user-admin', 'admin@aib-poc.example.com', 'Admin', 'User', 'Admin User', 'role-sysadmin', 'active', 'not-a-real-hash', 0, datetime('now'), datetime('now'));
+    -- ─── Organisations ──────────────────────────
 
-    INSERT OR IGNORE INTO users (id, email, first_name, last_name, display_name, role_id, status, password_hash, mfa_enabled, created_at, updated_at)
-    VALUES ('user-demo', 'demo@example.com', 'Demo', 'User', 'Demo User', 'role-officer', 'active', 'not-a-real-hash', 0, datetime('now'), datetime('now'));
+    INSERT OR IGNORE INTO organisations (id, name, type, parent_id, status, contact_email, address_city, address_postcode, created_at, updated_at)
+    VALUES ('org-aib', 'Accountant in Bankruptcy', 'aib', NULL, 'active', 'info@aib.gov.uk', 'Edinburgh', 'EH6 6QQ', datetime('now'), datetime('now'));
 
-    INSERT OR IGNORE INTO users (id, email, first_name, last_name, display_name, role_id, status, password_hash, mfa_enabled, created_at, updated_at)
-    VALUES ('user-cyberops', 'david.chen@aib.gov.uk', 'David', 'Chen', 'David Chen', 'role-cyberops', 'active', 'not-a-real-hash', 0, datetime('now'), datetime('now'));
+    INSERT OR IGNORE INTO organisations (id, name, type, parent_id, status, contact_email, address_city, address_postcode, created_at, updated_at)
+    VALUES ('org-cas', 'Citizens Advice Scotland', 'money_adviser', NULL, 'active', 'info@cas.org.uk', 'Edinburgh', 'EH3 7HT', datetime('now'), datetime('now'));
 
-    INSERT OR IGNORE INTO users (id, email, first_name, last_name, display_name, role_id, status, password_hash, mfa_enabled, created_at, updated_at)
-    VALUES ('user-stats', 'stats@aib.gov.uk', 'Analytics', 'User', 'Analytics User', 'role-statistician', 'active', 'not-a-real-hash', 0, datetime('now'), datetime('now'));
+    INSERT OR IGNORE INTO organisations (id, name, type, parent_id, status, contact_email, address_city, address_postcode, created_at, updated_at)
+    VALUES ('org-stepchange', 'StepChange Scotland', 'money_adviser', NULL, 'active', 'info@stepchange.org', 'Glasgow', 'G2 1DY', datetime('now'), datetime('now'));
+
+    INSERT OR IGNORE INTO organisations (id, name, type, parent_id, status, contact_email, address_city, address_postcode, created_at, updated_at)
+    VALUES ('org-creditor-1', 'Royal Bank of Scotland', 'creditor', NULL, 'active', 'debts@rbs.co.uk', 'Edinburgh', 'EH2 2YN', datetime('now'), datetime('now'));
+
+    INSERT OR IGNORE INTO organisations (id, name, type, parent_id, status, contact_email, address_city, address_postcode, created_at, updated_at)
+    VALUES ('org-trustee-1', 'Wylie & Bisset LLP', 'trustee', NULL, 'active', 'insolvency@wyliebisset.com', 'Glasgow', 'G2 4JR', datetime('now'), datetime('now'));
+
+    -- ─── Users ──────────────────────────────────
+
+    INSERT OR IGNORE INTO users (id, email, first_name, last_name, display_name, role_id, organisation_id, status, password_hash, mfa_enabled, created_at, updated_at)
+    VALUES ('user-admin', 'admin@aib-poc.example.com', 'Admin', 'User', 'Admin User', 'role-sysadmin', 'org-aib', 'active', 'not-a-real-hash', 0, datetime('now'), datetime('now'));
+
+    INSERT OR IGNORE INTO users (id, email, first_name, last_name, display_name, role_id, organisation_id, status, password_hash, mfa_enabled, created_at, updated_at)
+    VALUES ('user-demo', 'demo@example.com', 'Demo', 'User', 'Demo User', 'role-officer', 'org-aib', 'active', 'not-a-real-hash', 0, datetime('now'), datetime('now'));
+
+    INSERT OR IGNORE INTO users (id, email, first_name, last_name, display_name, role_id, organisation_id, status, password_hash, mfa_enabled, created_at, updated_at)
+    VALUES ('user-cyberops', 'david.chen@aib.gov.uk', 'David', 'Chen', 'David Chen', 'role-cyberops', 'org-aib', 'active', 'not-a-real-hash', 0, datetime('now'), datetime('now'));
+
+    INSERT OR IGNORE INTO users (id, email, first_name, last_name, display_name, role_id, organisation_id, status, password_hash, mfa_enabled, created_at, updated_at)
+    VALUES ('user-stats', 'stats@aib.gov.uk', 'Analytics', 'User', 'Analytics User', 'role-statistician', 'org-aib', 'active', 'not-a-real-hash', 0, datetime('now'), datetime('now'));
+
+    INSERT OR IGNORE INTO users (id, email, first_name, last_name, display_name, role_id, organisation_id, status, password_hash, mfa_enabled, created_at, updated_at)
+    VALUES ('user-adviser', 'adviser@cas.example.org', 'Karen', 'MacLeod', 'Karen MacLeod', 'role-adviser', 'org-cas', 'active', 'not-a-real-hash', 0, datetime('now'), datetime('now'));
+
+    INSERT OR IGNORE INTO users (id, email, first_name, last_name, display_name, role_id, organisation_id, status, password_hash, mfa_enabled, created_at, updated_at)
+    VALUES ('user-debtor', 'john.testerton@example.com', 'John', 'Testerton', 'John Testerton', 'role-debtor', NULL, 'active', 'not-a-real-hash', 0, datetime('now'), datetime('now'));
+
+    -- ─── Permissions ─────────────────────────────
+
+    INSERT OR IGNORE INTO permissions (id, code, name, description, resource, action)
+    VALUES ('perm-app-read-all', 'application.read.all', 'Read All Applications', 'View all applications', 'application', 'read');
+
+    INSERT OR IGNORE INTO permissions (id, code, name, description, resource, action)
+    VALUES ('perm-app-write', 'application.write', 'Write Applications', 'Create and update applications', 'application', 'write');
+
+    INSERT OR IGNORE INTO permissions (id, code, name, description, resource, action)
+    VALUES ('perm-app-approve', 'application.approve', 'Approve Applications', 'Approve or reject applications', 'application', 'approve');
+
+    INSERT OR IGNORE INTO permissions (id, code, name, description, resource, action)
+    VALUES ('perm-user-manage', 'user.manage', 'Manage Users', 'Create and manage user accounts', 'user', 'manage');
+
+    INSERT OR IGNORE INTO permissions (id, code, name, description, resource, action)
+    VALUES ('perm-report-view', 'report.view', 'View Reports', 'Access reporting dashboards', 'report', 'view');
+
+    INSERT OR IGNORE INTO permissions (id, code, name, description, resource, action)
+    VALUES ('perm-audit-view', 'audit.view', 'View Audit Trail', 'Access audit logs', 'audit', 'view');
+
+    -- ─── Role-Permission Assignments ─────────────
+
+    INSERT OR IGNORE INTO role_permissions (role_id, permission_id) VALUES ('role-sysadmin', 'perm-app-read-all');
+    INSERT OR IGNORE INTO role_permissions (role_id, permission_id) VALUES ('role-sysadmin', 'perm-app-write');
+    INSERT OR IGNORE INTO role_permissions (role_id, permission_id) VALUES ('role-sysadmin', 'perm-app-approve');
+    INSERT OR IGNORE INTO role_permissions (role_id, permission_id) VALUES ('role-sysadmin', 'perm-user-manage');
+    INSERT OR IGNORE INTO role_permissions (role_id, permission_id) VALUES ('role-sysadmin', 'perm-report-view');
+    INSERT OR IGNORE INTO role_permissions (role_id, permission_id) VALUES ('role-sysadmin', 'perm-audit-view');
+    INSERT OR IGNORE INTO role_permissions (role_id, permission_id) VALUES ('role-officer', 'perm-app-read-all');
+    INSERT OR IGNORE INTO role_permissions (role_id, permission_id) VALUES ('role-officer', 'perm-app-write');
+    INSERT OR IGNORE INTO role_permissions (role_id, permission_id) VALUES ('role-senior', 'perm-app-read-all');
+    INSERT OR IGNORE INTO role_permissions (role_id, permission_id) VALUES ('role-senior', 'perm-app-write');
+    INSERT OR IGNORE INTO role_permissions (role_id, permission_id) VALUES ('role-senior', 'perm-app-approve');
+    INSERT OR IGNORE INTO role_permissions (role_id, permission_id) VALUES ('role-adviser', 'perm-app-write');
+    INSERT OR IGNORE INTO role_permissions (role_id, permission_id) VALUES ('role-debtor', 'perm-app-write');
   `);
 }

@@ -25,7 +25,7 @@ describe('API Gateway - Auth', () => {
     expect(res.status).toBe(200);
     expect(res.data.success).toBe(true);
     expect(res.data.data.token).toBeDefined();
-    expect(res.data.data.user.role).toBe('admin');
+    expect(res.data.data.user.role).toBe('system_admin');
   });
 
   it('POST /api/auth/login accepts demo user', async () => {
