@@ -175,7 +175,7 @@ export default function CorrespondencePage() {
       <h1 className="text-3xl font-bold mb-2">Digital Mailroom</h1>
       <p className="text-gray-600 dark:text-gray-400 mb-4">Outbound correspondence — generate and send template letters to applicants. Letters are auto-populated with case data.</p>
       <div className="bg-blue-50 dark:bg-blue-950 border-l-4 border-blue-600 p-3 mb-6 text-sm">
-        <p className="text-blue-800 dark:text-blue-200"><strong>Inbound document processing</strong> (OCR, NER, classification, auto-routing) and advanced admin features are available in the <a href="/manage-users" className="underline font-bold">Administration Portal</a> (Rules Engine, AI Governance, Knowledge Hub, Policy Simulation).</p>
+        <p className="text-blue-800 dark:text-blue-200"><strong>Inbound document processing</strong> (OCR, NER, classification, auto-routing) and advanced admin features are available in the <a href="admin" className="underline font-bold">Administration Portal</a> (Rules Engine, AI Governance, Knowledge Hub, Policy Simulation).</p>
       </div>
 
       <div className="grid md:grid-cols-2 gap-6 mb-8">
