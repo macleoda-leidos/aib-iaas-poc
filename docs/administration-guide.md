@@ -480,4 +480,9 @@ curl -s http://localhost:8080/realms/iaas/.well-known/openid-configuration | jq 
 
 1. **L1 — On-call engineer:** Service restarts, configuration fixes, known issue resolution
 2. **L2 — Development team:** Code-level investigation, emergency patches
-3. **L3 — Architecture/Security:** Design issues, security i
+3. **L3 — Architecture/Security:** Design issues, security incidents, data integrity concerns
+4. **Vendor escalation:** Keycloak, infrastructure provider, dependency maintainers
+
+---
+
+*Document Control: This guide is maintained by the platform operations team and updated with each release.*
