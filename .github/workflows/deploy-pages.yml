@@ -33,6 +33,7 @@ jobs:
           NEXT_TELEMETRY_DISABLED: "1"
           GITHUB_PAGES: "true"
           NEXT_PUBLIC_BASE_PATH: "/aib-iaas-poc"
+          NEXT_PUBLIC_API_URL: "https://iaas-api.onrender.com"
 
       - name: Add .nojekyll
         run: touch apps/web/out/.nojekyll

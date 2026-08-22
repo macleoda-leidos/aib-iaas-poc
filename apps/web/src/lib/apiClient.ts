@@ -1,10 +1,11 @@
 /**
  * API Client for AiB IAAS
  * Handles all communication with the backend API gateway.
- * Works in both standalone (local demo) and static export (Azure SWA) modes.
+ * Works in both standalone (local demo) and hosted (Render/Railway) modes.
+ * Falls back gracefully to demo data when backend is unavailable.
  */
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://iaas-api.onrender.com';
 
 // Auth token stored in memory (set on login, used for audit trail)
 let authToken: string | null = null;

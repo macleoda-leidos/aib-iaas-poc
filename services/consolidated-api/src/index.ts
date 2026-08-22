@@ -58,7 +58,10 @@ const PORT = process.env.PORT || 3001;
 
 // Security
 app.use(helmet({ contentSecurityPolicy: false })); // Relaxed CSP for POC
-app.use(cors({ origin: '*', methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'], allowedHeaders: ['Content-Type', 'Authorization'] }));
+const corsOrigins = process.env.CORS_ORIGIN
+  ? process.env.CORS_ORIGIN.split(',')
+  : ['https://macleoda-leidos.github.io', 'http://localhost:3000', 'http://localhost:3010'];
+app.use(cors({ origin: corsOrigins, methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'], allowedHeaders: ['Content-Type', 'Authorization'], credentials: true }));
 app.use(rateLimit({ windowMs: 15 * 60 * 1000, max: 500 }));
 app.use(express.json({ limit: '10mb' }));
 
@@ -69,6 +72,21 @@ initCreditCheckDb();
 initOrgDb();
 initUserDb();
 initNotificationDb();
+
+// Auto-seed on first boot if database is empty
+try {
+  const { getDatabase } = require('@aib-iaas/database');
+  const db = getDatabase();
+  const count = db.prepare('SELECT COUNT(*) as c FROM applications').get() as any;
+  if (count.c === 0) {
+    console.log('[Consolidated API] Empty database detected — running seed...');
+    const { seedDatabase } = require('@aib-iaas/database');
+    if (seedDatabase) seedDatabase();
+    console.log('[Consolidated API] Seed complete');
+  }
+} catch (e: any) {
+  console.log('[Consolidated API] Seed skipped:', e.message);
+}
 
 console.log('[Consolidated API] All databases initialized');
 

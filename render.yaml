@@ -1,0 +1,33 @@
+# Render Blueprint — Infrastructure as Code
+# Deploy with: Dashboard → New Blueprint → Connect this repo
+
+services:
+  - type: web
+    name: iaas-api
+    runtime: docker
+    dockerfilePath: infra/azure/Dockerfile.api
+    dockerContext: .
+    plan: free
+    region: frankfurt
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "3001"
+      - key: DATABASE_PATH
+        value: /data/iaas.db
+      - key: INTEGRATION_MODE
+        value: mock
+      - key: MOCK_FAILURE_RATE
+        value: "0"
+      - key: MOCK_LATENCY_MIN_MS
+        value: "50"
+      - key: MOCK_LATENCY_MAX_MS
+        value: "200"
+      - key: CORS_ORIGIN
+        value: "https://macleoda-leidos.github.io"
+    disk:
+      name: iaas-data
+      mountPath: /data
+      sizeGB: 1
