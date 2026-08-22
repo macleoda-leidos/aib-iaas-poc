@@ -1,10 +1,12 @@
-name: Deploy to Azure Static Web Apps
+name: Deploy to Azure Static Web Apps (DISABLED — using GitHub Pages)
 
 on:
-  workflow_run:
-    workflows: ["CI Pipeline — Build, Test & Quality Gate"]
-    types: [completed]
-    branches: [main]
+  # Disabled: Moved to GitHub Pages deployment. Keeping code for potential future Azure migration.
+  # To re-enable: uncomment the triggers below and add SWA_API_TOKEN secret
+  # workflow_run:
+  #   workflows: ["CI Pipeline — Build, Test & Quality Gate"]
+  #   types: [completed]
+  #   branches: [main]
   workflow_dispatch:
 
 jobs:

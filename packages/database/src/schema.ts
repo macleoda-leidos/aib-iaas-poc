@@ -237,4 +237,19 @@ export function initializeSchema(db: Database.Database): void {
     CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON audit_events(timestamp);
     CREATE INDEX IF NOT EXISTS idx_payments_app ON payments(application_id);
   `);
+
+  // Seed default admin user for testing (matches original api-gateway behaviour)
+  db.exec(`
+    INSERT OR IGNORE INTO users (id, email, first_name, last_name, display_name, role_id, status, password_hash, mfa_enabled, created_at, updated_at)
+    VALUES ('user-admin', 'admin@aib-poc.example.com', 'Admin', 'User', 'Admin User', 'role-sysadmin', 'active', 'not-a-real-hash', 0, datetime('now'), datetime('now'));
+
+    INSERT OR IGNORE INTO users (id, email, first_name, last_name, display_name, role_id, status, password_hash, mfa_enabled, created_at, updated_at)
+    VALUES ('user-demo', 'demo@example.com', 'Demo', 'User', 'Demo User', 'role-officer', 'active', 'not-a-real-hash', 0, datetime('now'), datetime('now'));
+
+    INSERT OR IGNORE INTO roles (id, name, display_name, description, level, created_at)
+    VALUES ('role-sysadmin', 'system_admin', 'System Administrator', 'Full access', 100, datetime('now'));
+
+    INSERT OR IGNORE INTO roles (id, name, display_name, description, level, created_at)
+    VALUES ('role-officer', 'aib_officer', 'AiB Case Officer', 'Process applications', 60, datetime('now'));
+  `);
 }

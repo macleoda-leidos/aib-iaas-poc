@@ -1,9 +1,7 @@
 name: Deploy to GitHub Pages
 
 on:
-  workflow_run:
-    workflows: ["CI Pipeline — Build, Test & Quality Gate"]
-    types: [completed]
+  push:
     branches: [main]
   workflow_dispatch:
 
@@ -19,7 +17,7 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'push' || github.event.workflow_run.conclusion == 'success' }}
     steps:
       - uses: actions/checkout@v4
 
