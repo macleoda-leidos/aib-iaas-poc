@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { getDatabase } from '../db';
+import { users } from '../db';
 
 export const authRouter = Router();
 
@@ -10,43 +10,71 @@ export const authRouter = Router();
  */
 
 authRouter.post('/login', (req: Request, res: Response) => {
-  const { email, password } = req.body;
+  try {
+    const { email, password } = req.body;
 
-  if (!email || !password) {
-    res.status(400).json({
-      success: false,
-      error: { code: 'INVALID_CREDENTIALS', message: 'Email and password are required' },
-    });
-    return;
-  }
+    if (!email || !password) {
+      res.status(400).json({
+        success: false,
+        error: { code: 'INVALID_CREDENTIALS', message: 'Email and password are required' },
+      });
+      return;
+    }
 
-  const db = getDatabase();
-  const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email) as any;
+    const user = users.findByEmail(email);
 
-  // POC: accept any password for known users, or 'demo'/'demo' for public
-  if (user || (email === 'demo@example.com' && password === 'demo')) {
-    const userData = user || { id: 'USR-DEMO-001', email: 'demo@example.com', name: 'Demo User', role: 'applicant' };
+    // POC: accept any password for known users, or 'demo'/'demo' for public
+    if (user || (email === 'demo@example.com' && password === 'demo')) {
+      const userData = user || {
+        id: 'USR-DEMO-001',
+        email: 'demo@example.com',
+        firstName: 'Demo',
+        lastName: 'User',
+        displayName: 'Demo User',
+        roleId: 'applicant',
+        organisationId: null,
+        status: 'active',
+        passwordHash: null,
+        mfaEnabled: false,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
 
-    // Generate simple POC token (NOT production-safe)
-    const token = Buffer.from(JSON.stringify({
-      userId: userData.id,
-      email: userData.email,
-      role: userData.role,
-      exp: Date.now() + 24 * 60 * 60 * 1000,
-    })).toString('base64');
+      // Determine role name
+      let roleName = 'applicant';
+      if (user) {
+        const withRole = users.findByIdWithRole(user.id);
+        if (withRole) roleName = withRole.roleName;
+      }
 
-    res.json({
-      success: true,
-      data: {
-        token,
-        user: { id: userData.id, email: userData.email, name: userData.name, role: userData.role },
-      },
-    });
-  } else {
-    res.status(401).json({
-      success: false,
-      error: { code: 'INVALID_CREDENTIALS', message: 'Invalid email or password' },
-    });
+      // Generate simple POC token (NOT production-safe)
+      const token = Buffer.from(JSON.stringify({
+        userId: userData.id,
+        email: userData.email,
+        role: roleName,
+        exp: Date.now() + 24 * 60 * 60 * 1000,
+      })).toString('base64');
+
+      res.json({
+        success: true,
+        data: {
+          token,
+          user: {
+            id: userData.id,
+            email: userData.email,
+            name: userData.displayName || `${userData.firstName} ${userData.lastName}`,
+            role: roleName,
+          },
+        },
+      });
+    } else {
+      res.status(401).json({
+        success: false,
+        error: { code: 'INVALID_CREDENTIALS', message: 'Invalid email or password' },
+      });
+    }
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: error.message } });
   }
 });
 

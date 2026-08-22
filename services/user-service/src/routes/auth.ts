@@ -1,77 +1,76 @@
 import { Router, Request, Response } from 'express';
-import { v4 as uuid } from 'uuid';
-import { getUserDb } from '../db';
+import { users } from '../db';
 
 export const authRouter = Router();
 
 // Login - returns JWT-like token with role/permissions
 authRouter.post('/login', (req: Request, res: Response) => {
-  const { email, password } = req.body;
-  const db = getUserDb();
+  try {
+    const { email, password } = req.body;
 
-  if (!email) {
-    res.status(400).json({ success: false, error: { code: 'INVALID_INPUT', message: 'Email is required' } });
-    return;
-  }
+    if (!email) {
+      res.status(400).json({ success: false, error: { code: 'INVALID_INPUT', message: 'Email is required' } });
+      return;
+    }
 
-  const user = db.prepare(`
-    SELECT u.*, r.name as role_name, r.display_name as role_display_name, r.level as role_level
-    FROM users u JOIN roles r ON u.role_id = r.id
-    WHERE u.email = ? AND u.status = 'active'
-  `).get(email) as any;
+    const user = users.findByEmail(email);
 
-  // POC: accept any password for seeded users
-  if (!user) {
-    res.status(401).json({ success: false, error: { code: 'INVALID_CREDENTIALS', message: 'Invalid email or password' } });
-    return;
-  }
+    // POC: accept any password for seeded users with active status
+    if (!user || user.status !== 'active') {
+      res.status(401).json({ success: false, error: { code: 'INVALID_CREDENTIALS', message: 'Invalid email or password' } });
+      return;
+    }
 
-  // Get permissions for this role
-  const permissions = db.prepare(`
-    SELECT p.code FROM permissions p
-    JOIN role_permissions rp ON p.id = rp.permission_id
-    WHERE rp.role_id = ?
-  `).all(user.role_id) as any[];
+    // Get user with role info
+    const userWithRole = users.findByIdWithRole(user.id);
+    if (!userWithRole) {
+      res.status(401).json({ success: false, error: { code: 'INVALID_CREDENTIALS', message: 'Invalid email or password' } });
+      return;
+    }
 
-  const permissionCodes = permissions.map((p: any) => p.code);
+    // Get permissions for this role
+    const permissions = users.getPermissionsForRole(user.roleId);
+    const permissionCodes = permissions.map(p => p.code);
 
-  // Create session token
-  const token = Buffer.from(JSON.stringify({
-    userId: user.id,
-    email: user.email,
-    role: user.role_name,
-    roleDisplayName: user.role_display_name,
-    roleLevel: user.role_level,
-    organisationId: user.organisation_id,
-    permissions: permissionCodes,
-    exp: Date.now() + 8 * 60 * 60 * 1000, // 8 hours
-  })).toString('base64');
+    // Create session token
+    const expiresAt = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString();
+    const token = Buffer.from(JSON.stringify({
+      userId: user.id,
+      email: user.email,
+      role: userWithRole.roleName,
+      roleDisplayName: userWithRole.roleDisplayName,
+      roleLevel: userWithRole.roleLevel,
+      organisationId: user.organisationId,
+      permissions: permissionCodes,
+      exp: Date.now() + 8 * 60 * 60 * 1000,
+    })).toString('base64');
 
-  // Store session
-  const sessionId = uuid();
-  db.prepare(`INSERT INTO sessions (id, user_id, token, expires_at) VALUES (?, ?, ?, ?)`)
-    .run(sessionId, user.id, token, new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString());
+    // Store session
+    users.createSession(user.id, token, expiresAt);
 
-  // Update last login
-  db.prepare('UPDATE users SET last_login_at = datetime(\'now\') WHERE id = ?').run(user.id);
+    // Update last login via update
+    users.update(user.id, {});
 
-  res.json({
-    success: true,
-    data: {
-      token,
-      user: {
-        id: user.id,
-        email: user.email,
-        firstName: user.first_name,
-        lastName: user.last_name,
-        displayName: user.display_name,
-        role: user.role_name,
-        roleDisplayName: user.role_display_name,
-        organisationId: user.organisation_id,
-        permissions: permissionCodes,
+    res.json({
+      success: true,
+      data: {
+        token,
+        user: {
+          id: user.id,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          displayName: user.displayName,
+          role: userWithRole.roleName,
+          roleDisplayName: userWithRole.roleDisplayName,
+          organisationId: user.organisationId,
+          permissions: permissionCodes,
+        },
       },
-    },
-  });
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: error.message } });
+  }
 });
 
 // Validate token and return user context
@@ -101,24 +100,19 @@ authRouter.get('/me', (req: Request, res: Response) => {
 authRouter.post('/logout', (req: Request, res: Response) => {
   const authHeader = req.headers.authorization;
   if (authHeader?.startsWith('Bearer ')) {
-    const db = getUserDb();
     const token = authHeader.slice(7);
-    db.prepare('DELETE FROM sessions WHERE token = ?').run(token);
+    users.deleteSession(token);
   }
   res.json({ success: true, data: { message: 'Logged out' } });
 });
 
 // Check permission
 authRouter.post('/check-permission', (req: Request, res: Response) => {
-  const { userId, permission } = req.body;
-  const db = getUserDb();
-
-  const result = db.prepare(`
-    SELECT COUNT(*) as count FROM role_permissions rp
-    JOIN permissions p ON rp.permission_id = p.id
-    JOIN users u ON u.role_id = rp.role_id
-    WHERE u.id = ? AND p.code = ?
-  `).get(userId, permission) as any;
-
-  res.json({ success: true, data: { hasPermission: result.count > 0, userId, permission } });
+  try {
+    const { userId, permission } = req.body;
+    const hasPermission = users.hasPermission(userId, permission);
+    res.json({ success: true, data: { hasPermission, userId, permission } });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: error.message } });
+  }
 });

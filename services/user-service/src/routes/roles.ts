@@ -1,57 +1,50 @@
 import { Router, Request, Response } from 'express';
-import { getUserDb } from '../db';
+import { users } from '../db';
 
 export const rolesRouter = Router();
 
-// List all roles with permission counts
+// List all roles
 rolesRouter.get('/', (_req: Request, res: Response) => {
-  const db = getUserDb();
-  const roles = db.prepare(`
-    SELECT r.*, COUNT(rp.permission_id) as permission_count,
-      (SELECT COUNT(*) FROM users u WHERE u.role_id = r.id AND u.status = 'active') as active_users
-    FROM roles r
-    LEFT JOIN role_permissions rp ON r.id = rp.role_id
-    GROUP BY r.id
-    ORDER BY r.level DESC
-  `).all();
-
-  res.json({ success: true, data: roles });
+  try {
+    const roles = users.listRoles();
+    res.json({ success: true, data: roles });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: error.message } });
+  }
 });
 
 // Get role with all permissions
 rolesRouter.get('/:id', (req: Request, res: Response) => {
-  const db = getUserDb();
-  const role = db.prepare('SELECT * FROM roles WHERE id = ?').get(req.params.id);
+  try {
+    const role = users.findRoleById(req.params.id);
 
-  if (!role) {
-    res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Role not found' } });
-    return;
+    if (!role) {
+      res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Role not found' } });
+      return;
+    }
+
+    const permissions = users.getPermissionsForRole(req.params.id);
+    res.json({ success: true, data: { ...role, permissions } });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: error.message } });
   }
-
-  const permissions = db.prepare(`
-    SELECT p.* FROM permissions p
-    JOIN role_permissions rp ON p.id = rp.permission_id
-    WHERE rp.role_id = ?
-    ORDER BY p.resource, p.action
-  `).all(req.params.id);
-
-  res.json({ success: true, data: { ...role, permissions } });
 });
 
 // Get permissions matrix (all roles x all permissions)
 rolesRouter.get('/matrix/full', (_req: Request, res: Response) => {
-  const db = getUserDb();
-  const roles = db.prepare('SELECT * FROM roles ORDER BY level DESC').all() as any[];
-  const permissions = db.prepare('SELECT * FROM permissions ORDER BY resource, action').all() as any[];
-  const mappings = db.prepare('SELECT * FROM role_permissions').all() as any[];
+  try {
+    const roles = users.listRoles();
 
-  const matrix = roles.map(role => ({
-    ...role,
-    permissions: permissions.map(perm => ({
-      ...perm,
-      granted: mappings.some(m => m.role_id === role.id && m.permission_id === perm.id),
-    })),
-  }));
+    const matrix = roles.map(role => {
+      const permissions = users.getPermissionsForRole(role.id);
+      return {
+        ...role,
+        permissions,
+      };
+    });
 
-  res.json({ success: true, data: { roles, permissions, matrix } });
+    res.json({ success: true, data: { roles, matrix } });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: error.message } });
+  }
 });

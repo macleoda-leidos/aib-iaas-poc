@@ -1,56 +1,56 @@
 import { Router, Request, Response } from 'express';
-import { v4 as uuid } from 'uuid';
-import { getAuditDb } from '../db';
+import { audit } from '../db';
 
 export const auditRouter = Router();
 
 // Record audit event
 auditRouter.post('/events', (req: Request, res: Response) => {
-  const db = getAuditDb();
-  const { applicationId, action, actor, actorType, details } = req.body;
-  const id = uuid();
+  try {
+    const { applicationId, action, actor, actorId, actorName, actorType, details } = req.body;
 
-  db.prepare(`
-    INSERT INTO audit_events (id, application_id, action, actor, actor_type, details)
-    VALUES (?, ?, ?, ?, ?, ?)
-  `).run(id, applicationId, action, actor, actorType, JSON.stringify(details || {}));
+    const event = audit.create({
+      applicationId,
+      action,
+      actorId: actorId || undefined,
+      actorName: actorName || actor || undefined,
+      actorType,
+      details,
+    });
 
-  res.status(201).json({ success: true, data: { id, timestamp: new Date().toISOString() } });
+    res.status(201).json({ success: true, data: event });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: error.message } });
+  }
 });
 
 // Get audit trail for application
 auditRouter.get('/events/:applicationId', (req: Request, res: Response) => {
-  const db = getAuditDb();
-  const rows = db.prepare(
-    'SELECT * FROM audit_events WHERE application_id = ? ORDER BY timestamp DESC'
-  ).all(req.params.applicationId) as any[];
-
-  res.json({
-    success: true,
-    data: rows.map(r => ({ ...r, details: r.details ? JSON.parse(r.details) : null })),
-  });
+  try {
+    const events = audit.findByApplication(req.params.applicationId);
+    res.json({ success: true, data: events });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: error.message } });
+  }
 });
 
 // Search/list audit events
 auditRouter.get('/events', (req: Request, res: Response) => {
-  const db = getAuditDb();
-  const { action, actor, actorType, limit = '50' } = req.query;
+  try {
+    const { action, actorType, actorId, limit = '50' } = req.query;
 
-  let sql = 'SELECT * FROM audit_events WHERE 1=1';
-  const params: any[] = [];
+    const events = audit.findAll({
+      action: action as string | undefined,
+      actorType: actorType as string | undefined,
+      actorId: actorId as string | undefined,
+      limit: parseInt(limit as string),
+    });
 
-  if (action) { sql += ' AND action = ?'; params.push(action); }
-  if (actor) { sql += ' AND actor = ?'; params.push(actor); }
-  if (actorType) { sql += ' AND actor_type = ?'; params.push(actorType); }
-
-  sql += ' ORDER BY timestamp DESC LIMIT ?';
-  params.push(parseInt(limit as string));
-
-  const rows = db.prepare(sql).all(...params) as any[];
-
-  res.json({
-    success: true,
-    data: rows.map(r => ({ ...r, details: r.details ? JSON.parse(r.details) : null })),
-    meta: { count: rows.length },
-  });
+    res.json({
+      success: true,
+      data: events,
+      meta: { count: events.length },
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: error.message } });
+  }
 });

@@ -1,241 +1,221 @@
 import { Router, Request, Response } from 'express';
-import { v4 as uuid } from 'uuid';
-import { getDatabase } from '../db';
+import { randomUUID } from 'crypto';
+import { applications, audit } from '../db';
 
 export const applicationsRouter = Router();
 
-function generateReference(): string {
-  const year = new Date().getFullYear();
-  const seq = Math.floor(Math.random() * 99999).toString().padStart(5, '0');
-  return `IAAS-${year}-${seq}`;
-}
-
 // Create new application
 applicationsRouter.post('/', (req: Request, res: Response) => {
-  const db = getDatabase();
-  const id = uuid();
-  const referenceNumber = generateReference();
+  try {
+    const app = applications.create({
+      status: 'draft',
+      ...req.body,
+    });
 
-  const stmt = db.prepare(`
-    INSERT INTO applications (id, reference_number, status, data)
-    VALUES (?, ?, 'draft', ?)
-  `);
+    audit.create({
+      applicationId: app.id,
+      action: 'application_created',
+      actorName: 'system',
+      actorType: 'system',
+      details: { referenceNumber: app.referenceNumber },
+    });
 
-  stmt.run(id, referenceNumber, JSON.stringify(req.body));
-
-  // Record audit event
-  db.prepare(`
-    INSERT INTO audit_events (id, application_id, action, actor, actor_type, details)
-    VALUES (?, ?, 'application_created', 'system', 'system', ?)
-  `).run(uuid(), id, JSON.stringify({ referenceNumber }));
-
-  res.status(201).json({
-    success: true,
-    data: { id, referenceNumber, status: 'draft', createdAt: new Date().toISOString() },
-  });
+    res.status(201).json({
+      success: true,
+      data: app,
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: error.message } });
+  }
 });
 
 // Get application by ID
 applicationsRouter.get('/:id', (req: Request, res: Response) => {
-  const db = getDatabase();
-  const { id } = req.params;
+  try {
+    const { id } = req.params;
+    const app = applications.getWithRelations(id);
 
-  const row = db.prepare('SELECT * FROM applications WHERE id = ?').get(id) as any;
+    if (!app) {
+      res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Application not found' } });
+      return;
+    }
 
-  if (!row) {
-    res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Application not found' } });
-    return;
+    res.json({ success: true, data: app });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: error.message } });
   }
-
-  res.json({
-    success: true,
-    data: {
-      id: row.id,
-      referenceNumber: row.reference_number,
-      status: row.status,
-      ...JSON.parse(row.data),
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
-      submittedAt: row.submitted_at,
-    },
-  });
 });
 
 // Update application
 applicationsRouter.put('/:id', (req: Request, res: Response) => {
-  const db = getDatabase();
-  const { id } = req.params;
+  try {
+    const { id } = req.params;
+    const existing = applications.findById(id);
 
-  const existing = db.prepare('SELECT id, status FROM applications WHERE id = ?').get(id) as any;
-  if (!existing) {
-    res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Application not found' } });
-    return;
+    if (!existing) {
+      res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Application not found' } });
+      return;
+    }
+
+    if (existing.status !== 'draft' && existing.status !== 'additional_info_required') {
+      res.status(400).json({ success: false, error: { code: 'INVALID_STATE', message: 'Application cannot be edited in current status' } });
+      return;
+    }
+
+    const updated = applications.update(id, req.body);
+
+    audit.create({
+      applicationId: id,
+      action: 'application_updated',
+      actorName: 'applicant',
+      actorType: 'applicant',
+    });
+
+    res.json({ success: true, data: updated });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: error.message } });
   }
-
-  if (existing.status !== 'draft' && existing.status !== 'additional_info_required') {
-    res.status(400).json({ success: false, error: { code: 'INVALID_STATE', message: 'Application cannot be edited in current status' } });
-    return;
-  }
-
-  db.prepare(`
-    UPDATE applications SET data = ?, updated_at = datetime('now') WHERE id = ?
-  `).run(JSON.stringify(req.body), id);
-
-  db.prepare(`
-    INSERT INTO audit_events (id, application_id, action, actor, actor_type)
-    VALUES (?, ?, 'application_updated', 'applicant', 'applicant')
-  `).run(uuid(), id);
-
-  res.json({ success: true, data: { id, status: existing.status, updatedAt: new Date().toISOString() } });
 });
 
 // Submit application
 applicationsRouter.post('/:id/submit', (req: Request, res: Response) => {
-  const db = getDatabase();
-  const { id } = req.params;
+  try {
+    const { id } = req.params;
+    const existing = applications.findById(id);
 
-  const existing = db.prepare('SELECT * FROM applications WHERE id = ?').get(id) as any;
-  if (!existing) {
-    res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Application not found' } });
-    return;
+    if (!existing) {
+      res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Application not found' } });
+      return;
+    }
+
+    applications.updateStatus(id, 'submitted');
+    applications.update(id, { submittedAt: new Date().toISOString() });
+
+    audit.create({
+      applicationId: id,
+      action: 'application_submitted',
+      actorName: 'applicant',
+      actorType: 'applicant',
+    });
+
+    res.json({
+      success: true,
+      data: { id, status: 'submitted', submittedAt: new Date().toISOString(), referenceNumber: existing.referenceNumber },
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: error.message } });
   }
-
-  db.prepare(`
-    UPDATE applications SET status = 'submitted', submitted_at = datetime('now'), updated_at = datetime('now')
-    WHERE id = ?
-  `).run(id);
-
-  db.prepare(`
-    INSERT INTO audit_events (id, application_id, action, actor, actor_type)
-    VALUES (?, ?, 'application_submitted', 'applicant', 'applicant')
-  `).run(uuid(), id);
-
-  res.json({
-    success: true,
-    data: { id, status: 'submitted', submittedAt: new Date().toISOString(), referenceNumber: existing.reference_number },
-  });
 });
 
 // Update application status (staff action: approve/reject/request-info)
 applicationsRouter.patch('/:id/status', (req: Request, res: Response) => {
-  const db = getDatabase();
-  const { id } = req.params;
-  const { status, notes } = req.body;
+  try {
+    const { id } = req.params;
+    const { status, notes } = req.body;
 
-  const validTransitions: Record<string, string[]> = {
-    submitted: ['under_review', 'additional_info_required', 'rejected'],
-    under_review: ['recommendation_issued', 'additional_info_required', 'rejected', 'approved'],
-    additional_info_required: ['under_review', 'submitted'],
-    recommendation_issued: ['approved', 'rejected', 'additional_info_required'],
-  };
+    const validTransitions: Record<string, string[]> = {
+      submitted: ['under_review', 'additional_info_required', 'rejected'],
+      under_review: ['recommendation_issued', 'additional_info_required', 'rejected', 'approved'],
+      additional_info_required: ['under_review', 'submitted'],
+      recommendation_issued: ['approved', 'rejected', 'additional_info_required'],
+    };
 
-  const existing = db.prepare('SELECT id, status FROM applications WHERE id = ?').get(id) as any;
-  if (!existing) {
-    res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Application not found' } });
-    return;
-  }
+    const existing = applications.findById(id);
+    if (!existing) {
+      res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Application not found' } });
+      return;
+    }
 
-  const allowed = validTransitions[existing.status] || [];
-  if (!allowed.includes(status)) {
-    res.status(400).json({
-      success: false,
-      error: { code: 'INVALID_TRANSITION', message: `Cannot transition from '${existing.status}' to '${status}'` },
+    const allowed = validTransitions[existing.status] || [];
+    if (!allowed.includes(status)) {
+      res.status(400).json({
+        success: false,
+        error: { code: 'INVALID_TRANSITION', message: `Cannot transition from '${existing.status}' to '${status}'` },
+      });
+      return;
+    }
+
+    applications.updateStatus(id, status);
+
+    audit.create({
+      applicationId: id,
+      action: `status_changed_to_${status}`,
+      actorName: 'aib_staff',
+      actorType: 'staff',
+      details: { previousStatus: existing.status, notes },
     });
-    return;
+
+    res.json({ success: true, data: { id, status, updatedAt: new Date().toISOString() } });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: error.message } });
   }
-
-  db.prepare(`UPDATE applications SET status = ?, updated_at = datetime('now') WHERE id = ?`).run(status, id);
-
-  db.prepare(`
-    INSERT INTO audit_events (id, application_id, action, actor, actor_type, details)
-    VALUES (?, ?, ?, 'aib_staff', 'staff', ?)
-  `).run(uuid(), id, `status_changed_to_${status}`, JSON.stringify({ previousStatus: existing.status, notes }));
-
-  res.json({ success: true, data: { id, status, updatedAt: new Date().toISOString() } });
 });
 
 // List applications (admin)
 applicationsRouter.get('/', (req: Request, res: Response) => {
-  const db = getDatabase();
-  const page = parseInt(req.query.page as string) || 1;
-  const pageSize = parseInt(req.query.pageSize as string) || 20;
-  const status = req.query.status as string;
-  const referenceNumber = req.query.referenceNumber as string;
-  const offset = (page - 1) * pageSize;
+  try {
+    const page = parseInt(req.query.page as string) || 1;
+    const pageSize = parseInt(req.query.pageSize as string) || 20;
+    const status = req.query.status as string | undefined;
+    const assignedTo = req.query.assignedTo as string | undefined;
 
-  let whereClause = '';
-  const params: any[] = [];
+    const result = applications.list({ status, assignedTo, page, pageSize });
 
-  if (status) {
-    whereClause = 'WHERE status = ?';
-    params.push(status);
+    // Enrich with applicant summary where possible
+    const enrichedData = result.data.map(app => {
+      const withRelations = applications.getWithRelations(app.id);
+      const applicant = withRelations?.applicant;
+      return {
+        ...app,
+        summary: {
+          applicantName: applicant ? `${applicant.firstName} ${applicant.lastName}` : 'Unknown',
+          totalDebt: withRelations?.debts?.reduce((sum, d) => sum + d.amount, 0) || 0,
+        },
+      };
+    });
+
+    res.json({
+      success: true,
+      data: enrichedData,
+      meta: { page, pageSize, totalCount: result.total, totalPages: Math.ceil(result.total / pageSize) },
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: error.message } });
   }
-
-  if (referenceNumber) {
-    whereClause = whereClause ? `${whereClause} AND reference_number = ?` : 'WHERE reference_number = ?';
-    params.push(referenceNumber);
-  }
-
-  const countRow = db.prepare(`SELECT COUNT(*) as count FROM applications ${whereClause}`).get(...params) as any;
-  const totalCount = countRow.count;
-
-  const rows = db.prepare(`
-    SELECT id, reference_number, status, created_at, updated_at, submitted_at, data
-    FROM applications ${whereClause}
-    ORDER BY created_at DESC LIMIT ? OFFSET ?
-  `).all(...params, pageSize, offset) as any[];
-
-  res.json({
-    success: true,
-    data: rows.map(row => ({
-      id: row.id,
-      referenceNumber: row.reference_number,
-      status: row.status,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
-      submittedAt: row.submitted_at,
-      summary: (() => {
-        const d = JSON.parse(row.data);
-        return {
-          applicantName: d.debtorDetails ? `${d.debtorDetails.firstName} ${d.debtorDetails.lastName}` : 'Unknown',
-          totalDebt: d.debtSummary?.totalDebtAmount,
-        };
-      })(),
-    })),
-    meta: { page, pageSize, totalCount, totalPages: Math.ceil(totalCount / pageSize) },
-  });
 });
 
 // Add staff note
 applicationsRouter.post('/:id/notes', (req: Request, res: Response) => {
-  const db = getDatabase();
-  const { id } = req.params;
-  const { content, noteType, authorName } = req.body;
+  try {
+    const { id } = req.params;
+    const { content, noteType, authorName } = req.body;
 
-  const existing = db.prepare('SELECT id, data FROM applications WHERE id = ?').get(id) as any;
-  if (!existing) {
-    res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Application not found' } });
-    return;
+    const existing = applications.findById(id);
+    if (!existing) {
+      res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Application not found' } });
+      return;
+    }
+
+    const noteId = randomUUID();
+    const note = {
+      id: noteId,
+      authorId: 'USR-ADMIN-001',
+      authorName: authorName || 'AiB Staff',
+      content,
+      createdAt: new Date().toISOString(),
+      noteType: noteType || 'general',
+    };
+
+    audit.create({
+      applicationId: id,
+      action: 'note_added',
+      actorName: authorName || 'AiB Staff',
+      actorType: 'staff',
+      details: { noteType, noteId, content },
+    });
+
+    res.status(201).json({ success: true, data: note });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: error.message } });
   }
-
-  const data = JSON.parse(existing.data);
-  const note = {
-    id: uuid(),
-    authorId: 'USR-ADMIN-001',
-    authorName: authorName || 'AiB Staff',
-    content,
-    createdAt: new Date().toISOString(),
-    noteType: noteType || 'general',
-  };
-
-  data.staffNotes = [...(data.staffNotes || []), note];
-  db.prepare('UPDATE applications SET data = ?, updated_at = datetime(\'now\') WHERE id = ?')
-    .run(JSON.stringify(data), id);
-
-  db.prepare(`
-    INSERT INTO audit_events (id, application_id, action, actor, actor_type, details)
-    VALUES (?, ?, 'note_added', ?, 'staff', ?)
-  `).run(uuid(), id, authorName || 'AiB Staff', JSON.stringify({ noteType }));
-
-  res.status(201).json({ success: true, data: note });
 });
