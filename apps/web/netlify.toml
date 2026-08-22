@@ -1,0 +1,7 @@
+[build]
+  command = "cd ../.. && npm ci && cd apps/web && NEXT_OUTPUT=export GITHUB_PAGES=false npm run build"
+  publish = "out"
+
+[build.environment]
+  NODE_VERSION = "20"
+  NEXT_TELEMETRY_DISABLED = "1"

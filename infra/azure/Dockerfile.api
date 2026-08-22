@@ -8,8 +8,14 @@ WORKDIR /app
 FROM base AS deps
 RUN apk add --no-cache python3 make g++
 WORKDIR /app
-COPY services/consolidated-api/package.json ./package.json
-RUN npm install --omit=dev
+# Copy root package.json and lockfile for workspace resolution
+COPY package.json package-lock.json ./
+COPY packages/database/package.json ./packages/database/
+COPY packages/integration-contracts/package.json ./packages/integration-contracts/
+COPY packages/shared-types/package.json ./packages/shared-types/
+COPY packages/validation/package.json ./packages/validation/
+COPY services/consolidated-api/package.json ./services/consolidated-api/
+RUN npm ci --workspace=packages/database --workspace=packages/integration-contracts --workspace=services/consolidated-api --include-workspace-root 2>/dev/null || npm install --omit=dev
 
 # Copy source and run
 FROM base AS runner
@@ -22,6 +28,7 @@ COPY --from=deps /app/node_modules ./node_modules
 # Copy all service source code and packages
 COPY services/ ./services/
 COPY packages/ ./packages/
+COPY package.json ./
 
 # Install tsx globally
 RUN npm install -g tsx
