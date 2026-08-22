@@ -38,6 +38,11 @@ jobs:
       - name: Add .nojekyll
         run: touch apps/web/out/.nojekyll
 
+      # Custom Domain: To enable a custom domain, create apps/web/public/CNAME
+      # containing the domain (e.g., iaas.aib.gov.uk). The file will be copied
+      # to the output directory automatically during build. Also configure the
+      # domain in GitHub repo Settings > Pages > Custom domain.
+
       - name: Deploy to gh-pages branch
         uses: peaceiris/actions-gh-pages@v4
         with:

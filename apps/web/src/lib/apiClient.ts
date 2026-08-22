@@ -10,12 +10,50 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://iaas-api.onrender.co
 // Auth token stored in memory (set on login, used for audit trail)
 let authToken: string | null = null;
 
+// Session expiry event listeners
+type SessionExpiredCallback = () => void;
+const sessionExpiredListeners: SessionExpiredCallback[] = [];
+
+export function onSessionExpired(callback: SessionExpiredCallback) {
+  sessionExpiredListeners.push(callback);
+  return () => {
+    const idx = sessionExpiredListeners.indexOf(callback);
+    if (idx >= 0) sessionExpiredListeners.splice(idx, 1);
+  };
+}
+
+function notifySessionExpired() {
+  sessionExpiredListeners.forEach((cb) => cb());
+}
+
 export function setAuthToken(token: string | null) {
   authToken = token;
+  if (token && typeof window !== 'undefined') {
+    localStorage.setItem('iaas-auth-token', token);
+  }
 }
 
 export function getAuthToken(): string | null {
-  return authToken;
+  if (authToken) return authToken;
+  if (typeof window !== 'undefined') {
+    const stored = localStorage.getItem('iaas-auth-token');
+    if (stored) {
+      authToken = stored;
+      return stored;
+    }
+  }
+  return null;
+}
+
+/** Clear auth state and redirect to login */
+export function logout() {
+  authToken = null;
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem('iaas-auth-token');
+    localStorage.removeItem('iaas-current-user');
+    sessionStorage.removeItem('iaas-current-user');
+    window.location.href = (process.env.NEXT_PUBLIC_BASE_PATH || '') + '/login';
+  }
 }
 
 // Standard API response envelope from the backend
@@ -50,6 +88,17 @@ function getHeaders(): Record<string, string> {
 
 async function handleResponse<T>(res: Response): Promise<ApiResponse<T>> {
   if (!res.ok) {
+    // Handle 401 — session expired
+    if (res.status === 401) {
+      authToken = null;
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('iaas-auth-token');
+        localStorage.removeItem('iaas-current-user');
+        sessionStorage.removeItem('iaas-current-user');
+      }
+      notifySessionExpired();
+    }
+
     const body = await res.json().catch(() => ({ error: { code: 'UNKNOWN', message: res.statusText } }));
     throw new ApiError(
       res.status,
@@ -60,12 +109,28 @@ async function handleResponse<T>(res: Response): Promise<ApiResponse<T>> {
   return res.json();
 }
 
+// Track API calls for rate limiting (if in browser)
+function trackCall() {
+  if (typeof window === 'undefined') return;
+  const STORAGE_KEY = 'iaas-api-call-log';
+  const now = Date.now();
+  try {
+    const log: number[] = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    log.push(now);
+    // Keep only last 15 minutes
+    const filtered = log.filter((t) => now - t < 15 * 60 * 1000);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
+  } catch { /* ignore storage errors */ }
+}
+
 export async function apiGet<T>(path: string): Promise<ApiResponse<T>> {
+  trackCall();
   const res = await fetch(`${API_URL}${path}`, { headers: getHeaders() });
   return handleResponse<T>(res);
 }
 
 export async function apiPost<T>(path: string, body?: any): Promise<ApiResponse<T>> {
+  trackCall();
   const res = await fetch(`${API_URL}${path}`, {
     method: 'POST',
     headers: getHeaders(),
@@ -75,6 +140,7 @@ export async function apiPost<T>(path: string, body?: any): Promise<ApiResponse<
 }
 
 export async function apiPut<T>(path: string, body: any): Promise<ApiResponse<T>> {
+  trackCall();
   const res = await fetch(`${API_URL}${path}`, {
     method: 'PUT',
     headers: getHeaders(),
@@ -84,6 +150,7 @@ export async function apiPut<T>(path: string, body: any): Promise<ApiResponse<T>
 }
 
 export async function apiPatch<T>(path: string, body: any): Promise<ApiResponse<T>> {
+  trackCall();
   const res = await fetch(`${API_URL}${path}`, {
     method: 'PATCH',
     headers: getHeaders(),
@@ -93,6 +160,7 @@ export async function apiPatch<T>(path: string, body: any): Promise<ApiResponse<
 }
 
 export async function apiDelete<T>(path: string): Promise<ApiResponse<T>> {
+  trackCall();
   const res = await fetch(`${API_URL}${path}`, {
     method: 'DELETE',
     headers: getHeaders(),

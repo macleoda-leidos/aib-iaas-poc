@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { applications as applicationsApi, ApplicationSummary, ApiError } from '../../lib/apiClient';
+import { applications as applicationsApi, ApplicationSummary, ApiError, getAuthToken } from '../../lib/apiClient';
 import { navigateTo } from '../../lib/navigation';
 
 // Role selection for POC demo purposes
@@ -114,11 +114,42 @@ function LiveTransactionTicker() {
   );
 }
 
+function AuthBanner() {
+  const [showBanner, setShowBanner] = useState(false);
+
+  useEffect(() => {
+    const token = getAuthToken() || localStorage.getItem('iaas-auth-token');
+    if (!token) {
+      setShowBanner(true);
+    }
+  }, []);
+
+  if (!showBanner) return null;
+
+  return (
+    <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-6 flex items-center justify-between">
+      <div className="flex items-center gap-3">
+        <span className="text-blue-600 text-lg">&#128274;</span>
+        <div>
+          <p className="font-bold text-blue-800 dark:text-blue-300 text-sm">Log in to see your personalised dashboard</p>
+          <p className="text-xs text-blue-700 dark:text-blue-400">Sign in to access your cases, notifications, and role-specific features.</p>
+        </div>
+      </div>
+      <Link href="/login" className="bg-blue-600 text-white text-sm font-bold px-4 py-2 rounded hover:bg-blue-700 transition-colors no-underline flex-shrink-0">
+        Log In
+      </Link>
+    </div>
+  );
+}
+
 export default function DashboardPage() {
   const [selectedUser, setSelectedUser] = useState(DEMO_USERS[0]);
 
   return (
     <div className="gov-main">
+      {/* Auth Banner */}
+      <AuthBanner />
+
       {/* Notification Bell — top right */}
       <div className="flex justify-end mb-2">
         <NotificationBell />

@@ -7,6 +7,7 @@ import CaseTimeline from './components/CaseTimeline';
 import { TIMELINE_DATA } from './data/timeline-data';
 import { RECOMMENDATION_DATA } from './data/recommendation-data';
 import NotificationPanel from './components/NotificationPanel';
+import EmailLog from './components/EmailLog';
 
 // ─── Full Case Data (synthetic) ──────────────────────────────────────────────
 
@@ -369,8 +370,13 @@ function CaseContent() {
           </div>
         </CollapsibleSection>
 
-        {/* Email Notification Simulation */}
-        <CollapsibleSection title="Notification Events" icon="📧">
+        {/* Email Notifications Log */}
+        <CollapsibleSection title="Email Notifications" icon="📧">
+          <EmailLog caseRef={ref} />
+        </CollapsibleSection>
+
+        {/* Notification Events */}
+        <CollapsibleSection title="Notification Events" icon="🔔">
           <NotificationPanel caseStatus={c.status} caseRef={ref} assignedTo={assignee} />
         </CollapsibleSection>
       </div>
