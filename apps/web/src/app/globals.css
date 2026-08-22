@@ -125,6 +125,61 @@
   }
 }
 
+/* Print styles for PDF export */
+@media print {
+  header, footer, nav, .print\\:hidden {
+    display: none !important;
+  }
+
+  body {
+    background: white !important;
+    color: black !important;
+    font-size: 12pt;
+  }
+
+  main {
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .max-w-5xl, .max-w-4xl, .max-w-6xl {
+    max-width: 100% !important;
+    padding: 0 1cm !important;
+  }
+
+  /* Ensure charts and content fit on page */
+  .recharts-wrapper {
+    max-width: 100% !important;
+  }
+
+  /* Print-friendly borders and backgrounds */
+  .border {
+    border-color: #ccc !important;
+  }
+
+  .bg-green-50, .bg-blue-50, .bg-amber-50, .bg-yellow-50 {
+    background-color: #f9fafb !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Keep recommendation hero visible */
+  .bg-green-50 {
+    border: 2px solid #16a34a !important;
+  }
+
+  /* Page break handling */
+  section {
+    page-break-inside: avoid;
+  }
+
+  /* Remove animations */
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
 /* Custom animations */
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(8px); }

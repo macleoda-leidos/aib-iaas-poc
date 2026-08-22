@@ -14,6 +14,7 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { RECOMMENDATION_DATA, EnhancedRecommendation } from '../data/recommendation-data';
+import PdfExport from './PdfExport';
 
 function getConfidenceColor(percent: number): string {
   if (percent >= 80) return '#16a34a'; // green-600
@@ -98,10 +99,13 @@ export default function RecommendationContent() {
         ← Back to case {ref}
       </Link>
 
-      {/* Title */}
-      <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-6">
-        Recommendation Explanation
-      </h1>
+      {/* Title + PDF Export */}
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-0">
+          Recommendation Explanation
+        </h1>
+        <PdfExport />
+      </div>
 
       {/* ─── Hero Section ─── */}
       <div className="bg-green-50 dark:bg-green-950/40 border border-green-200 dark:border-green-800 rounded-xl p-6 mb-8">

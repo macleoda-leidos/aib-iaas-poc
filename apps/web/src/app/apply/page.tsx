@@ -1403,13 +1403,50 @@ function PaymentSection({ formData, updateField, applicationId }: { formData: an
   const { application, setApplication, addRecentApplication } = useAppContext();
   const [submitting, setSubmitting] = useState(false);
   const [submitRef, setSubmitRef] = useState<string | null>(null);
+  const [savedLocally, setSavedLocally] = useState(false);
+  const [retryingPending, setRetryingPending] = useState(false);
+
+  // On mount, check for pending submissions in localStorage and retry
+  useEffect(() => {
+    const pending = localStorage.getItem('aib_pending_application');
+    if (pending) {
+      setRetryingPending(true);
+      const pendingData = JSON.parse(pending);
+      const retrySubmit = async () => {
+        try {
+          if (pendingData.applicationId) {
+            const response = await applications.submit(pendingData.applicationId);
+            localStorage.removeItem('aib_pending_application');
+            setSubmitRef(response.data.referenceNumber);
+            updateField('payment', 'completed', true);
+            setRetryingPending(false);
+          }
+        } catch {
+          // Still offline, will retry on next page load
+          setRetryingPending(false);
+        }
+      };
+      retrySubmit();
+    }
+  }, []);
 
   const handleSubmit = async () => {
     setSubmitting(true);
+    setSavedLocally(false);
+
+    // Start a 5-second timeout for API failure fallback
+    const timeoutPromise = new Promise<'timeout'>((resolve) => setTimeout(() => resolve('timeout'), 5000));
+
     try {
       if (applicationId) {
-        const response = await applications.submit(applicationId);
-        setSubmitRef(response.data.referenceNumber);
+        const submitPromise = applications.submit(applicationId).then(res => ({ type: 'success' as const, data: res }));
+        const result = await Promise.race([submitPromise, timeoutPromise]);
+
+        if (result === 'timeout') {
+          throw new Error('API timeout');
+        }
+
+        setSubmitRef(result.data.data.referenceNumber);
         setApplication({ status: 'submitted' });
         addRecentApplication(applicationId);
       } else {
@@ -1418,8 +1455,17 @@ function PaymentSection({ formData, updateField, applicationId }: { formData: an
       }
       updateField('payment', 'completed', true);
     } catch (err) {
-      console.warn('Submit failed, using offline reference:', err);
-      setSubmitRef(`IAAS-2026-${String(Math.floor(Math.random()*99999)).padStart(5,'0')}`);
+      console.warn('Submit failed, saving locally:', err);
+      // Save to localStorage for later retry
+      const pendingSubmission = {
+        applicationId,
+        formData,
+        savedAt: new Date().toISOString(),
+        referenceNumber: application.referenceNumber,
+      };
+      localStorage.setItem('aib_pending_application', JSON.stringify(pendingSubmission));
+      setSavedLocally(true);
+      setSubmitRef(application.referenceNumber || `IAAS-2026-${String(Math.floor(Math.random()*99999)).padStart(5,'0')}`);
       updateField('payment', 'completed', true);
     } finally {
       setSubmitting(false);
@@ -1429,13 +1475,28 @@ function PaymentSection({ formData, updateField, applicationId }: { formData: an
   if (payment.completed) {
     return (
       <div className="animate-[fadeIn_0.6s_ease-in]">
+        {savedLocally && (
+          <div className="bg-amber-50 dark:bg-amber-950 border border-amber-300 dark:border-amber-700 rounded-lg p-4 mb-4 flex items-start gap-3">
+            <span className="text-amber-600 text-lg flex-shrink-0">&#128190;</span>
+            <div>
+              <p className="font-bold text-amber-800 dark:text-amber-300 text-sm">Your application has been saved locally</p>
+              <p className="text-xs text-amber-700 dark:text-amber-400">It will be submitted automatically when the service reconnects. Your data is safe.</p>
+            </div>
+          </div>
+        )}
+        {retryingPending && (
+          <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 rounded-lg p-3 mb-4 flex items-center gap-2">
+            <div className="animate-spin w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full"></div>
+            <span className="text-sm text-blue-800 dark:text-blue-300">Retrying pending submission...</span>
+          </div>
+        )}
         <div className="bg-green-700 text-white p-8 rounded-t text-center">
           <div className="mb-3">
             <span className="inline-flex items-center justify-center w-16 h-16 bg-white/20 rounded-full text-3xl">✓</span>
           </div>
-          <h3 className="text-2xl font-bold text-white mb-2">Application Submitted Successfully</h3>
+          <h3 className="text-2xl font-bold text-white mb-2">{savedLocally ? 'Application Saved' : 'Application Submitted Successfully'}</h3>
           <p className="text-xl text-white font-mono bg-white/10 inline-block px-4 py-1 rounded">{submitRef || application.referenceNumber || 'IAAS-2026-XXXXX'}</p>
-          <p className="text-green-200 mt-3">Payment of £90.00 received (SANDBOX)</p>
+          <p className="text-green-200 mt-3">{savedLocally ? 'Will submit when backend reconnects' : 'Payment of £90.00 received (SANDBOX)'}</p>
         </div>
         <div className="bg-white dark:bg-gray-800 border border-t-0 border-gray-200 dark:border-gray-700 rounded-b p-6">
           <h4 className="font-bold mb-3">What happens next</h4>

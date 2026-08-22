@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { applications as applicationsApi, ApplicationSummary, ApiError } from '../../lib/apiClient';
 import { navigateTo } from '../../lib/navigation';
@@ -164,9 +164,13 @@ function AibDashboard({ user }: { user: any }) {
   const isAdmin = user.role === 'system_admin' || user.role === 'aib_senior_officer';
   const [liveApps, setLiveApps] = useState<any[]>([]);
   const [apiOnline, setApiOnline] = useState(false);
+  const [apiWaking, setApiWaking] = useState(true);
+  const [showDemoFallback, setShowDemoFallback] = useState(false);
 
-  // Fetch real applications from the API
+  // Fetch real applications from the API with graceful degradation
   useEffect(() => {
+    let demoTimeout: NodeJS.Timeout | null = null;
+
     const fetchApps = async () => {
       try {
         const response = await applicationsApi.list({ pageSize: 20 });
@@ -184,15 +188,24 @@ function AibDashboard({ user }: { user: any }) {
         }));
         setLiveApps(mapped);
         setApiOnline(true);
+        setApiWaking(false);
+        setShowDemoFallback(false);
+        if (demoTimeout) { clearTimeout(demoTimeout); demoTimeout = null; }
       } catch (err) {
-        // API not available — that's fine, fall back to hardcoded data
+        // API not available — show waking banner, then demo data after 3s
         setApiOnline(false);
+        if (!demoTimeout) {
+          demoTimeout = setTimeout(() => setShowDemoFallback(true), 3000);
+        }
       }
     };
     fetchApps();
-    // Refresh every 10 seconds for demo effect
+    // Auto-retry every 10 seconds until API responds
     const interval = setInterval(fetchApps, 10000);
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      if (demoTimeout) clearTimeout(demoTimeout);
+    };
   }, []);
 
   // Static seed data (always shown as baseline)
@@ -248,6 +261,28 @@ function AibDashboard({ user }: { user: any }) {
     <div>
       <h1>AiB Dashboard</h1>
       <p className="text-gray-600 mb-6">Welcome back, {user.name}</p>
+
+      {/* Backend waking up banner */}
+      {!apiOnline && apiWaking && !showDemoFallback && (
+        <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-6 flex items-center gap-3">
+          <div className="animate-spin w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full flex-shrink-0"></div>
+          <div>
+            <p className="font-bold text-blue-800 dark:text-blue-300 text-sm">Backend is waking up...</p>
+            <p className="text-xs text-blue-700 dark:text-blue-400">The Render free-tier service takes 30-60 seconds to start. Retrying automatically.</p>
+          </div>
+        </div>
+      )}
+
+      {/* Demo data fallback banner */}
+      {!apiOnline && showDemoFallback && (
+        <div className="bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-lg p-4 mb-6 flex items-center gap-3">
+          <span className="text-amber-600 text-lg flex-shrink-0">&#9432;</span>
+          <div>
+            <p className="font-bold text-amber-800 dark:text-amber-300 text-sm">Showing demo data while backend wakes up</p>
+            <p className="text-xs text-amber-700 dark:text-amber-400">Live data will replace this automatically when the API responds. Retrying every 10 seconds.</p>
+          </div>
+        </div>
+      )}
 
       {/* AI Anomaly Alert Banner */}
       {!alertDismissed && (

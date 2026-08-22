@@ -6,6 +6,7 @@ import Link from 'next/link';
 import CaseTimeline from './components/CaseTimeline';
 import { TIMELINE_DATA } from './data/timeline-data';
 import { RECOMMENDATION_DATA } from './data/recommendation-data';
+import NotificationPanel from './components/NotificationPanel';
 
 // ─── Full Case Data (synthetic) ──────────────────────────────────────────────
 
@@ -70,6 +71,13 @@ const CASES: Record<string, any> = {
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
+// Staff members for assignment
+const STAFF_MEMBERS = [
+  { id: 'USR-002', name: 'Karen MacLeod', role: 'AiB Senior Officer' },
+  { id: 'USR-003', name: 'James Wilson', role: 'AiB Case Officer' },
+  { id: 'USR-006', name: 'Sarah Mitchell', role: 'AiB Case Officer' },
+];
+
 export default function CaseDetail() {
   return <Suspense fallback={<div className="p-8">Loading case...</div>}><CaseContent /></Suspense>;
 }
@@ -78,6 +86,10 @@ function CaseContent() {
   const params = useParams();
   const ref = params.ref as string;
   const c = CASES[ref];
+  const [assignee, setAssignee] = useState<string>(c?.assignedTo || 'Unassigned');
+  const [selectedStaff, setSelectedStaff] = useState('');
+  const [notes, setNotes] = useState<Array<{ text: string; author: string; timestamp: string }>>([]);
+  const [newNote, setNewNote] = useState('');
 
   if (!c) {
     return (
@@ -104,9 +116,12 @@ function CaseContent() {
           <h1 className="text-2xl font-bold font-mono">{c.ref}</h1>
           <p className="text-gray-600 dark:text-gray-400">{c.debtor.firstName} {c.debtor.lastName} • {c.product} • Submitted {c.submittedAt}</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <StatusBadge status={c.status} />
           <span className={`px-3 py-1 rounded text-sm font-bold ${c.creditResult === 'PASS' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>Credit: {c.creditResult}</span>
+          {assignee !== 'Unassigned' && (
+            <span className="px-3 py-1 rounded text-sm font-bold bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">Assigned: {assignee}</span>
+          )}
         </div>
       </div>
 
@@ -273,6 +288,90 @@ function CaseContent() {
             maxItems={8}
             caseRef={ref}
           />
+        </CollapsibleSection>
+
+        {/* Assign Case */}
+        <CollapsibleSection title={`Case Assignment — ${assignee}`} icon="👤" defaultOpen>
+          <div className="space-y-3">
+            {assignee !== 'Unassigned' && (
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-sm text-gray-600 dark:text-gray-400">Currently assigned to:</span>
+                <span className="px-3 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded-full text-sm font-bold">{assignee}</span>
+              </div>
+            )}
+            <div className="flex gap-2 items-end">
+              <div className="flex-1">
+                <label className="block text-sm font-bold mb-1">Assign to staff member</label>
+                <select
+                  value={selectedStaff}
+                  onChange={(e) => setSelectedStaff(e.target.value)}
+                  className="border-2 border-gray-300 dark:border-gray-600 dark:bg-gray-800 p-2 text-sm rounded w-full"
+                >
+                  <option value="">Select staff member...</option>
+                  {STAFF_MEMBERS.map((s) => (
+                    <option key={s.id} value={s.name}>{s.name} ({s.role})</option>
+                  ))}
+                </select>
+              </div>
+              <button
+                onClick={() => { if (selectedStaff) { setAssignee(selectedStaff); setSelectedStaff(''); } }}
+                disabled={!selectedStaff}
+                className="bg-blue-700 text-white text-sm font-bold px-4 py-2 rounded hover:bg-blue-800 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Assign
+              </button>
+            </div>
+          </div>
+        </CollapsibleSection>
+
+        {/* Staff Notes */}
+        <CollapsibleSection title={`Staff Notes (${notes.length})`} icon="📝" defaultOpen>
+          <div className="space-y-4">
+            {/* Add note form */}
+            <div className="flex gap-2">
+              <textarea
+                value={newNote}
+                onChange={(e) => setNewNote(e.target.value)}
+                placeholder="Add a staff note about this case..."
+                className="flex-1 border-2 border-gray-300 dark:border-gray-600 dark:bg-gray-800 p-3 text-sm rounded resize-none"
+                rows={3}
+              />
+            </div>
+            <button
+              onClick={() => {
+                if (newNote.trim()) {
+                  setNotes([{ text: newNote.trim(), author: 'Current User', timestamp: new Date().toLocaleString('en-GB') }, ...notes]);
+                  setNewNote('');
+                }
+              }}
+              disabled={!newNote.trim()}
+              className="bg-green-700 text-white text-sm font-bold px-4 py-2 rounded hover:bg-green-800 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Add Note
+            </button>
+
+            {/* Notes list */}
+            {notes.length === 0 ? (
+              <p className="text-sm text-gray-500 italic">No staff notes yet. Add the first note above.</p>
+            ) : (
+              <div className="space-y-3 mt-4 border-t border-gray-200 dark:border-gray-700 pt-4">
+                {notes.map((note, i) => (
+                  <div key={i} className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded p-3">
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="text-sm font-bold text-gray-800 dark:text-gray-200">{note.author}</span>
+                      <span className="text-xs text-gray-500">{note.timestamp}</span>
+                    </div>
+                    <p className="text-sm text-gray-700 dark:text-gray-300">{note.text}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </CollapsibleSection>
+
+        {/* Email Notification Simulation */}
+        <CollapsibleSection title="Notification Events" icon="📧">
+          <NotificationPanel caseStatus={c.status} caseRef={ref} assignedTo={assignee} />
         </CollapsibleSection>
       </div>
     </div>

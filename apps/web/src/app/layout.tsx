@@ -20,6 +20,7 @@ export const metadata: Metadata = {
 import { ThemeToggle } from './ThemeToggle';
 import { Providers } from './Providers';
 import { UserNavItem } from './UserNavItem';
+import ApiStatusBar, { ApiStatusProvider } from './ApiStatus';
 
 const BASE = process.env.GITHUB_PAGES === 'true' ? '/aib-iaas-poc' : '';
 
@@ -28,6 +29,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" suppressHydrationWarning>
       <body className="min-h-screen flex flex-col bg-white dark:bg-gray-900 text-gov-black dark:text-gray-100 transition-colors">
       <Providers>
+      <ApiStatusProvider>
 
         {/* Header — AiB brand red */}
         <header className="bg-[#d32205] text-white">
@@ -78,6 +80,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </div>
         </div>
 
+        {/* API Connection Status Indicator */}
+        <ApiStatusBar />
+
         <main className="flex-1">
           {children}
         </main>
@@ -121,6 +126,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </div>
           </div>
         </footer>
+      </ApiStatusProvider>
       </Providers>
       </body>
     </html>
