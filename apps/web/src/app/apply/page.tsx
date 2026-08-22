@@ -718,7 +718,12 @@ function PersonalSection({ formData, updateField, errors }: { formData: any; upd
           </select>
           {errors.maritalStatus && <p className="text-red-600 text-xs mt-1">{errors.maritalStatus}</p>}
         </div>
-        <Input label="Number of dependants *" type="number" value={d.dependants} onChange={v => updateField('personal', 'dependants', parseInt(v) || 0)} error={errors.dependants} />
+        <div className="mb-1">
+          <label className="block font-bold mb-1 text-sm">Number of dependants *</label>
+          {errors.dependants && <p className="text-xs text-red-600 font-bold mb-1">⚠ {errors.dependants}</p>}
+          <input type="number" min="0" max="20" step="1" value={d.dependants || 0} onChange={e => updateField('personal', 'dependants', Math.max(0, Math.min(20, parseInt(e.target.value) || 0)))}
+            className={`border-2 ${errors.dependants ? 'border-red-500' : 'border-gray-900 dark:border-gray-600'} dark:bg-gray-800 p-2.5 w-full text-base min-h-[44px] focus:outline-2 focus:outline-yellow-400`} />
+        </div>
       </div>
       <div>
         <label className="block font-bold mb-1 text-sm">Employment status *</label>
