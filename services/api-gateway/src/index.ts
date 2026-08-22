@@ -55,8 +55,10 @@ app.get('/api/health', (_req, res) => {
 // Error handler
 app.use(errorHandler);
 
-app.listen(PORT, () => {
-  console.log(`[API Gateway] Running on port ${PORT}`);
-});
+if (process.env.NODE_ENV !== 'test') {
+  app.listen(PORT, () => {
+    console.log(`[API Gateway] Running on port ${PORT}`);
+  });
+}
 
 export { app };

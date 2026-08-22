@@ -13,8 +13,10 @@ app.get('/api/health', (_req, res) => {
   res.json({ status: 'healthy', service: 'integration-orchestrator', timestamp: new Date().toISOString() });
 });
 
-app.listen(PORT, () => {
-  console.log(`[Integration Orchestrator] Running on port ${PORT}`);
-});
+if (process.env.NODE_ENV !== 'test') {
+  app.listen(PORT, () => {
+    console.log(`[Integration Orchestrator] Running on port ${PORT}`);
+  });
+}
 
 export { app };

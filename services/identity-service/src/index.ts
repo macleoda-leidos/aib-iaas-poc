@@ -22,8 +22,10 @@ app.get('/api/health', (_req, res) => {
   });
 });
 
-app.listen(PORT, () => {
-  console.log(`[Identity Service] Running on port ${PORT}`);
-});
+if (process.env.NODE_ENV !== 'test') {
+  app.listen(PORT, () => {
+    console.log(`[Identity Service] Running on port ${PORT}`);
+  });
+}
 
 export { app };

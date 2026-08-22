@@ -21,8 +21,10 @@ app.get('/api/health', (_req, res) => {
   res.json({ status: 'healthy', service: 'user-service', timestamp: new Date().toISOString() });
 });
 
-app.listen(PORT, () => {
-  console.log(`[User Service] Running on port ${PORT}`);
-});
+if (process.env.NODE_ENV !== 'test') {
+  app.listen(PORT, () => {
+    console.log(`[User Service] Running on port ${PORT}`);
+  });
+}
 
 export { app };

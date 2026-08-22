@@ -22,9 +22,11 @@ app.get('/api/health', (_req, res) => {
   });
 });
 
-app.listen(PORT, () => {
-  console.log(`[Credit Check Service] Running on port ${PORT}`);
-  console.log(`[Credit Check Service] Mode: ${process.env.CREDIT_CHECK_MODE || 'sandbox'}`);
-});
+if (process.env.NODE_ENV !== 'test') {
+  app.listen(PORT, () => {
+    console.log(`[Credit Check Service] Running on port ${PORT}`);
+    console.log(`[Credit Check Service] Mode: ${process.env.CREDIT_CHECK_MODE || 'sandbox'}`);
+  });
+}
 
 export { app };

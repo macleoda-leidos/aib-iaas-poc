@@ -37,10 +37,12 @@ app.use('/api/credit-check', latencyMiddleware, creditCheckRouter);
 // Health check (no latency)
 app.use('/api/mock', healthRouter);
 
-app.listen(PORT, () => {
-  console.log(`[Mock Integrations] Running on port ${PORT}`);
-  console.log(`[Mock Integrations] Latency: ${process.env.MOCK_LATENCY_MIN_MS || 100}-${process.env.MOCK_LATENCY_MAX_MS || 500}ms`);
-  console.log(`[Mock Integrations] Failure rate: ${(parseFloat(process.env.MOCK_FAILURE_RATE || '0.05') * 100).toFixed(1)}%`);
-});
+if (process.env.NODE_ENV !== 'test') {
+  app.listen(PORT, () => {
+    console.log(`[Mock Integrations] Running on port ${PORT}`);
+    console.log(`[Mock Integrations] Latency: ${process.env.MOCK_LATENCY_MIN_MS || 100}-${process.env.MOCK_LATENCY_MAX_MS || 500}ms`);
+    console.log(`[Mock Integrations] Failure rate: ${(parseFloat(process.env.MOCK_FAILURE_RATE || '0.05') * 100).toFixed(1)}%`);
+  });
+}
 
 export { app };
