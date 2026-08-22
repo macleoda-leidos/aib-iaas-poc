@@ -10,6 +10,10 @@ export default defineConfig({
     exclude: ['node_modules', 'dist', '.next', 'tests/e2e'],
     environment: 'node',
     globals: true,
+    env: {
+      DATABASE_PATH: ':memory:',
+      NODE_ENV: 'test',
+    },
     coverage: {
       provider: 'v8',
       reporter: ['text', 'text-summary', 'html', 'lcov'],

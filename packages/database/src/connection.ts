@@ -15,12 +15,16 @@ function resolvePath(): string {
 export function getDatabase(): Database.Database {
   if (!db) {
     const dbPath = resolvePath();
-    const dir = dirname(dbPath);
-    if (!existsSync(dir)) {
-      mkdirSync(dir, { recursive: true });
+    if (dbPath !== ':memory:') {
+      const dir = dirname(dbPath);
+      if (!existsSync(dir)) {
+        mkdirSync(dir, { recursive: true });
+      }
     }
     db = new Database(dbPath);
-    db.pragma('journal_mode = WAL');
+    if (dbPath !== ':memory:') {
+      db.pragma('journal_mode = WAL');
+    }
     db.pragma('foreign_keys = ON');
   }
   return db;
