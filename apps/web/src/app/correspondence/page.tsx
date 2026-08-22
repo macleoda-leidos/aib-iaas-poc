@@ -172,8 +172,11 @@ export default function CorrespondencePage() {
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-2">Correspondence</h1>
-      <p className="text-gray-600 dark:text-gray-400 mb-6">Generate and send template letters to applicants. Letters are auto-populated with case data.</p>
+      <h1 className="text-3xl font-bold mb-2">Digital Mailroom</h1>
+      <p className="text-gray-600 dark:text-gray-400 mb-4">Outbound correspondence — generate and send template letters to applicants. Letters are auto-populated with case data.</p>
+      <div className="bg-blue-50 dark:bg-blue-950 border-l-4 border-blue-600 p-3 mb-6 text-sm">
+        <p className="text-blue-800 dark:text-blue-200"><strong>Inbound document processing</strong> (OCR, NER, classification, auto-routing) is managed from the <a href="http://localhost:3010/digital-mailroom" className="underline font-bold">Admin Portal → Digital Mailroom</a> tab.</p>
+      </div>
 
       <div className="grid md:grid-cols-2 gap-6 mb-8">
         {/* Template Selection */}

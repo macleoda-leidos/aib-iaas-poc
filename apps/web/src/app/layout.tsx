@@ -54,7 +54,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 <NavItem href="/statistics">Statistics</NavItem>
                 <NavItem href="/security">Security</NavItem>
                 <NavItem href="/search">Search</NavItem>
-                <NavItem href="/correspondence">Letters</NavItem>
+                <NavItem href="/correspondence">Digital Mailroom</NavItem>
                 <NavItem href="/architecture">Architecture</NavItem>
                 <UserNavItem />
               </ul>
