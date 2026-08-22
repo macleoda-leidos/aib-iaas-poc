@@ -30,17 +30,21 @@ services:
       - "3001:3001"
     environment:
       - PORT=3001
+      - DATABASE_URL=postgresql://iaas:iaas_dev@postgres:5432/iaas
       - DATABASE_PATH=/app/data/iaas.db
       - RECOMMENDATION_SERVICE_URL=http://recommendation-service:3002
       - DOCUMENT_SERVICE_URL=http://document-service:3003
       - INTEGRATION_SERVICE_URL=http://integration-orchestrator:3004
       - PAYMENT_SERVICE_URL=http://payment-service:3006
       - AUDIT_SERVICE_URL=http://audit-service:3007
+      - INTEGRATION_MODE=mock
     volumes:
       - app-data:/app/data
       - uploads:/app/uploads
     depends_on:
       mock-integrations:
+        condition: service_healthy
+      postgres:
         condition: service_healthy
 
   recommendation-service:
@@ -152,6 +156,24 @@ services:
     volumes:
       - app-data:/app/data
 
+  # PostgreSQL database - shared persistence layer
+  postgres:
+    image: postgres:16-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=iaas
+      - POSTGRES_USER=iaas
+      - POSTGRES_PASSWORD=iaas_dev
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U iaas"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
   # ClamAV virus scanner - free open-source antivirus
   clamav:
     image: clamav/clamav:latest
@@ -186,3 +208,4 @@ volumes:
   app-data:
   uploads:
   clamav-data:
+  pgdata:

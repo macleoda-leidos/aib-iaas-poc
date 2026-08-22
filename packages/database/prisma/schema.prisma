@@ -1,0 +1,270 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Identity & Access ─────────────────────
+
+model Role {
+  id          String           @id @default(cuid())
+  name        String           @unique
+  displayName String           @map("display_name")
+  description String?
+  level       Int              @default(0)
+  users       User[]
+  permissions RolePermission[]
+  createdAt   DateTime         @default(now()) @map("created_at")
+
+  @@map("roles")
+}
+
+model Permission {
+  id          String           @id @default(cuid())
+  code        String           @unique
+  name        String
+  description String?
+  resource    String
+  action      String
+  roles       RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  role         Role       @relation(fields: [roleId], references: [id])
+  roleId       String     @map("role_id")
+  permission   Permission @relation(fields: [permissionId], references: [id])
+  permissionId String     @map("permission_id")
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model User {
+  id             String        @id @default(cuid())
+  email          String        @unique
+  firstName      String        @map("first_name")
+  lastName       String        @map("last_name")
+  displayName    String?       @map("display_name")
+  role           Role          @relation(fields: [roleId], references: [id])
+  roleId         String        @map("role_id")
+  organisationId String?       @map("organisation_id")
+  organisation   Organisation? @relation(fields: [organisationId], references: [id])
+  status         String        @default("active")
+  passwordHash   String?       @map("password_hash")
+  mfaEnabled     Boolean       @default(false) @map("mfa_enabled")
+  sessions       Session[]
+  auditEvents    AuditEvent[]  @relation("actor_events")
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+
+  @@map("users")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String   @map("user_id")
+  token     String   @unique
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("sessions")
+}
+
+// ─── Organisations ─────────────────────────
+
+model Organisation {
+  id                 String         @id @default(cuid())
+  name               String
+  type               String
+  parentId           String?        @map("parent_id")
+  parent             Organisation?  @relation("OrgHierarchy", fields: [parentId], references: [id])
+  children           Organisation[] @relation("OrgHierarchy")
+  status             String         @default("active")
+  registrationNumber String?        @map("registration_number")
+  contactEmail       String?        @map("contact_email")
+  contactPhone       String?        @map("contact_phone")
+  addressLine1       String?        @map("address_line1")
+  addressCity        String?        @map("address_city")
+  addressPostcode    String?        @map("address_postcode")
+  metadata           Json?
+  users              User[]
+  createdAt          DateTime       @default(now()) @map("created_at")
+  updatedAt          DateTime       @updatedAt @map("updated_at")
+
+  @@map("organisations")
+}
+
+// ─── Applications (Core Domain) ────────────
+
+model Application {
+  id                String             @id @default(cuid())
+  referenceNumber   String             @unique @map("reference_number")
+  status            String             @default("draft")
+  applicant         Applicant?
+  addresses         Address[]
+  debts             Debt[]
+  assets            Asset[]
+  incomeExpenditure IncomeExpenditure?
+  documents         Document[]
+  recommendation    Recommendation?
+  payments          Payment[]
+  auditEvents       AuditEvent[]
+  systemChecks      Json?              @map("system_checks")
+  creditCheck       Json?              @map("credit_check")
+  assignedTo        String?            @map("assigned_to")
+  submittedAt       DateTime?          @map("submitted_at")
+  createdAt         DateTime           @default(now()) @map("created_at")
+  updatedAt         DateTime           @updatedAt @map("updated_at")
+
+  @@map("applications")
+}
+
+model Applicant {
+  id            String      @id @default(cuid())
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  applicationId String      @unique @map("application_id")
+  title         String?
+  firstName     String      @map("first_name")
+  lastName      String      @map("last_name")
+  dateOfBirth   DateTime?   @map("date_of_birth")
+  niNumber      String?     @map("ni_number")
+  maritalStatus String?     @map("marital_status")
+  dependants    Int         @default(0)
+  employment    String?
+  email         String?
+  phone         String?
+
+  @@map("applicants")
+}
+
+model Address {
+  id            String      @id @default(cuid())
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  applicationId String      @map("application_id")
+  line1         String
+  line2         String?
+  city          String
+  postcode      String
+  isCurrent     Boolean     @default(false) @map("is_current")
+  residentFrom  DateTime?   @map("resident_from")
+  residentTo    DateTime?   @map("resident_to")
+
+  @@map("addresses")
+}
+
+model Debt {
+  id             String      @id @default(cuid())
+  application    Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  applicationId  String      @map("application_id")
+  creditor       String
+  type           String
+  amount         Decimal
+  monthlyPayment Decimal     @default(0) @map("monthly_payment")
+  accountRef     String?     @map("account_ref")
+
+  @@map("debts")
+}
+
+model Asset {
+  id            String      @id @default(cuid())
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  applicationId String      @map("application_id")
+  type          String
+  description   String
+  value         Decimal
+  outstanding   Decimal     @default(0)
+  isEssential   Boolean     @default(false) @map("is_essential")
+
+  @@map("assets")
+}
+
+model IncomeExpenditure {
+  id            String      @id @default(cuid())
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  applicationId String      @unique @map("application_id")
+  income        Json
+  expenditure   Json
+
+  @@map("income_expenditure")
+}
+
+// ─── Documents ─────────────────────────────
+
+model Document {
+  id            String      @id @default(cuid())
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  applicationId String      @map("application_id")
+  filename      String
+  originalName  String      @map("original_name")
+  mimeType      String      @map("mime_type")
+  size          Int
+  category      String
+  storagePath   String      @map("storage_path")
+  scanStatus    String      @default("pending") @map("scan_status")
+  scanResult    Json?       @map("scan_result")
+  uploadedAt    DateTime    @default(now()) @map("uploaded_at")
+
+  @@map("documents")
+}
+
+// ─── Recommendations ───────────────────────
+
+model Recommendation {
+  id            String      @id @default(cuid())
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  applicationId String      @unique @map("application_id")
+  product       String
+  confidence    String
+  confidencePct Int         @map("confidence_pct")
+  reasoning     String[]
+  factors       Json
+  alternatives  Json
+  engineVersion String      @map("engine_version")
+  generatedAt   DateTime    @default(now()) @map("generated_at")
+
+  @@map("recommendations")
+}
+
+// ─── Audit ─────────────────────────────────
+
+model AuditEvent {
+  id            String       @id @default(cuid())
+  application   Application? @relation(fields: [applicationId], references: [id])
+  applicationId String?      @map("application_id")
+  action        String
+  actor         User?        @relation("actor_events", fields: [actorId], references: [id])
+  actorId       String?      @map("actor_id")
+  actorName     String?      @map("actor_name")
+  actorType     String       @map("actor_type")
+  details       Json?
+  timestamp     DateTime     @default(now())
+
+  @@index([applicationId])
+  @@index([action])
+  @@index([timestamp])
+  @@map("audit_events")
+}
+
+// ─── Payments ──────────────────────────────
+
+model Payment {
+  id            String      @id @default(cuid())
+  application   Application @relation(fields: [applicationId], references: [id])
+  applicationId String      @map("application_id")
+  amount        Decimal
+  currency      String      @default("GBP")
+  status        String      @default("pending")
+  provider      String?
+  providerRef   String?     @map("provider_ref")
+  paidAt        DateTime?   @map("paid_at")
+  createdAt     DateTime    @default(now()) @map("created_at")
+
+  @@map("payments")
+}

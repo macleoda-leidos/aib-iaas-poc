@@ -3,6 +3,9 @@
 import { useState, Suspense } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
+import CaseTimeline from './components/CaseTimeline';
+import { TIMELINE_DATA } from './data/timeline-data';
+import { RECOMMENDATION_DATA } from './data/recommendation-data';
 
 // ─── Full Case Data (synthetic) ──────────────────────────────────────────────
 
@@ -215,12 +218,43 @@ function CaseContent() {
           </div>
         </CollapsibleSection>
 
-        <CollapsibleSection title="Recommendation" icon="✅">
-          <div className="bg-green-50 dark:bg-green-950 border border-green-200 rounded p-4">
-            <p className="font-bold text-green-800 dark:text-green-300 text-lg">{c.recommendation.product}</p>
-            <p className="text-sm text-green-700 dark:text-green-400 mb-2">Confidence: {c.recommendation.confidence}</p>
-            <p className="text-sm">{c.recommendation.reasoning}</p>
-          </div>
+        <CollapsibleSection title="Recommendation" icon="✅" defaultOpen>
+          {(() => {
+            const recData = RECOMMENDATION_DATA[ref];
+            return (
+              <div className="bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded p-4">
+                <div className="flex items-start justify-between gap-4 mb-3">
+                  <div>
+                    <p className="font-bold text-green-800 dark:text-green-300 text-lg">{c.recommendation.product}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      {recData && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-green-200 dark:bg-green-800 text-green-900 dark:text-green-200 text-sm font-bold">
+                          {recData.confidencePercent}% confidence
+                        </span>
+                      )}
+                      <span className="text-xs text-green-600 dark:text-green-400">Engine: Rules v2.3 • AI Assist</span>
+                    </div>
+                  </div>
+                </div>
+                {recData && (
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mb-3">
+                    {recData.factors.slice(0, 3).map((f, i) => (
+                      <div key={i} className="flex items-center gap-1.5 text-sm">
+                        <span className={f.met && f.impact === 'positive' ? 'text-green-700' : f.impact === 'negative' ? 'text-red-600' : 'text-gray-500'}>
+                          {f.met && f.impact === 'positive' ? '✓' : f.impact === 'negative' ? '✗' : '○'}
+                        </span>
+                        <span className="text-green-800 dark:text-green-300">{f.factor}: <strong>{f.value}</strong></span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <p className="text-sm text-green-800 dark:text-green-300 mb-3">{c.recommendation.reasoning}</p>
+                <Link href={`/case/${ref}/recommendation`} className="inline-flex items-center gap-1 text-sm font-bold text-green-700 dark:text-green-400 hover:text-green-900 underline">
+                  View full explanation →
+                </Link>
+              </div>
+            );
+          })()}
         </CollapsibleSection>
 
         <CollapsibleSection title="Documents" icon="📄">
@@ -233,17 +267,12 @@ function CaseContent() {
         </CollapsibleSection>
 
         <CollapsibleSection title="Activity Timeline" icon="📋" defaultOpen>
-          <div className="space-y-3">
-            {c.timeline.map((t: any, i: number) => (
-              <div key={i} className="flex gap-3 items-start">
-                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-sm">{t.icon}</div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium">{t.action}</p>
-                  <p className="text-xs text-gray-500">{t.actor} • {t.date}</p>
-                </div>
-              </div>
-            ))}
-          </div>
+          <CaseTimeline
+            events={TIMELINE_DATA[ref] || []}
+            compact
+            maxItems={8}
+            caseRef={ref}
+          />
         </CollapsibleSection>
       </div>
     </div>

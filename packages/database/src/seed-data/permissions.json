@@ -1,0 +1,162 @@
+[
+  {
+    "id": "perm-app-create",
+    "code": "applications.create",
+    "name": "Create Applications",
+    "description": "Create new applications",
+    "resource": "applications",
+    "action": "create"
+  },
+  {
+    "id": "perm-app-read",
+    "code": "applications.read",
+    "name": "Read Applications",
+    "description": "View application details",
+    "resource": "applications",
+    "action": "read"
+  },
+  {
+    "id": "perm-app-update",
+    "code": "applications.update",
+    "name": "Update Applications",
+    "description": "Modify application data",
+    "resource": "applications",
+    "action": "update"
+  },
+  {
+    "id": "perm-app-delete",
+    "code": "applications.delete",
+    "name": "Delete Applications",
+    "description": "Remove applications from the system",
+    "resource": "applications",
+    "action": "delete"
+  },
+  {
+    "id": "perm-app-submit",
+    "code": "applications.submit",
+    "name": "Submit Applications",
+    "description": "Submit applications for review",
+    "resource": "applications",
+    "action": "submit"
+  },
+  {
+    "id": "perm-app-approve",
+    "code": "applications.approve",
+    "name": "Approve Applications",
+    "description": "Approve submitted applications",
+    "resource": "applications",
+    "action": "approve"
+  },
+  {
+    "id": "perm-app-reject",
+    "code": "applications.reject",
+    "name": "Reject Applications",
+    "description": "Reject submitted applications",
+    "resource": "applications",
+    "action": "reject"
+  },
+  {
+    "id": "perm-app-assign",
+    "code": "applications.assign",
+    "name": "Assign Applications",
+    "description": "Assign applications to case officers",
+    "resource": "applications",
+    "action": "assign"
+  },
+  {
+    "id": "perm-app-export",
+    "code": "applications.export",
+    "name": "Export Applications",
+    "description": "Export application data",
+    "resource": "applications",
+    "action": "export"
+  },
+  {
+    "id": "perm-users-create",
+    "code": "users.create",
+    "name": "Create Users",
+    "description": "Create new user accounts",
+    "resource": "users",
+    "action": "create"
+  },
+  {
+    "id": "perm-users-read",
+    "code": "users.read",
+    "name": "Read Users",
+    "description": "View user profiles",
+    "resource": "users",
+    "action": "read"
+  },
+  {
+    "id": "perm-users-update",
+    "code": "users.update",
+    "name": "Update Users",
+    "description": "Modify user accounts",
+    "resource": "users",
+    "action": "update"
+  },
+  {
+    "id": "perm-users-delete",
+    "code": "users.delete",
+    "name": "Delete Users",
+    "description": "Deactivate user accounts",
+    "resource": "users",
+    "action": "delete"
+  },
+  {
+    "id": "perm-orgs-read",
+    "code": "organisations.read",
+    "name": "Read Organisations",
+    "description": "View organisation details",
+    "resource": "organisations",
+    "action": "read"
+  },
+  {
+    "id": "perm-orgs-admin",
+    "code": "organisations.admin",
+    "name": "Administer Organisations",
+    "description": "Full management of organisations",
+    "resource": "organisations",
+    "action": "admin"
+  },
+  {
+    "id": "perm-audit-read",
+    "code": "audit.read",
+    "name": "Read Audit Trail",
+    "description": "View audit events",
+    "resource": "audit",
+    "action": "read"
+  },
+  {
+    "id": "perm-audit-export",
+    "code": "audit.export",
+    "name": "Export Audit Trail",
+    "description": "Export audit event data",
+    "resource": "audit",
+    "action": "export"
+  },
+  {
+    "id": "perm-reports-read",
+    "code": "reports.read",
+    "name": "Read Reports",
+    "description": "View system reports and analytics",
+    "resource": "reports",
+    "action": "read"
+  },
+  {
+    "id": "perm-reports-export",
+    "code": "reports.export",
+    "name": "Export Reports",
+    "description": "Export report data",
+    "resource": "reports",
+    "action": "export"
+  },
+  {
+    "id": "perm-system-admin",
+    "code": "system.admin",
+    "name": "System Administration",
+    "description": "Full system configuration access",
+    "resource": "system",
+    "action": "admin"
+  }
+]

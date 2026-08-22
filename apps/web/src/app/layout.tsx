@@ -34,7 +34,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           {/* Top bar: Logo left, dark mode right */}
           <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
             <Link href="/" className="flex items-center gap-3 no-underline">
-              <img src={`${BASE}/aib-logo.svg`} alt="Accountant in Bankruptcy" className="h-10 md:h-12 brightness-0 invert" />
+              <img src={`${BASE}/aib-logo.svg`} alt="Accountant in Bankruptcy" className="h-10 md:h-12 brightness-0 invert" width={120} height={48} fetchPriority="high" />
               <div className="hidden sm:block">
                 <span className="text-white font-bold text-sm block leading-tight">Accountant in Bankruptcy</span>
                 <span className="text-red-200 text-xs">Initial Application Advice Service</span>

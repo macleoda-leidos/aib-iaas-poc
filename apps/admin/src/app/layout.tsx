@@ -26,11 +26,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         {/* Navigation */}
         <nav className="bg-white border-b border-gray-200 shadow-sm">
           <div className="max-w-7xl mx-auto px-4">
-            <ul className="flex gap-1 text-sm">
+            <ul className="flex gap-1 text-sm overflow-x-auto whitespace-nowrap scrollbar-hide">
               {[
                 { href: '/', label: 'Dashboard' },
                 { href: '/organisations', label: 'Organisations' },
                 { href: '/users', label: 'Users & Roles' },
+                { href: '/rules', label: 'Rules Engine' },
+                { href: '/digital-mailroom', label: '🤖 Digital Mailroom' },
+                { href: '/ai-governance', label: '🛡️ AI Governance' },
+                { href: '/knowledge-hub', label: '📚 Knowledge Hub' },
+                { href: '/policy-simulation', label: '🔬 Policy Simulation' },
               ].map(link => (
                 <li key={link.href}>
                   <a href={link.href} className="inline-block px-4 py-3 text-gray-700 hover:text-gov-blue hover:border-b-2 hover:border-gov-blue no-underline font-medium">

@@ -16,3 +16,16 @@ Thumbs.db
 .terraform.lock.hcl
 data/
 services/*/data/
+
+# Build artifacts
+apps/web/out/
+apps/web/.netlify/
+apps/web/apps/
+apps/web/tsconfig.tsbuildinfo
+apps/admin/tsconfig.tsbuildinfo
+services/**/*.js.map
+services/**/*.js
+!services/**/vitest.config.js
+packages/shared-types/src/**/*.js
+packages/shared-types/src/**/*.js.map
+.claude/worktrees/

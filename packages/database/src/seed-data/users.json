@@ -1,0 +1,112 @@
+[
+  {
+    "id": "user-admin-01",
+    "email": "admin@aib.gov.scot",
+    "firstName": "Alistair",
+    "lastName": "MacGregor",
+    "displayName": "Alistair MacGregor",
+    "roleId": "role-sysadmin",
+    "organisationId": "org-aib",
+    "status": "active",
+    "mfaEnabled": true
+  },
+  {
+    "id": "user-senior-01",
+    "email": "fiona.campbell@aib.gov.scot",
+    "firstName": "Fiona",
+    "lastName": "Campbell",
+    "displayName": "Fiona Campbell",
+    "roleId": "role-senior",
+    "organisationId": "org-aib",
+    "status": "active",
+    "mfaEnabled": true
+  },
+  {
+    "id": "user-officer-01",
+    "email": "ross.mackenzie@aib.gov.scot",
+    "firstName": "Ross",
+    "lastName": "MacKenzie",
+    "displayName": "Ross MacKenzie",
+    "roleId": "role-officer",
+    "organisationId": "org-aib",
+    "status": "active",
+    "mfaEnabled": false
+  },
+  {
+    "id": "user-officer-02",
+    "email": "eilidh.stewart@aib.gov.scot",
+    "firstName": "Eilidh",
+    "lastName": "Stewart",
+    "displayName": "Eilidh Stewart",
+    "roleId": "role-officer",
+    "organisationId": "org-aib",
+    "status": "active",
+    "mfaEnabled": false
+  },
+  {
+    "id": "user-readonly-01",
+    "email": "hamish.reid@aib.gov.scot",
+    "firstName": "Hamish",
+    "lastName": "Reid",
+    "displayName": "Hamish Reid",
+    "roleId": "role-readonly",
+    "organisationId": "org-aib",
+    "status": "active",
+    "mfaEnabled": false
+  },
+  {
+    "id": "user-adviser-01",
+    "email": "morag.fraser@stepchange.org",
+    "firstName": "Morag",
+    "lastName": "Fraser",
+    "displayName": "Morag Fraser",
+    "roleId": "role-adviser",
+    "organisationId": "org-stepchange",
+    "status": "active",
+    "mfaEnabled": false
+  },
+  {
+    "id": "user-adviser-02",
+    "email": "callum.henderson@glasgowcab.org.uk",
+    "firstName": "Callum",
+    "lastName": "Henderson",
+    "displayName": "Callum Henderson",
+    "roleId": "role-adviser",
+    "organisationId": "org-cab-glasgow",
+    "status": "active",
+    "mfaEnabled": false
+  },
+  {
+    "id": "user-creditor-01",
+    "email": "debt.recovery@rbs.co.uk",
+    "firstName": "Karen",
+    "lastName": "Wallace",
+    "displayName": "Karen Wallace",
+    "roleId": "role-creditor",
+    "organisationId": "org-rbs",
+    "status": "active",
+    "mfaEnabled": false
+  },
+  {
+    "id": "user-supplier-01",
+    "email": "j.mcnaughton@wyliebisset.com",
+    "firstName": "James",
+    "lastName": "McNaughton",
+    "displayName": "James McNaughton",
+    "roleId": "role-supplier",
+    "organisationId": "org-wylie",
+    "status": "active",
+    "mfaEnabled": false
+  },
+  {
+    "id": "user-debtor-01",
+    "email": "stuart.morrison82@gmail.com",
+    "firstName": "Stuart",
+    "lastName": "Morrison",
+    "displayName": "Stuart Morrison",
+    "roleId": "role-debtor",
+    "organisationId": null,
+    "status": "active",
+    "mfaEnabled": false
+  }
+]

@@ -1,0 +1,58 @@
+[
+  {
+    "id": "role-sysadmin",
+    "name": "system_admin",
+    "displayName": "System Administrator",
+    "description": "Full system access",
+    "level": 100
+  },
+  {
+    "id": "role-senior",
+    "name": "aib_senior_officer",
+    "displayName": "AiB Senior Officer",
+    "description": "Approve/reject applications, manage staff",
+    "level": 80
+  },
+  {
+    "id": "role-officer",
+    "name": "aib_officer",
+    "displayName": "AiB Case Officer",
+    "description": "Process and review applications",
+    "level": 60
+  },
+  {
+    "id": "role-readonly",
+    "name": "aib_readonly",
+    "displayName": "AiB Read Only",
+    "description": "View-only access",
+    "level": 20
+  },
+  {
+    "id": "role-adviser",
+    "name": "money_adviser",
+    "displayName": "Money Adviser",
+    "description": "Submit applications on behalf of clients",
+    "level": 50
+  },
+  {
+    "id": "role-creditor",
+    "name": "creditor",
+    "displayName": "Creditor",
+    "description": "View cases, submit claims",
+    "level": 30
+  },
+  {
+    "id": "role-supplier",
+    "name": "supplier",
+    "displayName": "Supplier/Trustee",
+    "description": "Manage assigned cases",
+    "level": 40
+  },
+  {
+    "id": "role-debtor",
+    "name": "debtor",
+    "displayName": "Debtor",
+    "description": "Apply for debt solutions",
+    "level": 10
+  }
+]

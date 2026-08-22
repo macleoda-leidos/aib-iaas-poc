@@ -1,0 +1,456 @@
+[
+  {
+    "id": "app-001",
+    "referenceNumber": "AIB-2026-00147",
+    "status": "submitted",
+    "submittedAt": "2026-07-15T10:32:00.000Z",
+    "assignedTo": "user-officer-01",
+    "applicant": {
+      "title": "Mr",
+      "firstName": "Stuart",
+      "lastName": "Morrison",
+      "dateOfBirth": "1982-03-14T00:00:00.000Z",
+      "niNumber": "AB123456C",
+      "maritalStatus": "married",
+      "dependants": 2,
+      "employment": "employed",
+      "email": "stuart.morrison82@gmail.com",
+      "phone": "07412 345678"
+    },
+    "addresses": [
+      {
+        "line1": "14 Craigmillar Park",
+        "line2": "Newington",
+        "city": "Edinburgh",
+        "postcode": "EH16 5PB",
+        "isCurrent": true,
+        "residentFrom": "2019-06-01T00:00:00.000Z"
+      },
+      {
+        "line1": "28 Marchmont Crescent",
+        "city": "Edinburgh",
+        "postcode": "EH9 1HQ",
+        "isCurrent": false,
+        "residentFrom": "2015-08-01T00:00:00.000Z",
+        "residentTo": "2019-05-31T00:00:00.000Z"
+      }
+    ],
+    "debts": [
+      {
+        "creditor": "Royal Bank of Scotland",
+        "type": "personal_loan",
+        "amount": 12500,
+        "monthlyPayment": 285,
+        "accountRef": "PL-4421887"
+      },
+      {
+        "creditor": "Barclaycard",
+        "type": "credit_card",
+        "amount": 8200,
+        "monthlyPayment": 164,
+        "accountRef": "4929-XXXX-3341"
+      },
+      {
+        "creditor": "City of Edinburgh Council",
+        "type": "council_tax",
+        "amount": 1850,
+        "monthlyPayment": 0,
+        "accountRef": "CT-EDI-91022"
+      },
+      {
+        "creditor": "Scottish Power",
+        "type": "utility",
+        "amount": 640,
+        "monthlyPayment": 0,
+        "accountRef": "SP-22910045"
+      }
+    ],
+    "assets": [
+      {
+        "type": "vehicle",
+        "description": "2017 Vauxhall Astra 1.4 SRi",
+        "value": 6500,
+        "outstanding": 3200,
+        "isEssential": true
+      },
+      {
+        "type": "savings",
+        "description": "ISA savings account",
+        "value": 420,
+        "outstanding": 0,
+        "isEssential": false
+      }
+    ],
+    "incomeExpenditure": {
+      "income": { "wages": 2150, "benefits": 180, "pension": 0, "other": 0 },
+      "expenditure": { "rent": 850, "councilTax": 145, "utilities": 120, "food": 380, "transport": 160, "insurance": 65, "childcare": 200, "clothing": 60, "other": 90 }
+    },
+    "recommendation": {
+      "product": "das",
+      "confidence": "high",
+      "confidencePct": 87,
+      "reasoning": [
+        "Stable employment with regular income",
+        "Surplus income of £80/month after essential expenditure",
+        "Total unsecured debt of £23,190 manageable over extended period",
+        "No prior insolvency history"
+      ],
+      "factors": [
+        { "factor": "employment_status", "value": "employed", "impact": "positive", "met": true },
+        { "factor": "surplus_income", "value": 80, "impact": "positive", "met": true },
+        { "factor": "debt_to_income_ratio", "value": 0.89, "impact": "neutral", "met": true },
+        { "factor": "essential_assets_only", "value": true, "impact": "positive", "met": true }
+      ],
+      "alternatives": [
+        { "product": "map", "score": 62, "reason": "Could qualify but DAS provides better creditor protection" },
+        { "product": "ptd", "score": 45, "reason": "Debt level below typical PTD threshold" }
+      ],
+      "engineVersion": "2.1.0"
+    }
+  },
+  {
+    "id": "app-002",
+    "referenceNumber": "AIB-2026-00152",
+    "status": "under_review",
+    "submittedAt": "2026-07-22T14:18:00.000Z",
+    "assignedTo": "user-officer-02",
+    "applicant": {
+      "title": "Ms",
+      "firstName": "Heather",
+      "lastName": "McPherson",
+      "dateOfBirth": "1975-11-28T00:00:00.000Z",
+      "niNumber": "CD789012E",
+      "maritalStatus": "divorced",
+      "dependants": 1,
+      "employment": "unemployed",
+      "email": "heather.mcpherson75@outlook.com",
+      "phone": "07598 123456"
+    },
+    "addresses": [
+      {
+        "line1": "Flat 3/2, 41 Byres Road",
+        "city": "Glasgow",
+        "postcode": "G11 5RD",
+        "isCurrent": true,
+        "residentFrom": "2022-01-15T00:00:00.000Z"
+      }
+    ],
+    "debts": [
+      {
+        "creditor": "Bank of Scotland",
+        "type": "personal_loan",
+        "amount": 18900,
+        "monthlyPayment": 0,
+        "accountRef": "BOS-LN-55412"
+      },
+      {
+        "creditor": "Capital One",
+        "type": "credit_card",
+        "amount": 6400,
+        "monthlyPayment": 0,
+        "accountRef": "5178-XXXX-8823"
+      },
+      {
+        "creditor": "HM Revenue & Customs",
+        "type": "tax",
+        "amount": 3200,
+        "monthlyPayment": 0,
+        "accountRef": "HMRC-SA-882143"
+      },
+      {
+        "creditor": "Provident Financial",
+        "type": "personal_loan",
+        "amount": 2100,
+        "monthlyPayment": 0,
+        "accountRef": "PF-GL-44219"
+      },
+      {
+        "creditor": "Glasgow City Council",
+        "type": "council_tax",
+        "amount": 2450,
+        "monthlyPayment": 0,
+        "accountRef": "CT-GCC-77201"
+      }
+    ],
+    "assets": [
+      {
+        "type": "savings",
+        "description": "Current account balance",
+        "value": 85,
+        "outstanding": 0,
+        "isEssential": false
+      }
+    ],
+    "incomeExpenditure": {
+      "income": { "wages": 0, "benefits": 1120, "pension": 0, "other": 50 },
+      "expenditure": { "rent": 625, "councilTax": 0, "utilities": 95, "food": 240, "transport": 80, "insurance": 0, "childcare": 0, "clothing": 40, "other": 55 }
+    },
+    "recommendation": {
+      "product": "map",
+      "confidence": "high",
+      "confidencePct": 92,
+      "reasoning": [
+        "No surplus income — benefits-only household",
+        "Total debt of £33,050 significantly exceeds annual income",
+        "Unemployed with limited prospects for immediate repayment",
+        "Minimal assets — does not justify sequestration costs"
+      ],
+      "factors": [
+        { "factor": "employment_status", "value": "unemployed", "impact": "negative", "met": true },
+        { "factor": "surplus_income", "value": 0, "impact": "negative", "met": false },
+        { "factor": "debt_to_income_ratio", "value": 2.36, "impact": "negative", "met": true },
+        { "factor": "total_assets_below_threshold", "value": true, "impact": "positive", "met": true }
+      ],
+      "alternatives": [
+        { "product": "sequestration", "score": 55, "reason": "Qualifies but MAP is less disruptive and lower cost" },
+        { "product": "moratorium", "score": 40, "reason": "Temporary relief only — does not address root cause" }
+      ],
+      "engineVersion": "2.1.0"
+    }
+  },
+  {
+    "id": "app-003",
+    "referenceNumber": "AIB-2026-00138",
+    "status": "approved",
+    "submittedAt": "2026-07-02T09:45:00.000Z",
+    "assignedTo": "user-officer-01",
+    "applicant": {
+      "title": "Mr",
+      "firstName": "Donald",
+      "lastName": "Sutherland",
+      "dateOfBirth": "1968-07-19T00:00:00.000Z",
+      "niNumber": "EF345678G",
+      "maritalStatus": "married",
+      "dependants": 0,
+      "employment": "self_employed",
+      "email": "d.sutherland@aberdeen-plumbing.co.uk",
+      "phone": "07734 567890"
+    },
+    "addresses": [
+      {
+        "line1": "7 Rubislaw Den South",
+        "city": "Aberdeen",
+        "postcode": "AB15 4AL",
+        "isCurrent": true,
+        "residentFrom": "2010-04-01T00:00:00.000Z"
+      }
+    ],
+    "debts": [
+      {
+        "creditor": "Clydesdale Bank",
+        "type": "personal_loan",
+        "amount": 42000,
+        "monthlyPayment": 650,
+        "accountRef": "CB-BL-221098"
+      },
+      {
+        "creditor": "HMRC",
+        "type": "tax",
+        "amount": 15800,
+        "monthlyPayment": 0,
+        "accountRef": "HMRC-VAT-K912"
+      },
+      {
+        "creditor": "American Express",
+        "type": "credit_card",
+        "amount": 9300,
+        "monthlyPayment": 186,
+        "accountRef": "3742-XXXXXX-21008"
+      },
+      {
+        "creditor": "Travis Perkins Trade Account",
+        "type": "other",
+        "amount": 4100,
+        "monthlyPayment": 0,
+        "accountRef": "TP-TR-55219"
+      }
+    ],
+    "assets": [
+      {
+        "type": "property",
+        "description": "Residential property at Rubislaw Den South",
+        "value": 320000,
+        "outstanding": 185000,
+        "isEssential": true
+      },
+      {
+        "type": "vehicle",
+        "description": "2020 Ford Transit Custom work van",
+        "value": 18000,
+        "outstanding": 8500,
+        "isEssential": true
+      },
+      {
+        "type": "vehicle",
+        "description": "2019 BMW 3 Series",
+        "value": 22000,
+        "outstanding": 12000,
+        "isEssential": false
+      }
+    ],
+    "incomeExpenditure": {
+      "income": { "wages": 3800, "benefits": 0, "pension": 0, "other": 200 },
+      "expenditure": { "rent": 0, "councilTax": 210, "utilities": 185, "food": 450, "transport": 280, "insurance": 190, "childcare": 0, "clothing": 70, "other": 150 }
+    },
+    "recommendation": {
+      "product": "ptd",
+      "confidence": "medium",
+      "confidencePct": 74,
+      "reasoning": [
+        "Self-employed with irregular but substantial income",
+        "Total unsecured debt of £71,200 exceeds reasonable DAS timeline",
+        "Significant equity in property may complicate sequestration",
+        "PTD allows continued trading while managing debt"
+      ],
+      "factors": [
+        { "factor": "employment_status", "value": "self_employed", "impact": "neutral", "met": true },
+        { "factor": "surplus_income", "value": 465, "impact": "positive", "met": true },
+        { "factor": "debt_to_income_ratio", "value": 1.48, "impact": "negative", "met": true },
+        { "factor": "has_non_essential_assets", "value": true, "impact": "negative", "met": true }
+      ],
+      "alternatives": [
+        { "product": "sequestration", "score": 60, "reason": "Viable but would likely lose business and BMW" },
+        { "product": "das", "score": 35, "reason": "Debt too high for realistic DAS payment plan" }
+      ],
+      "engineVersion": "2.1.0"
+    }
+  },
+  {
+    "id": "app-004",
+    "referenceNumber": "AIB-2026-00161",
+    "status": "rejected",
+    "submittedAt": "2026-08-01T16:05:00.000Z",
+    "assignedTo": "user-senior-01",
+    "applicant": {
+      "title": "Mrs",
+      "firstName": "Aileen",
+      "lastName": "Douglas",
+      "dateOfBirth": "1990-02-08T00:00:00.000Z",
+      "niNumber": "GH901234J",
+      "maritalStatus": "single",
+      "dependants": 0,
+      "employment": "employed",
+      "email": "aileen.douglas90@yahoo.co.uk",
+      "phone": "07891 234567"
+    },
+    "addresses": [
+      {
+        "line1": "19 Lochee Road",
+        "line2": "West End",
+        "city": "Dundee",
+        "postcode": "DD2 2NH",
+        "isCurrent": true,
+        "residentFrom": "2023-09-01T00:00:00.000Z"
+      }
+    ],
+    "debts": [
+      {
+        "creditor": "Nationwide Building Society",
+        "type": "personal_loan",
+        "amount": 3200,
+        "monthlyPayment": 120,
+        "accountRef": "NW-PL-66014"
+      },
+      {
+        "creditor": "ASOS Buy Now Pay Later",
+        "type": "other",
+        "amount": 480,
+        "monthlyPayment": 40,
+        "accountRef": "ASOS-92145"
+      }
+    ],
+    "assets": [
+      {
+        "type": "savings",
+        "description": "Help to Buy ISA",
+        "value": 8500,
+        "outstanding": 0,
+        "isEssential": false
+      },
+      {
+        "type": "vehicle",
+        "description": "2022 MINI Cooper",
+        "value": 19000,
+        "outstanding": 14000,
+        "isEssential": false
+      }
+    ],
+    "incomeExpenditure": {
+      "income": { "wages": 2400, "benefits": 0, "pension": 0, "other": 0 },
+      "expenditure": { "rent": 650, "councilTax": 95, "utilities": 80, "food": 280, "transport": 150, "insurance": 110, "childcare": 0, "clothing": 80, "other": 120 }
+    },
+    "recommendation": null
+  },
+  {
+    "id": "app-005",
+    "referenceNumber": "AIB-2026-00170",
+    "status": "draft",
+    "submittedAt": null,
+    "assignedTo": null,
+    "applicant": {
+      "title": "Mr",
+      "firstName": "Graeme",
+      "lastName": "Paterson",
+      "dateOfBirth": "1955-12-03T00:00:00.000Z",
+      "niNumber": "KL567890M",
+      "maritalStatus": "widowed",
+      "dependants": 0,
+      "employment": "retired",
+      "email": "g.paterson55@btinternet.com",
+      "phone": "01382 456789"
+    },
+    "addresses": [
+      {
+        "line1": "3 Broughty Ferry Road",
+        "city": "Dundee",
+        "postcode": "DD4 6JA",
+        "isCurrent": true,
+        "residentFrom": "1998-03-01T00:00:00.000Z"
+      }
+    ],
+    "debts": [
+      {
+        "creditor": "TSB Bank",
+        "type": "personal_loan",
+        "amount": 8900,
+        "monthlyPayment": 180,
+        "accountRef": "TSB-PL-44231"
+      },
+      {
+        "creditor": "Santander",
+        "type": "credit_card",
+        "amount": 5600,
+        "monthlyPayment": 112,
+        "accountRef": "5412-XXXX-7018"
+      },
+      {
+        "creditor": "Scottish Water",
+        "type": "utility",
+        "amount": 820,
+        "monthlyPayment": 0,
+        "accountRef": "SW-DD4-11028"
+      }
+    ],
+    "assets": [
+      {
+        "type": "property",
+        "description": "Residential flat, Broughty Ferry Road",
+        "value": 145000,
+        "outstanding": 0,
+        "isEssential": true
+      },
+      {
+        "type": "savings",
+        "description": "NS&I Premium Bonds",
+        "value": 2000,
+        "outstanding": 0,
+        "isEssential": false
+      }
+    ],
+    "incomeExpenditure": {
+      "income": { "wages": 0, "benefits": 220, "pension": 980, "other": 0 },
+      "expenditure": { "rent": 0, "councilTax": 125, "utilities": 110, "food": 260, "transport": 60, "insurance": 85, "childcare": 0, "clothing": 30, "other": 70 }
+    },
+    "recommendation": null
+  }
+]

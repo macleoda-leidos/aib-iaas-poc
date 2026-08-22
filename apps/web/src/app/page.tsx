@@ -10,10 +10,10 @@ export default function Home() {
         may be most suitable based on your financial circumstances.
       </p>
 
-      <div className="bg-blue-50 border-l-4 border-gov-blue p-6 mb-8">
-        <h2 className="text-lg font-bold mb-2">Before you start</h2>
-        <p className="mb-4">You will need:</p>
-        <ul className="list-disc pl-6 space-y-2">
+      <div className="bg-blue-50 dark:bg-blue-950 border-l-4 border-gov-blue p-6 mb-8">
+        <h2 className="text-lg font-bold mb-2 text-gray-900 dark:text-gray-100">Before you start</h2>
+        <p className="mb-4 text-gray-800 dark:text-gray-200">You will need:</p>
+        <ul className="list-disc pl-6 space-y-2 text-gray-800 dark:text-gray-200">
           <li>Your personal details and address</li>
           <li>Details of all your debts (amounts, creditor names)</li>
           <li>Your monthly income and regular expenditure</li>
@@ -45,10 +45,10 @@ export default function Home() {
             { name: 'Moratorium', desc: '6-week breathing space from creditor action while you seek advice', url: 'https://www.aib.gov.uk/debt-solutions/moratorium' },
             { name: 'Debt Payment Programme', desc: 'Structured repayment plan for manageable debt levels', url: 'https://www.aib.gov.uk/debt-solutions/debt-arrangement-scheme' },
           ].map(product => (
-            <a key={product.name} href={product.url} target="_blank" rel="noopener noreferrer" className="border border-gray-300 p-4 no-underline hover:border-gov-blue hover:bg-blue-50 transition-colors block">
-              <h3 className="text-base font-bold text-gray-900">{product.name}</h3>
-              <p className="text-sm text-gray-600">{product.desc}</p>
-              <p className="text-xs text-gov-blue mt-2">Learn more on aib.gov.uk →</p>
+            <a key={product.name} href={product.url} target="_blank" rel="noopener noreferrer" className="border border-gray-300 dark:border-gray-600 p-4 no-underline hover:border-gov-blue hover:bg-blue-50 dark:hover:bg-blue-900 transition-colors block rounded">
+              <h3 className="text-base font-bold text-gray-900 dark:text-gray-100">{product.name}</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400">{product.desc}</p>
+              <p className="text-xs text-gov-blue dark:text-blue-400 mt-2">Learn more on aib.gov.uk →</p>
             </a>
           ))}
         </div>
@@ -63,7 +63,7 @@ export default function Home() {
       </Link>
 
       <div className="mt-8 gov-inset">
-        <p className="text-sm text-gray-600">
+        <p className="text-sm text-gray-600 dark:text-gray-300">
           <strong>Free advice:</strong> Before using this service, you may wish to speak with a free money adviser.
           Call Citizens Advice Scotland on 0800 028 1456 or visit your local advice centre.
         </p>

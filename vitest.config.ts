@@ -5,6 +5,7 @@ export default defineConfig({
     include: [
       'packages/*/src/__tests__/**/*.test.ts',
       'services/*/src/__tests__/**/*.test.ts',
+      'tests/integration/**/*.test.ts',
     ],
     exclude: ['node_modules', 'dist', '.next', 'tests/e2e'],
     environment: 'node',

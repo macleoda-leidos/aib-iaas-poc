@@ -1,0 +1,302 @@
+[
+  {
+    "id": "audit-001",
+    "applicationId": "app-001",
+    "action": "application.created",
+    "actorId": "user-debtor-01",
+    "actorName": "Stuart Morrison",
+    "actorType": "applicant",
+    "details": { "channel": "web_portal" },
+    "timestamp": "2026-07-10T08:14:00.000Z"
+  },
+  {
+    "id": "audit-002",
+    "applicationId": "app-001",
+    "action": "applicant.details_added",
+    "actorId": "user-debtor-01",
+    "actorName": "Stuart Morrison",
+    "actorType": "applicant",
+    "details": { "section": "personal_details", "completeness": 100 },
+    "timestamp": "2026-07-10T08:22:00.000Z"
+  },
+  {
+    "id": "audit-003",
+    "applicationId": "app-001",
+    "action": "debts.added",
+    "actorId": "user-debtor-01",
+    "actorName": "Stuart Morrison",
+    "actorType": "applicant",
+    "details": { "debtCount": 4, "totalAmount": 23190 },
+    "timestamp": "2026-07-12T19:45:00.000Z"
+  },
+  {
+    "id": "audit-004",
+    "applicationId": "app-001",
+    "action": "income_expenditure.completed",
+    "actorId": "user-debtor-01",
+    "actorName": "Stuart Morrison",
+    "actorType": "applicant",
+    "details": { "surplusIncome": 80 },
+    "timestamp": "2026-07-14T20:10:00.000Z"
+  },
+  {
+    "id": "audit-005",
+    "applicationId": "app-001",
+    "action": "recommendation.generated",
+    "actorId": null,
+    "actorName": "System",
+    "actorType": "system",
+    "details": { "product": "das", "confidence": "high", "confidencePct": 87, "engineVersion": "2.1.0" },
+    "timestamp": "2026-07-14T20:10:05.000Z"
+  },
+  {
+    "id": "audit-006",
+    "applicationId": "app-001",
+    "action": "application.submitted",
+    "actorId": "user-debtor-01",
+    "actorName": "Stuart Morrison",
+    "actorType": "applicant",
+    "details": { "referenceNumber": "AIB-2026-00147" },
+    "timestamp": "2026-07-15T10:32:00.000Z"
+  },
+  {
+    "id": "audit-007",
+    "applicationId": "app-002",
+    "action": "application.created",
+    "actorId": "user-adviser-01",
+    "actorName": "Morag Fraser",
+    "actorType": "staff",
+    "details": { "channel": "adviser_portal", "onBehalfOf": "Heather McPherson" },
+    "timestamp": "2026-07-18T11:00:00.000Z"
+  },
+  {
+    "id": "audit-008",
+    "applicationId": "app-002",
+    "action": "applicant.details_added",
+    "actorId": "user-adviser-01",
+    "actorName": "Morag Fraser",
+    "actorType": "staff",
+    "details": { "section": "personal_details", "completeness": 100 },
+    "timestamp": "2026-07-18T11:15:00.000Z"
+  },
+  {
+    "id": "audit-009",
+    "applicationId": "app-002",
+    "action": "debts.added",
+    "actorId": "user-adviser-01",
+    "actorName": "Morag Fraser",
+    "actorType": "staff",
+    "details": { "debtCount": 5, "totalAmount": 33050 },
+    "timestamp": "2026-07-20T14:30:00.000Z"
+  },
+  {
+    "id": "audit-010",
+    "applicationId": "app-002",
+    "action": "recommendation.generated",
+    "actorId": null,
+    "actorName": "System",
+    "actorType": "system",
+    "details": { "product": "map", "confidence": "high", "confidencePct": 92, "engineVersion": "2.1.0" },
+    "timestamp": "2026-07-22T14:17:30.000Z"
+  },
+  {
+    "id": "audit-011",
+    "applicationId": "app-002",
+    "action": "application.submitted",
+    "actorId": "user-adviser-01",
+    "actorName": "Morag Fraser",
+    "actorType": "staff",
+    "details": { "referenceNumber": "AIB-2026-00152" },
+    "timestamp": "2026-07-22T14:18:00.000Z"
+  },
+  {
+    "id": "audit-012",
+    "applicationId": "app-002",
+    "action": "application.assigned",
+    "actorId": "user-senior-01",
+    "actorName": "Fiona Campbell",
+    "actorType": "staff",
+    "details": { "assignedTo": "user-officer-02", "assignedToName": "Eilidh Stewart" },
+    "timestamp": "2026-07-23T09:05:00.000Z"
+  },
+  {
+    "id": "audit-013",
+    "applicationId": "app-002",
+    "action": "credit_check.completed",
+    "actorId": null,
+    "actorName": "System",
+    "actorType": "system",
+    "details": { "provider": "synthetic", "score": 320, "result": "poor" },
+    "timestamp": "2026-07-23T09:05:30.000Z"
+  },
+  {
+    "id": "audit-014",
+    "applicationId": "app-002",
+    "action": "system_checks.completed",
+    "actorId": null,
+    "actorName": "System",
+    "actorType": "system",
+    "details": { "basysCheck": "no_record", "edenCheck": "no_record", "dasCheck": "no_record" },
+    "timestamp": "2026-07-23T09:06:00.000Z"
+  },
+  {
+    "id": "audit-015",
+    "applicationId": "app-003",
+    "action": "application.created",
+    "actorId": "user-adviser-02",
+    "actorName": "Callum Henderson",
+    "actorType": "staff",
+    "details": { "channel": "adviser_portal", "onBehalfOf": "Donald Sutherland" },
+    "timestamp": "2026-06-25T10:30:00.000Z"
+  },
+  {
+    "id": "audit-016",
+    "applicationId": "app-003",
+    "action": "application.submitted",
+    "actorId": "user-adviser-02",
+    "actorName": "Callum Henderson",
+    "actorType": "staff",
+    "details": { "referenceNumber": "AIB-2026-00138" },
+    "timestamp": "2026-07-02T09:45:00.000Z"
+  },
+  {
+    "id": "audit-017",
+    "applicationId": "app-003",
+    "action": "application.assigned",
+    "actorId": "user-senior-01",
+    "actorName": "Fiona Campbell",
+    "actorType": "staff",
+    "details": { "assignedTo": "user-officer-01", "assignedToName": "Ross MacKenzie" },
+    "timestamp": "2026-07-03T08:30:00.000Z"
+  },
+  {
+    "id": "audit-018",
+    "applicationId": "app-003",
+    "action": "credit_check.completed",
+    "actorId": null,
+    "actorName": "System",
+    "actorType": "system",
+    "details": { "provider": "synthetic", "score": 485, "result": "fair" },
+    "timestamp": "2026-07-03T08:31:00.000Z"
+  },
+  {
+    "id": "audit-019",
+    "applicationId": "app-003",
+    "action": "system_checks.completed",
+    "actorId": null,
+    "actorName": "System",
+    "actorType": "system",
+    "details": { "basysCheck": "no_record", "edenCheck": "no_record", "dasCheck": "no_record", "moratoriumCheck": "no_record" },
+    "timestamp": "2026-07-03T08:31:30.000Z"
+  },
+  {
+    "id": "audit-020",
+    "applicationId": "app-003",
+    "action": "application.review_started",
+    "actorId": "user-officer-01",
+    "actorName": "Ross MacKenzie",
+    "actorType": "staff",
+    "details": { "notes": "Self-employed case — verifying income documentation" },
+    "timestamp": "2026-07-05T11:00:00.000Z"
+  },
+  {
+    "id": "audit-021",
+    "applicationId": "app-003",
+    "action": "application.approved",
+    "actorId": "user-senior-01",
+    "actorName": "Fiona Campbell",
+    "actorType": "staff",
+    "details": { "product": "ptd", "trusteeAssigned": "org-wylie", "notes": "PTD approved — creditor meeting to be scheduled" },
+    "timestamp": "2026-07-12T15:40:00.000Z"
+  },
+  {
+    "id": "audit-022",
+    "applicationId": "app-004",
+    "action": "application.created",
+    "actorId": null,
+    "actorName": "Aileen Douglas",
+    "actorType": "applicant",
+    "details": { "channel": "web_portal" },
+    "timestamp": "2026-07-28T20:15:00.000Z"
+  },
+  {
+    "id": "audit-023",
+    "applicationId": "app-004",
+    "action": "application.submitted",
+    "actorId": null,
+    "actorName": "Aileen Douglas",
+    "actorType": "applicant",
+    "details": { "referenceNumber": "AIB-2026-00161" },
+    "timestamp": "2026-08-01T16:05:00.000Z"
+  },
+  {
+    "id": "audit-024",
+    "applicationId": "app-004",
+    "action": "application.assigned",
+    "actorId": "user-senior-01",
+    "actorName": "Fiona Campbell",
+    "actorType": "staff",
+    "details": { "assignedTo": "user-senior-01", "assignedToName": "Fiona Campbell", "reason": "Low-value rejection — senior review" },
+    "timestamp": "2026-08-02T09:00:00.000Z"
+  },
+  {
+    "id": "audit-025",
+    "applicationId": "app-004",
+    "action": "application.rejected",
+    "actorId": "user-senior-01",
+    "actorName": "Fiona Campbell",
+    "actorType": "staff",
+    "details": { "reason": "Debt level of £3,680 below statutory minimum for formal debt solutions. Applicant has significant assets (£8,500 savings, vehicle equity). Signposted to free debt advice.", "signpostedTo": "stepchange" },
+    "timestamp": "2026-08-02T10:20:00.000Z"
+  },
+  {
+    "id": "audit-026",
+    "applicationId": "app-005",
+    "action": "application.created",
+    "actorId": null,
+    "actorName": "Graeme Paterson",
+    "actorType": "applicant",
+    "details": { "channel": "web_portal" },
+    "timestamp": "2026-08-10T14:00:00.000Z"
+  },
+  {
+    "id": "audit-027",
+    "applicationId": "app-005",
+    "action": "applicant.details_added",
+    "actorId": null,
+    "actorName": "Graeme Paterson",
+    "actorType": "applicant",
+    "details": { "section": "personal_details", "completeness": 100 },
+    "timestamp": "2026-08-10T14:20:00.000Z"
+  },
+  {
+    "id": "audit-028",
+    "applicationId": "app-005",
+    "action": "debts.added",
+    "actorId": null,
+    "actorName": "Graeme Paterson",
+    "actorType": "applicant",
+    "details": { "debtCount": 3, "totalAmount": 15320 },
+    "timestamp": "2026-08-12T10:30:00.000Z"
+  },
+  {
+    "id": "audit-029",
+    "applicationId": "app-005",
+    "action": "income_expenditure.completed",
+    "actorId": null,
+    "actorName": "Graeme Paterson",
+    "actorType": "applicant",
+    "details": { "surplusIncome": 460 },
+    "timestamp": "2026-08-14T16:45:00.000Z"
+  },
+  {
+    "id": "audit-030",
+    "applicationId": "app-005",
+    "action": "application.saved_draft",
+    "actorId": null,
+    "actorName": "Graeme Paterson",
+    "actorType": "applicant",
+    "details": { "completeness": 85, "missingSections": ["documents"] },
+    "timestamp": "2026-08-14T16:50:00.000Z"
+  }
+]

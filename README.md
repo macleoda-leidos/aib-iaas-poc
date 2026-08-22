@@ -299,11 +299,45 @@ npm run lint
 
 ## Documentation
 
-- [Architecture Overview](docs/architecture.md)
-- [API Design](docs/api-first-design.md)
-- [Integration Design](docs/integration-design.md)
-- [Data Model](docs/data-model.md)
-- [Context & Assumptions](docs/context-and-assumptions.md)
+### Strategic & Business
+
+| Document | Audience | Description |
+|----------|----------|-------------|
+| [Executive Summary](docs/executive-summary.md) | Executives, Bid Teams | Vision, business problem, strategic alignment, success criteria |
+| [Business Requirements](docs/business-requirements.md) | Product Owners, BAs | Goals, current/future state, KPIs, benefits |
+| [Options Analysis](docs/options-analysis.md) | Decision Makers | 4 strategic options with cost/benefit comparison |
+| [Bid Positioning](docs/bid-positioning.md) | Bid Teams | Differentiators, SOW alignment, innovation |
+| [Roadmap](docs/roadmap.md) | All Stakeholders | 36-month capability roadmap (Near/Medium/Long term) |
+
+### User-Centred Design
+
+| Document | Audience | Description |
+|----------|----------|-------------|
+| [Personas](docs/personas.md) | UX, BAs, Product | 10 detailed user personas with goals & frustrations |
+| [User Stories](docs/user-stories.md) | Delivery Teams | 60+ stories across 13 epics with acceptance criteria |
+| [Use Cases](docs/use-cases.md) | BAs, Testers | 12 detailed use cases with flows & exceptions |
+| [User Journeys](docs/user-journeys.md) | UX, Product | 10 journey maps with Mermaid flow diagrams |
+| [Feature Catalogue](docs/feature-catalogue.md) | All | 25 features documented with business value |
+
+### Technical Architecture
+
+| Document | Audience | Description |
+|----------|----------|-------------|
+| [Solution Architecture](docs/architecture.md) | Architects | C4 model, deployment, data architecture, ADRs |
+| [Integrations](docs/integrations.md) | Developers, Architects | 10 integrations with data flows & failure handling |
+| [Security Architecture](docs/security.md) | Security Architects | Threat model, RBAC matrix, OWASP, GDPR |
+| [Recommendation Engine](docs/recommendation-engine.md) | Architects, BAs | Rules engine, decision trees, AI governance |
+| [Identity Architecture](docs/identity-architecture.md) | Security, Architects | Keycloak, SSO federation, MFA design |
+
+### Operations & Delivery
+
+| Document | Audience | Description |
+|----------|----------|-------------|
+| [Administration Guide](docs/administration-guide.md) | Ops, Support | User management, monitoring, troubleshooting |
+| [Testing](docs/testing.md) | Testers, Delivery | Strategy, scenarios, traceability matrix |
+| [API Design](docs/api-first-design.md) | Developers | REST API patterns and conventions |
+| [Data Model](docs/data-model.md) | Developers | Core entity models |
+| [Runbook](docs/runbook.md) | Ops | Operational procedures |
 
 ---
 

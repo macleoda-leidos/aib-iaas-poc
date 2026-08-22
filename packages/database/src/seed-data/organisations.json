@@ -1,0 +1,122 @@
+[
+  {
+    "id": "org-aib",
+    "name": "Accountant in Bankruptcy",
+    "type": "aib",
+    "status": "active",
+    "registrationNumber": "SC001234",
+    "contactEmail": "enquiries@aib.gov.scot",
+    "contactPhone": "0131 473 5500",
+    "addressLine1": "1 Pennyburn Road, Kilwinning",
+    "addressCity": "Edinburgh",
+    "addressPostcode": "KA13 6SA"
+  },
+  {
+    "id": "org-stepchange",
+    "name": "StepChange Debt Charity Scotland",
+    "type": "money_adviser",
+    "status": "active",
+    "registrationNumber": "SC234567",
+    "contactEmail": "scotland@stepchange.org",
+    "contactPhone": "0800 138 1111",
+    "addressLine1": "6 Deanfield Place",
+    "addressCity": "Glasgow",
+    "addressPostcode": "G41 4HQ"
+  },
+  {
+    "id": "org-cab-edinburgh",
+    "name": "Citizens Advice Edinburgh",
+    "type": "money_adviser",
+    "status": "active",
+    "registrationNumber": "SC345678",
+    "contactEmail": "advice@citizensadviceedinburgh.org.uk",
+    "contactPhone": "0131 510 5510",
+    "addressLine1": "58 Dundas Street",
+    "addressCity": "Edinburgh",
+    "addressPostcode": "EH3 6QZ"
+  },
+  {
+    "id": "org-cab-glasgow",
+    "name": "Citizens Advice Glasgow",
+    "type": "money_adviser",
+    "status": "active",
+    "registrationNumber": "SC456789",
+    "contactEmail": "bureau@glasgowcab.org.uk",
+    "contactPhone": "0141 572 3950",
+    "addressLine1": "87 Bath Street",
+    "addressCity": "Glasgow",
+    "addressPostcode": "G2 2EE"
+  },
+  {
+    "id": "org-rbs",
+    "name": "Royal Bank of Scotland",
+    "type": "creditor",
+    "status": "active",
+    "registrationNumber": "SC090312",
+    "contactEmail": "recoveries@rbs.co.uk",
+    "contactPhone": "0345 724 2424",
+    "addressLine1": "36 St Andrew Square",
+    "addressCity": "Edinburgh",
+    "addressPostcode": "EH2 2YB"
+  },
+  {
+    "id": "org-bos",
+    "name": "Bank of Scotland",
+    "type": "creditor",
+    "status": "active",
+    "registrationNumber": "SC327000",
+    "contactEmail": "debt.management@bankofscotland.co.uk",
+    "contactPhone": "0345 721 3141",
+    "addressLine1": "The Mound",
+    "addressCity": "Edinburgh",
+    "addressPostcode": "EH1 1YZ"
+  },
+  {
+    "id": "org-wylie",
+    "name": "Wylie & Bisset LLP",
+    "type": "supplier",
+    "status": "active",
+    "registrationNumber": "SC567890",
+    "contactEmail": "insolvency@wyliebisset.com",
+    "contactPhone": "0141 566 7000",
+    "addressLine1": "168 Bath Street",
+    "addressCity": "Glasgow",
+    "addressPostcode": "G2 4TP"
+  },
+  {
+    "id": "org-french-duncan",
+    "name": "French Duncan LLP",
+    "type": "supplier",
+    "status": "active",
+    "registrationNumber": "SC678901",
+    "contactEmail": "restructuring@frenchduncan.co.uk",
+    "contactPhone": "0141 221 2984",
+    "addressLine1": "133 Finnieston Street",
+    "addressCity": "Glasgow",
+    "addressPostcode": "G3 8HB"
+  },
+  {
+    "id": "org-payplan",
+    "name": "PayPlan Scotland",
+    "type": "payment_distributor",
+    "status": "active",
+    "registrationNumber": "SC789012",
+    "contactEmail": "payments@payplan.com",
+    "contactPhone": "0800 280 2816",
+    "addressLine1": "Kempton House, Dysart Road",
+    "addressCity": "Grantham",
+    "addressPostcode": "NG31 7LE"
+  },
+  {
+    "id": "org-hmrc",
+    "name": "HM Revenue & Customs",
+    "type": "government",
+    "status": "active",
+    "registrationNumber": null,
+    "contactEmail": "debt.management@hmrc.gov.uk",
+    "contactPhone": "0300 200 3300",
+    "addressLine1": "Meldrum House, 15 Drumsheugh Gardens",
+    "addressCity": "Edinburgh",
+    "addressPostcode": "EH3 7UL"
+  }
+]

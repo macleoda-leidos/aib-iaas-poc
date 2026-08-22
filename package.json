@@ -23,13 +23,16 @@
     "lint": "npm run lint --workspaces --if-present",
     "build": "npm run build --workspaces --if-present",
     "deploy": "bash scripts/deploy.sh",
+    "generate:pdf": "npx tsx scripts/generate-pdf.ts",
     "clean": "rimraf node_modules **/node_modules **/dist **/.next"
   },
   "devDependencies": {
     "@playwright/test": "^1.44.0",
+    "playwright": "^1.44.0",
     "@vitest/coverage-v8": "^1.6.1",
     "concurrently": "^8.2.0",
     "rimraf": "^5.0.0",
+    "tsx": "^4.7.0",
     "typescript": "^5.4.0",
     "vitest": "^1.6.1"
   },
