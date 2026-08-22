@@ -1,0 +1,431 @@
+{
+  "id": "aib-iaas",
+  "realm": "aib-iaas",
+  "displayName": "AiB Initial Application Advice Service",
+  "displayNameHtml": "<strong>AiB</strong> Initial Application Advice Service",
+  "enabled": true,
+  "sslRequired": "external",
+  "registrationAllowed": true,
+  "registrationEmailAsUsername": true,
+  "rememberMe": true,
+  "verifyEmail": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": true,
+  "editUsernameAllowed": false,
+  "bruteForceProtected": true,
+  "maxFailureWaitSeconds": 300,
+  "minimumQuickLoginWaitSeconds": 60,
+  "waitIncrementSeconds": 60,
+  "quickLoginCheckMilliSeconds": 1000,
+  "maxDeltaTimeSeconds": 300,
+  "failureFactor": 3,
+  "loginTheme": "keycloak",
+  "accountTheme": "keycloak.v2",
+  "adminTheme": "keycloak.v2",
+  "emailTheme": "keycloak",
+  "internationalizationEnabled": false,
+  "defaultLocale": "en",
+  "accessTokenLifespan": 300,
+  "accessTokenLifespanForImplicitFlow": 900,
+  "ssoSessionIdleTimeout": 1800,
+  "ssoSessionMaxLifespan": 36000,
+  "offlineSessionIdleTimeout": 2592000,
+  "accessCodeLifespan": 60,
+  "accessCodeLifespanUserAction": 300,
+  "accessCodeLifespanLogin": 1800,
+  "actionTokenGeneratedByAdminLifespan": 43200,
+  "actionTokenGeneratedByUserLifespan": 300,
+  "otpPolicyType": "totp",
+  "otpPolicyAlgorithm": "HmacSHA1",
+  "otpPolicyInitialCounter": 0,
+  "otpPolicyDigits": 6,
+  "otpPolicyLookAheadWindow": 1,
+  "otpPolicyPeriod": 30,
+  "roles": {
+    "realm": [
+      {
+        "name": "system_admin",
+        "description": "Full system administration access",
+        "composite": false,
+        "clientRole": false
+      },
+      {
+        "name": "aib_senior_officer",
+        "description": "AiB Senior Case Officer - can approve, reject, escalate",
+        "composite": false,
+        "clientRole": false
+      },
+      {
+        "name": "aib_case_officer",
+        "description": "AiB Case Officer - can review and process applications",
+        "composite": false,
+        "clientRole": false
+      },
+      {
+        "name": "money_adviser",
+        "description": "Approved Money Adviser - can submit applications on behalf of debtors",
+        "composite": false,
+        "clientRole": false
+      },
+      {
+        "name": "creditor",
+        "description": "Creditor - can view and respond to applications involving their debts",
+        "composite": false,
+        "clientRole": false
+      },
+      {
+        "name": "supplier_trustee",
+        "description": "Supplier Trustee - can manage assigned cases",
+        "composite": false,
+        "clientRole": false
+      },
+      {
+        "name": "debtor",
+        "description": "Debtor - can create and track their own applications",
+        "composite": false,
+        "clientRole": false
+      },
+      {
+        "name": "statistician",
+        "description": "Statistician - read-only access to anonymised reports and analytics",
+        "composite": false,
+        "clientRole": false
+      },
+      {
+        "name": "cyberops_analyst",
+        "description": "Cyber Operations Analyst - security monitoring and audit access",
+        "composite": false,
+        "clientRole": false
+      }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "iaas-web",
+      "name": "IAAS Web Portal",
+      "description": "Public-facing Next.js web application for applicants",
+      "enabled": true,
+      "publicClient": true,
+      "clientAuthenticatorType": "client-secret",
+      "redirectUris": [
+        "http://localhost:3000/*",
+        "https://macleoda-leidos.github.io/*"
+      ],
+      "webOrigins": ["+"],
+      "rootUrl": "http://localhost:3000",
+      "baseUrl": "/",
+      "adminUrl": "http://localhost:3000",
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": false,
+      "protocol": "openid-connect",
+      "fullScopeAllowed": true,
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:3000/*##https://macleoda-leidos.github.io/*"
+      }
+    },
+    {
+      "clientId": "iaas-admin",
+      "name": "IAAS Admin Portal",
+      "description": "Internal admin portal for AiB staff",
+      "enabled": true,
+      "publicClient": true,
+      "clientAuthenticatorType": "client-secret",
+      "redirectUris": [
+        "http://localhost:3010/*",
+        "https://macleoda-leidos.github.io/*"
+      ],
+      "webOrigins": ["+"],
+      "rootUrl": "http://localhost:3010",
+      "baseUrl": "/",
+      "adminUrl": "http://localhost:3010",
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": false,
+      "protocol": "openid-connect",
+      "fullScopeAllowed": true,
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:3010/*##https://macleoda-leidos.github.io/*"
+      }
+    },
+    {
+      "clientId": "iaas-api",
+      "name": "IAAS API Gateway",
+      "description": "Backend API Gateway - validates bearer tokens",
+      "enabled": true,
+      "publicClient": false,
+      "bearerOnly": true,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "iaas-api-secret-change-in-production",
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "protocol": "openid-connect",
+      "fullScopeAllowed": true
+    }
+  ],
+  "users": [
+    {
+      "username": "admin@aib.gov.uk",
+      "email": "admin@aib.gov.uk",
+      "emailVerified": true,
+      "enabled": true,
+      "firstName": "System",
+      "lastName": "Admin",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "admin123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["system_admin"]
+    },
+    {
+      "username": "karen.macleod@aib.gov.uk",
+      "email": "karen.macleod@aib.gov.uk",
+      "emailVerified": true,
+      "enabled": true,
+      "firstName": "Karen",
+      "lastName": "MacLeod",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "demo123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["aib_senior_officer"]
+    },
+    {
+      "username": "james.wilson@aib.gov.uk",
+      "email": "james.wilson@aib.gov.uk",
+      "emailVerified": true,
+      "enabled": true,
+      "firstName": "James",
+      "lastName": "Wilson",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "demo123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["aib_case_officer"]
+    },
+    {
+      "username": "sarah.mitchell@aib.gov.uk",
+      "email": "sarah.mitchell@aib.gov.uk",
+      "emailVerified": true,
+      "enabled": true,
+      "firstName": "Sarah",
+      "lastName": "Mitchell",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "demo123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["aib_case_officer"]
+    },
+    {
+      "username": "fiona.macrae@cas.org.uk",
+      "email": "fiona.macrae@cas.org.uk",
+      "emailVerified": true,
+      "enabled": true,
+      "firstName": "Fiona",
+      "lastName": "MacRae",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "demo123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["money_adviser"]
+    },
+    {
+      "username": "david.chen@aib.gov.uk",
+      "email": "david.chen@aib.gov.uk",
+      "emailVerified": true,
+      "enabled": true,
+      "firstName": "David",
+      "lastName": "Chen",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "demo123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["cyberops_analyst"]
+    },
+    {
+      "username": "adviser@stepchange.org",
+      "email": "adviser@stepchange.org",
+      "emailVerified": true,
+      "enabled": true,
+      "firstName": "Money",
+      "lastName": "Adviser",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "demo123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["money_adviser"]
+    },
+    {
+      "username": "creditor@rbs.co.uk",
+      "email": "creditor@rbs.co.uk",
+      "emailVerified": true,
+      "enabled": true,
+      "firstName": "Bank",
+      "lastName": "Creditor",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "demo123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["creditor"]
+    },
+    {
+      "username": "trustee@wylie.co.uk",
+      "email": "trustee@wylie.co.uk",
+      "emailVerified": true,
+      "enabled": true,
+      "firstName": "Insolvency",
+      "lastName": "Trustee",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "demo123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["supplier_trustee"]
+    },
+    {
+      "username": "jamie.henderson@gmail.com",
+      "email": "jamie.henderson@gmail.com",
+      "emailVerified": true,
+      "enabled": true,
+      "firstName": "Jamie",
+      "lastName": "Henderson",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "demo123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["debtor"]
+    }
+  ],
+  "identityProviders": [
+    {
+      "alias": "scotaccount",
+      "displayName": "myaccount.scotaccount.gov.scot",
+      "providerId": "saml",
+      "enabled": false,
+      "trustEmail": true,
+      "storeToken": false,
+      "addReadTokenRoleOnCreate": false,
+      "firstBrokerLoginFlowAlias": "first broker login",
+      "config": {
+        "singleSignOnServiceUrl": "https://scotaccount.gov.scot/saml2/idp/SSOService.php",
+        "singleLogoutServiceUrl": "https://scotaccount.gov.scot/saml2/idp/SingleLogoutService.php",
+        "nameIDPolicyFormat": "urn:oasis:names:tc:SAML:2.0:nameid-format:persistent",
+        "entityId": "https://iaas.aib.gov.uk/auth/realms/aib-iaas",
+        "signatureAlgorithm": "RSA_SHA256",
+        "xmlSigKeyInfoKeyNameTransformer": "KEY_ID",
+        "wantAuthnRequestsSigned": "true",
+        "wantAssertionsSigned": "true",
+        "wantAssertionsEncrypted": "false",
+        "forceAuthn": "false",
+        "postBindingResponse": "true",
+        "postBindingAuthnRequest": "true",
+        "validateSignature": "true",
+        "principalType": "ATTRIBUTE",
+        "principalAttribute": "email"
+      }
+    },
+    {
+      "alias": "govuk-login",
+      "displayName": "GOV.UK One Login",
+      "providerId": "oidc",
+      "enabled": false,
+      "trustEmail": true,
+      "storeToken": false,
+      "addReadTokenRoleOnCreate": false,
+      "firstBrokerLoginFlowAlias": "first broker login",
+      "config": {
+        "authorizationUrl": "https://signin.account.gov.uk/authorize",
+        "tokenUrl": "https://signin.account.gov.uk/token",
+        "userInfoUrl": "https://signin.account.gov.uk/userinfo",
+        "logoutUrl": "https://signin.account.gov.uk/logout",
+        "issuer": "https://signin.account.gov.uk",
+        "clientId": "placeholder-client-id",
+        "clientSecret": "placeholder-client-secret",
+        "defaultScope": "openid email",
+        "syncMode": "IMPORT",
+        "clientAuthMethod": "client_secret_post",
+        "backchannelSupported": "false",
+        "useJwksUrl": "true",
+        "jwksUrl": "https://signin.account.gov.uk/.well-known/jwks.json"
+      }
+    }
+  ],
+  "clientScopes": [
+    {
+      "name": "iaas-roles",
+      "description": "IAAS application roles",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "true",
+        "consent.screen.text": "Your application roles"
+      },
+      "protocolMappers": [
+        {
+          "name": "realm-roles",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "consentRequired": false,
+          "config": {
+            "multivalued": "true",
+            "userinfo.token.claim": "true",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "realm_roles",
+            "jsonType.label": "String"
+          }
+        }
+      ]
+    }
+  ],
+  "defaultDefaultClientScopes": [
+    "role_list",
+    "profile",
+    "email",
+    "roles",
+    "web-origins",
+    "acr",
+    "iaas-roles"
+  ],
+  "browserFlow": "browser",
+  "registrationFlow": "registration",
+  "directGrantFlow": "direct grant",
+  "resetCredentialsFlow": "reset credentials",
+  "clientAuthenticationFlow": "clients"
+}

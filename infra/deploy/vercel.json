@@ -1,0 +1,13 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "nextjs",
+  "buildCommand": "cd ../.. && npm run build -w apps/web",
+  "outputDirectory": "../../apps/web/.next",
+  "installCommand": "cd ../.. && npm install",
+  "env": {
+    "NEXT_PUBLIC_API_URL": "https://iaas-api.railway.app",
+    "NEXT_PUBLIC_KEYCLOAK_URL": "https://iaas-keycloak.railway.app",
+    "NEXT_PUBLIC_KEYCLOAK_REALM": "aib-iaas",
+    "NEXT_PUBLIC_KEYCLOAK_CLIENT_ID": "iaas-web"
+  }
+}

@@ -9,6 +9,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@aib-iaas/database": "*",
     "express": "^4.18.0",
     "cors": "^2.8.5",
     "helmet": "^7.1.0",
