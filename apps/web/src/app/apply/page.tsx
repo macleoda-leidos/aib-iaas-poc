@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useState, useCallback, useEffect, useRef } from 'react';
+import { navigateTo } from '../../lib/navigation';
 import { useAppContext } from '../../lib/ApplicationContext';
 import {
   applications,
@@ -299,6 +300,10 @@ export default function ApplyPage() {
   const [saving, setSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [progressSaved, setProgressSaved] = useState(false);
+  const [transitioning, setTransitioning] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [submittedRef, setSubmittedRef] = useState<string | null>(null);
 
   const { application, setApplication, addRecentApplication, setApiConnected } = useAppContext();
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -480,9 +485,24 @@ export default function ApplyPage() {
       }
     }
     setErrors({});
-    setCurrentSection(s => Math.min(s + 1, SECTIONS.length - 1));
+    // Show progress saved indicator briefly
+    setProgressSaved(true);
+    setTimeout(() => setProgressSaved(false), 2000);
+    // Smooth transition between steps
+    setTransitioning(true);
+    setTimeout(() => {
+      setCurrentSection(s => Math.min(s + 1, SECTIONS.length - 1));
+      setTransitioning(false);
+    }, 200);
   };
-  const prevSection = () => { setErrors({}); setCurrentSection(s => Math.max(s - 1, 0)); };
+  const prevSection = () => {
+    setErrors({});
+    setTransitioning(true);
+    setTimeout(() => {
+      setCurrentSection(s => Math.max(s - 1, 0));
+      setTransitioning(false);
+    }, 200);
+  };
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
@@ -509,7 +529,12 @@ export default function ApplyPage() {
             <span className="text-gray-500">Start filling in the form to connect</span>
           )}
         </div>
-        <div className="text-gray-500">
+        <div className="text-gray-500 flex items-center gap-3">
+          {progressSaved && (
+            <span className="text-green-700 bg-green-50 px-2 py-0.5 rounded font-bold animate-pulse transition-opacity duration-500">
+              ✓ Progress saved
+            </span>
+          )}
           {saving && <span className="animate-pulse">💾 Saving...</span>}
           {!saving && lastSaved && <span>✓ Saved at {lastSaved}</span>}
         </div>
@@ -545,7 +570,7 @@ export default function ApplyPage() {
       </div>
 
       {/* Current section content */}
-      <div className={`border-2 rounded-lg p-6 mb-6 ring-2 ${getSectionStatusRing(getSectionStatus(SECTIONS[currentSection].id))}`}>
+      <div className={`border-2 rounded-lg p-6 mb-6 ring-2 ${getSectionStatusRing(getSectionStatus(SECTIONS[currentSection].id))} transition-opacity duration-200 ${transitioning ? 'opacity-0' : 'opacity-100'}`}>
         <div className="flex items-center gap-2 mb-4">
           <span className="text-2xl">{SECTIONS[currentSection].icon}</span>
           <h2 className="text-xl font-bold">{SECTIONS[currentSection].label}</h2>
@@ -1246,6 +1271,9 @@ function RecommendationSection({ formData, updateField }: { formData: any; updat
   const getRecommendation = async () => {
     setLoading(true);
 
+    // Simulate processing delay for demo effect (2-3 seconds)
+    await new Promise(r => setTimeout(r, 2000 + Math.random() * 1000));
+
     const income = formData.income || {};
     const expenditure = formData.expenditure || {};
     const debts = formData.debts?.items || [];
@@ -1311,10 +1339,26 @@ function RecommendationSection({ formData, updateField }: { formData: any; updat
           <button onClick={getRecommendation} disabled={loading} className="bg-green-700 text-white font-bold py-3 px-6 hover:bg-green-800 disabled:opacity-50">
             {loading ? '⏳ Analysing...' : 'Get my recommendation'}
           </button>
+          {loading && (
+            <div className="mt-4 p-6 bg-gray-50 dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700">
+              <div className="flex flex-col items-center gap-4">
+                <div className="relative">
+                  <div className="animate-spin w-12 h-12 border-4 border-green-200 border-t-green-700 rounded-full"></div>
+                </div>
+                <div className="text-center">
+                  <p className="font-bold text-sm mb-1">Analysing your financial profile...</p>
+                  <p className="text-xs text-gray-500">Evaluating debt level, disposable income, credit history, and assets against eligibility criteria for all Scottish debt solutions</p>
+                </div>
+                <div className="w-full max-w-xs bg-gray-200 rounded-full h-1.5 overflow-hidden">
+                  <div className="bg-green-600 h-1.5 rounded-full animate-pulse" style={{ width: '75%' }}></div>
+                </div>
+              </div>
+            </div>
+          )}
         </>
       ) : (
         <>
-          <div className="bg-green-700 text-white p-6 rounded text-center">
+          <div className="bg-green-700 text-white p-6 rounded text-center animate-[fadeIn_0.5s_ease-in]">
             <h3 className="text-xl font-bold text-white">Recommended: {result ? PRODUCT_LABELS[result.product] || result.product : 'Debt Arrangement Scheme (DAS)'}</h3>
             <p className="text-green-100 mt-1">Confidence: {result?.confidence || 'High'}</p>
           </div>
@@ -1379,13 +1423,35 @@ function PaymentSection({ formData, updateField, applicationId }: { formData: an
 
   if (payment.completed) {
     return (
-      <div className="bg-green-700 text-white p-8 rounded text-center">
-        <h3 className="text-2xl font-bold text-white mb-2">Application Submitted ✓</h3>
-        <p className="text-xl text-white font-mono">{submitRef || application.referenceNumber || 'IAAS-2026-XXXXX'}</p>
-        <p className="text-green-200 mt-2">Payment of £90.00 received (SANDBOX)</p>
-        <div className="mt-4 text-sm text-green-100">
-          <p>Your application is now in the AiB review queue.</p>
-          <p className="mt-1">Switch to the <a href="javascript:void(0)" onClick={() => navigateTo('/dashboard')} className="underline font-bold text-white cursor-pointer">Dashboard</a> to see it from a staff perspective.</p>
+      <div className="animate-[fadeIn_0.6s_ease-in]">
+        <div className="bg-green-700 text-white p-8 rounded-t text-center">
+          <div className="mb-3">
+            <span className="inline-flex items-center justify-center w-16 h-16 bg-white/20 rounded-full text-3xl">✓</span>
+          </div>
+          <h3 className="text-2xl font-bold text-white mb-2">Application Submitted Successfully</h3>
+          <p className="text-xl text-white font-mono bg-white/10 inline-block px-4 py-1 rounded">{submitRef || application.referenceNumber || 'IAAS-2026-XXXXX'}</p>
+          <p className="text-green-200 mt-3">Payment of £90.00 received (SANDBOX)</p>
+        </div>
+        <div className="bg-white dark:bg-gray-800 border border-t-0 border-gray-200 dark:border-gray-700 rounded-b p-6">
+          <h4 className="font-bold mb-3">What happens next</h4>
+          <ol className="list-decimal pl-5 space-y-2 text-sm text-gray-700 dark:text-gray-300 mb-6">
+            <li>Your application will be reviewed by an AiB case officer within <strong>3 working days</strong></li>
+            <li>System checks and credit verification will be completed automatically</li>
+            <li>You will receive email confirmation with your recommendation</li>
+            <li>A qualified money adviser will be assigned to your case</li>
+          </ol>
+          <div className="flex flex-wrap gap-3 mb-6">
+            <button className="bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100 font-bold py-2 px-4 text-sm rounded hover:bg-gray-300 flex items-center gap-2">
+              📥 Download PDF Confirmation
+            </button>
+            <button onClick={() => navigateTo('/dashboard')} className="bg-blue-700 text-white font-bold py-2 px-4 text-sm rounded hover:bg-blue-800 flex items-center gap-2">
+              📋 View on Dashboard
+            </button>
+          </div>
+          <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 rounded p-3 text-sm">
+            <p className="text-blue-800 dark:text-blue-300"><strong>Keep your reference number:</strong> {submitRef || application.referenceNumber || 'IAAS-2026-XXXXX'}</p>
+            <p className="text-blue-700 dark:text-blue-400 text-xs mt-1">You will need this to track your application or contact us about it.</p>
+          </div>
         </div>
       </div>
     );

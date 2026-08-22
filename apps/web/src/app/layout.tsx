@@ -57,6 +57,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 <NavItem href="/correspondence">Digital Mailroom</NavItem>
                 <NavItem href="/architecture">Architecture</NavItem>
                 <UserNavItem />
+                {/* System status indicator */}
+                <li className="ml-auto flex-shrink-0 hidden md:flex items-center gap-1.5 px-3 py-2.5 text-xs text-green-200/90 whitespace-nowrap">
+                  <span className="w-1.5 h-1.5 rounded-full bg-green-400"></span>
+                  All Systems Operational
+                </li>
               </ul>
             </div>
           </nav>

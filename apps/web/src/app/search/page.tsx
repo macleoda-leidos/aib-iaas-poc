@@ -246,14 +246,33 @@ export default function SearchPage() {
       </div>
 
       {/* Status */}
-      {loading && <p className="text-sm text-gray-500 animate-pulse mb-4">Searching...</p>}
+      {loading && (
+        <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded flex items-center gap-3">
+          <div className="animate-spin w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full flex-shrink-0"></div>
+          <div>
+            <p className="text-sm font-medium text-blue-800 dark:text-blue-300">Searching across 6 systems...</p>
+            <div className="flex gap-2 mt-1 flex-wrap">
+              {['BASYS', 'eDEN', 'DAS', 'CFT', 'Moratorium', 'RoI'].map((sys, i) => (
+                <span key={sys} className="text-xs bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 px-1.5 py-0.5 rounded animate-pulse" style={{ animationDelay: `${i * 150}ms` }}>
+                  {sys}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
       {!loading && searched && (
-        <p className="text-sm text-gray-500 mb-4">
-          {results.length} result{results.length !== 1 ? 's' : ''} found
-          {results.length > 0 && <span className="ml-2">— ranked by match confidence</span>}
-          {apiOnline && <span className="text-green-600 ml-2">• Live data</span>}
-          {!apiOnline && <span className="text-amber-600 ml-2">• Demo data</span>}
-        </p>
+        <div className="mb-4">
+          <p className="text-sm text-gray-500">
+            {results.length} result{results.length !== 1 ? 's' : ''} found
+            {results.length > 0 && <span className="ml-2">— ranked by match confidence</span>}
+            {apiOnline && <span className="text-green-600 ml-2">• Live data</span>}
+            {!apiOnline && <span className="text-amber-600 ml-2">• Demo data</span>}
+          </p>
+          <p className="text-xs text-gray-400 mt-1">
+            Results from: <span className="font-medium">BASYS</span>, <span className="font-medium">eDEN</span>, <span className="font-medium">DAS</span>, <span className="font-medium">IAAS</span>
+          </p>
+        </div>
       )}
 
       {/* Results */}

@@ -18,11 +18,112 @@ const DEMO_USERS = [
   { id: 'USR-011', name: 'Ryan MacIntyre', role: 'cyber_ops', roleDisplay: 'CyberOps Analyst', org: 'AiB — Security Operations Centre' },
 ];
 
+// Notification Bell component with dropdown
+function NotificationBell() {
+  const [open, setOpen] = useState(false);
+  const notifications = [
+    { id: 1, msg: 'New application submitted by Alistair Morrison', time: '2 min ago', unread: true },
+    { id: 2, msg: 'Credit check completed — Score 620', time: '5 min ago', unread: true },
+    { id: 3, msg: 'Document classified: Court Decree (94% confidence)', time: '12 min ago', unread: true },
+    { id: 4, msg: 'SLA warning: IAAS-2026-00005 approaching review limit', time: '28 min ago', unread: false },
+    { id: 5, msg: 'Weekly report ready for download', time: '1 hr ago', unread: false },
+  ];
+  const unreadCount = notifications.filter(n => n.unread).length;
+
+  return (
+    <div className="relative">
+      <button onClick={() => setOpen(!open)} className="relative p-2 rounded-full hover:bg-gray-100 transition-colors" aria-label="Notifications">
+        <svg className="w-6 h-6 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+        </svg>
+        {unreadCount > 0 && (
+          <span className="absolute -top-0.5 -right-0.5 bg-red-600 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center animate-pulse">
+            {unreadCount}
+          </span>
+        )}
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full mt-2 w-80 bg-white border border-gray-200 rounded-lg shadow-xl z-50 animate-[fadeIn_0.2s_ease-in]">
+          <div className="p-3 border-b border-gray-200 flex justify-between items-center">
+            <span className="font-bold text-sm">Notifications</span>
+            <span className="text-xs text-gray-400">{unreadCount} unread</span>
+          </div>
+          <div className="max-h-72 overflow-y-auto divide-y divide-gray-100">
+            {notifications.map(n => (
+              <div key={n.id} className={`p-3 text-sm hover:bg-gray-50 cursor-pointer ${n.unread ? 'bg-blue-50/50' : ''}`}>
+                <div className="flex items-start gap-2">
+                  {n.unread && <span className="w-2 h-2 bg-blue-600 rounded-full mt-1.5 flex-shrink-0"></span>}
+                  {!n.unread && <span className="w-2 h-2 bg-transparent rounded-full mt-1.5 flex-shrink-0"></span>}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-gray-800 text-xs leading-snug">{n.msg}</p>
+                    <p className="text-gray-400 text-xs mt-0.5">{n.time}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="p-2 border-t border-gray-200 text-center">
+            <button className="text-xs text-blue-700 hover:underline">View all notifications</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Live Transaction Ticker component
+function LiveTransactionTicker() {
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const events = [
+    { time: '14:32:45', system: 'IAAS', msg: 'Application IAAS-2026-00012 submitted by A. Morrison', type: 'success' },
+    { time: '14:32:46', system: 'Credit', msg: 'Equifax check completed — score 620, PASS', type: 'success' },
+    { time: '14:32:47', system: 'BASYS', msg: 'Cross-system lookup: no existing case found', type: 'success' },
+    { time: '14:32:48', system: 'Rules', msg: 'DAS recommended (confidence: high)', type: 'success' },
+    { time: '14:31:12', system: 'IAAS', msg: 'Application IAAS-2026-00011 submitted by B. Campbell', type: 'success' },
+    { time: '14:31:13', system: 'Credit', msg: 'Equifax check — score 340, FAIL', type: 'warning' },
+    { time: '14:30:55', system: 'Docs', msg: 'Document uploaded: payslip_june.pdf (ClamAV: clean)', type: 'success' },
+    { time: '14:30:22', system: 'AI', msg: 'Anomaly flag: High-value outlier detected (confidence 94%)', type: 'warning' },
+    { time: '14:29:10', system: 'DAS', msg: 'DPP annual review completed for DAS-2023-00456', type: 'success' },
+    { time: '14:28:45', system: 'Notify', msg: 'Email sent to A. Morrison — application confirmation', type: 'success' },
+  ];
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentIndex(prev => (prev + 1) % events.length);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [events.length]);
+
+  const current = events[currentIndex];
+
+  return (
+    <div className="bg-gray-900 border border-gray-700 rounded px-4 py-2 flex items-center gap-3 text-xs font-mono overflow-hidden">
+      <span className="flex items-center gap-1.5 flex-shrink-0">
+        <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+        <span className="text-green-400 font-bold">LIVE</span>
+      </span>
+      <div className="flex-1 overflow-hidden">
+        <div key={currentIndex} className="animate-[fadeIn_0.4s_ease-in] flex items-center gap-2">
+          <span className="text-gray-500">{current.time}</span>
+          <span className={`${current.type === 'success' ? 'text-green-400' : 'text-amber-400'} font-bold`}>{current.system}</span>
+          <span className="text-gray-300 truncate">{current.msg}</span>
+        </div>
+      </div>
+      <span className="text-gray-500 flex-shrink-0">({currentIndex + 1}/{events.length})</span>
+    </div>
+  );
+}
+
 export default function DashboardPage() {
   const [selectedUser, setSelectedUser] = useState(DEMO_USERS[0]);
 
   return (
     <div className="gov-main">
+      {/* Notification Bell — top right */}
+      <div className="flex justify-end mb-2">
+        <NotificationBell />
+      </div>
+
       {/* POC Role Switcher */}
       <div className="bg-yellow-50 border border-yellow-300 p-4 mb-6 rounded">
         <p className="text-sm font-bold mb-2">POC Demo: Switch User Role</p>
@@ -48,6 +149,11 @@ export default function DashboardPage() {
       {selectedUser.role === 'creditor' && <CreditorDashboard user={selectedUser} />}
       {selectedUser.role === 'supplier' && <SupplierDashboard user={selectedUser} />}
       {selectedUser.role === 'debtor' && <DebtorDashboard user={selectedUser} />}
+
+      {/* Live Transaction Ticker — bottom of dashboard */}
+      <div className="mt-6">
+        <LiveTransactionTicker />
+      </div>
     </div>
   );
 }
