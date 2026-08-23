@@ -28,8 +28,13 @@ The POC implements a complete end-to-end journey: identity verification, multi-s
 | Sprint 5 | Live Verification | PWA, WCAG fixes, smoke test endpoint, API docs, error tracking | ✅ Complete |
 | Sprint 6 | Scale & Security | MFA, multi-language (EN/GD), webhooks, API keys, security headers | ✅ Complete |
 | Sprint 7 | AI Showcase | AI chatbot, case summary, anomaly detection, quality check, predictive outcomes | ✅ Complete |
+| Sprint 8 | Enterprise Polish | Account management, data export, batch processing, 28-feature admin hub | ✅ Complete |
+| Sprint 9 | Platform Completeness | Compliance, training mode, integration monitor, performance metrics | ✅ Complete |
+| Sprint 10 | Final Integration | Documentation suite, demo readiness, final polish, 50+ pages | ✅ Complete |
 
-📋 [Full Sprint Delivery Log](docs/sprint-delivery-log.md)
+**50+ pages | 28 admin features | 12+ AI capabilities | 10 sprints | £0/month hosting**
+
+📋 [Full Sprint Delivery Log](docs/sprint-delivery-log.md) | 📖 [Onboarding Guide](docs/onboarding-guide.md)
 
 ---
 

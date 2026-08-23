@@ -64,7 +64,7 @@ IAAS provides three core capabilities:
 
 ## Key Capabilities Demonstrated
 
-The POC demonstrates the following capabilities in working code:
+The POC demonstrates the following capabilities in working code — **50+ pages, 28 admin features, 12+ AI capabilities, delivered across 10 sprints at £0/month hosting cost** on a live deployment:
 
 1. **Citizen self-service application journey** — Multi-step form with save/resume, validation, and progress tracking
 2. **Identity verification federation** — ScotAccount, GOV.UK Login, and SAML integration patterns
@@ -80,8 +80,8 @@ The POC demonstrates the following capabilities in working code:
 12. **Unified work queue** — Single prioritised queue spanning all product types
 13. **Fuzzy cross-system search** — Find debtors across all legacy systems with approximate matching
 14. **Operational dashboard** — Real-time metrics on application volumes, processing times, and backlogs
-15. **Security dashboard** — Authentication events, failed logins, suspicious activity monitoring
-16. **Statistics dashboard** — Product distribution, geographic analysis, trend data
+15. **Security Operations Centre** — Authentication events, threat detection, Sophos/Tenable feeds, anomaly monitoring
+16. **Statistics dashboard** — Product distribution, geographic analysis, trend data with live animation
 17. **Enterprise architecture visualisation** — Interactive system map showing integrations and data flows
 18. **Digital Mailroom** — AI-powered OCR and Named Entity Recognition pipeline for postal correspondence
 19. **AI Governance dashboard** — Model monitoring, bias detection, explainability metrics, and human-in-the-loop controls
@@ -91,6 +91,15 @@ The POC demonstrates the following capabilities in working code:
 23. **Case timeline audit trail** — Full chronological record of all actions against a case
 24. **Notification service** — Email/SMS notifications with role-specific subscription management
 25. **Rate limiting and abuse protection** — Defence against automated attacks and misuse
+26. **AI Chatbot** — Floating FAQ assistant with natural language pattern matching (12+ topics)
+27. **AI Case Summary** — Auto-generated natural language synthesis from case data
+28. **Anomaly Detection** — Income discrepancies, duplicate applications, SLA warnings surfaced proactively
+29. **AI Quality Check** — 6 automated pre-decision checks (documents, income, conflicts, confidence, identity, credit)
+30. **Predictive Case Outcomes** — Historical pattern-based approval likelihood scoring
+31. **Real-time Eligibility Prediction** — Live product suitability as applicant enters data
+32. **Debtor Risk Scoring** — Composite score from credit, debt-to-income, and existing cases
+33. **Automated Case Prioritisation** — AI-determined urgency ranking for staff work queues
+34. **28-feature Admin Hub** — Comprehensive administration portal with rules, governance, compliance, monitoring, and operations
 
 ---
 

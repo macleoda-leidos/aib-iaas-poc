@@ -13,8 +13,11 @@ This document records what was delivered in each sprint of the AiB IAAS POC deve
 | 5 | Live Verification | ✅ Complete | +2 | — |
 | 6 | Scale & Security | ✅ Complete | +5 | — |
 | 7 | AI Showcase | ✅ Complete | — | — |
+| 8 | Enterprise Polish | ✅ Complete | +3 | — |
+| 9 | Platform Completeness | ✅ Complete | +4 | — |
+| 10 | Final Integration | ✅ Complete | +2 | — |
 
-**Totals: 42+ pages, 35 features, 321+ tests, 27+ docs, 10 AI capabilities**
+**Totals: 50+ pages, 40+ features, 321+ tests, 30+ docs, 12+ AI capabilities**
 
 ---
 
@@ -182,6 +185,48 @@ This document records what was delivered in each sprint of the AiB IAAS POC deve
 
 ---
 
+## Sprint 8 — Enterprise Polish
+
+**Goal**: Production-quality UX, data management, and batch capabilities.
+
+### Delivered:
+1. User account page with notification subscription management (role-specific preferences)
+2. Dynamic sign-in button replacing static nav links
+3. AiB logo as browser tab favicon across all pages
+4. Data export functionality (CSV/JSON with field selection)
+5. Batch processing queue with progress tracking
+6. Enhanced admin hub with 28 features accessible from single grid
+
+---
+
+## Sprint 9 — Platform Completeness
+
+**Goal**: Fill remaining functional gaps, expand admin capabilities.
+
+### Delivered:
+1. Compliance dashboard with regulatory requirement tracking
+2. Training mode sandbox for new staff onboarding
+3. Release notes page with version history and changelog
+4. Integration monitor with real-time status of all 6 legacy systems
+5. Performance metrics dashboard (response time percentiles, throughput)
+6. Comprehensive test suite expansion (321+ tests maintained)
+
+---
+
+## Sprint 10 — Final Integration
+
+**Goal**: Documentation, demo readiness, final polish.
+
+### Delivered:
+1. Onboarding guide for new team members
+2. Stakeholder demo script (10-minute walkthrough)
+3. Complete functionality breakdown (50+ pages documented)
+4. Role-specific notification subscriptions on account page
+5. Final broken link fixes (home page Apply button, favicon path)
+6. README rewrite with updated metrics and sprint table
+
+---
+
 ## Pre-Sprint Work (Initial POC + Copilot Recommendations)
 
 Before the numbered sprints, significant foundational work was delivered:
@@ -209,15 +254,17 @@ Before the numbered sprints, significant foundational work was delivered:
 
 | Metric | Value |
 |--------|-------|
-| Total UI Pages | 42+ |
-| Total Features Documented | 35 |
+| Total UI Pages | 50+ |
+| Total Features Documented | 40+ |
 | Total Automated Tests | 321+ |
-| Total Documentation Files | 27+ |
-| AI/ML Capabilities | 10 |
-| Backend Services | 11 (consolidated) |
+| Total Documentation Files | 30+ |
+| AI/ML Capabilities | 12+ |
+| Admin Features | 28 |
+| Backend Services | 13 (consolidated) |
 | Database Tables | 14 |
 | Seed Data Records | 30+ (users, orgs, roles, permissions, applications) |
 | Live API Endpoints | 10 groups |
+| Sprints Completed | 10 |
 | Monthly Running Cost | £0 |
 
 ---

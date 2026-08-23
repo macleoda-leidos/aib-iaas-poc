@@ -11,8 +11,12 @@
 | Sprint 5 | Live Verification — PWA, Accessibility, Smoke Tests, API Docs | Complete |
 | Sprint 6 | Scale & Security — MFA, Multi-language, Webhooks, API Keys | Complete |
 | Sprint 7 | AI Showcase — Chatbot, Case Summary, Anomaly Detection, Quality Check, Predictions | Complete |
-| Sprint 8 | Enterprise Polish — PWA offline, Data export, Batch processing | Planned |
-| Sprint 8 | Enterprise Polish — PWA offline, Data export, Batch processing | Planned |
+| Sprint 8 | Enterprise Polish — Account management, Data export, Batch processing, Admin hub (28 features) | Complete |
+| Sprint 9 | Platform Completeness — Compliance, Training mode, Integration monitor, Performance metrics | Complete |
+| Sprint 10 | Final Integration — Documentation suite, Demo readiness, Final polish | Complete |
+| Sprint 11 | Alpha Preparation — Real identity provider (ScotAccount test), PostgreSQL migration | Planned |
+| Sprint 12 | Integration Alpha — BASYS/eDEN test environment connections, GOV.UK Notify | Planned |
+| Sprint 13 | UAT Readiness — Staff pilot onboarding, Accessibility audit, Pen test preparation | Planned |
 
 ---
 
