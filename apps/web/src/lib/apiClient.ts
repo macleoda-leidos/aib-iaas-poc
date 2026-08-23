@@ -7,7 +7,9 @@
 
 import { captureError } from './errorTracking';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://iaas-api.onrender.com';
+const API_URL = (typeof window !== 'undefined' && localStorage.getItem('iaas-backend-url'))
+  || process.env.NEXT_PUBLIC_API_URL
+  || 'https://iaas-api.onrender.com';
 
 // Auth token stored in memory (set on login, used for audit trail)
 let authToken: string | null = null;

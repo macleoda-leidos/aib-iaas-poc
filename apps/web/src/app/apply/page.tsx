@@ -1055,6 +1055,7 @@ function AddressSection({ formData, updateField, errors }: { formData: any; upda
 
   return (
     <div className="space-y-4">
+      <AutoFillButton section="address" formData={formData} updateField={updateField} />
       <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 rounded p-3 mb-4">
         <p className="text-sm"><strong>5-Year Address History Required:</strong> Please provide all addresses you have lived at during the last 5 years. This is needed for credit checks and cross-system verification.</p>
       </div>
@@ -1152,6 +1153,7 @@ function DebtsSection({ formData, updateField, errors }: { formData: any; update
 
   return (
     <div className="space-y-4">
+      <AutoFillButton section="debts" formData={formData} updateField={updateField} />
       <p className="text-sm text-gray-600 dark:text-gray-400">Enter all debts you currently owe. Include credit cards, loans, overdrafts, council tax arrears, etc.</p>
       {errors['debts.required'] && <p className="text-red-600 text-sm font-bold">{errors['debts.required']}</p>}
       {totalDebt > 0 && (
@@ -1209,6 +1211,7 @@ function IncomeSection({ formData, updateField, errors }: { formData: any; updat
 
   return (
     <div className="space-y-4">
+      <AutoFillButton section="income" formData={formData} updateField={updateField} />
       <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 rounded p-3 mb-2">
         <p className="text-xs"><strong>📋 Common Financial Tool (CFT):</strong> Income and expenditure categories below are aligned with the <a href="https://www.aib.gov.uk/common-financial-tool" target="_blank" rel="noopener noreferrer" className="text-blue-700 underline">Common Financial Tool</a> used across all Scottish debt solutions for affordability assessment.</p>
       </div>
@@ -1275,6 +1278,7 @@ function AssetsSection({ formData, updateField, errors }: { formData: any; updat
 
   return (
     <div className="space-y-4">
+      <AutoFillButton section="assets" formData={formData} updateField={updateField} />
       <p className="text-sm text-gray-600 dark:text-gray-400">Declare all assets you own or have an interest in. This is essential for determining which debt solution is most appropriate.</p>
       {errors['assets.required'] && <p className="text-red-600 text-sm font-bold">{errors['assets.required']}</p>}
 

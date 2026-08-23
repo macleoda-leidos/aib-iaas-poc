@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 
 const INITIAL_FLAGS = [
@@ -16,6 +16,16 @@ const INITIAL_FLAGS = [
 
 export default function FeatureFlagsPage() {
   const [flags, setFlags] = useState(INITIAL_FLAGS);
+  const [backendUrl, setBackendUrl] = useState('');
+
+  useEffect(() => {
+    setBackendUrl(localStorage.getItem('iaas-backend-url') || 'https://iaas-api.onrender.com');
+  }, []);
+
+  const switchBackend = (url: string) => {
+    localStorage.setItem('iaas-backend-url', url);
+    window.location.reload();
+  };
 
   const toggle = (id: string) => {
     setFlags(f => f.map(flag => flag.id === id ? { ...flag, enabled: !flag.enabled, modified: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) } : flag));
@@ -26,6 +36,23 @@ export default function FeatureFlagsPage() {
       <Link href="/admin" className="text-blue-700 dark:text-blue-400 text-sm underline mb-4 inline-block">← Back to Admin</Link>
       <h1 className="text-3xl font-bold mb-2">Feature Flags</h1>
       <p className="text-gray-600 dark:text-gray-400 mb-6">Enable or disable features per role. Changes take effect immediately.</p>
+
+      {/* Backend Selector */}
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 mb-6">
+        <h3 className="font-bold text-sm mb-2">🔄 Backend API</h3>
+        <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">Switch between Node.js (live on Render) and .NET 9 (local Docker). Same endpoints, same JSON contracts.</p>
+        <div className="flex gap-2">
+          <button onClick={() => switchBackend('https://iaas-api.onrender.com')}
+            className={`px-3 py-1.5 rounded text-xs font-bold ${backendUrl === 'https://iaas-api.onrender.com' ? 'bg-green-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'}`}>
+            Node.js (Render) — Live
+          </button>
+          <button onClick={() => switchBackend('http://localhost:5001')}
+            className={`px-3 py-1.5 rounded text-xs font-bold ${backendUrl === 'http://localhost:5001' ? 'bg-purple-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'}`}>
+            .NET 9 (Local) — Docker
+          </button>
+        </div>
+        <p className="text-xs text-gray-400 mt-2">Current: {backendUrl || '...'} &bull; Page reloads on switch</p>
+      </div>
 
       <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
         <table className="w-full text-sm">

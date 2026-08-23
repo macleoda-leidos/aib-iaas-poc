@@ -13,6 +13,8 @@ The POC implements a complete end-to-end journey: identity verification, multi-s
 
 **Live Demo:** https://macleoda-leidos.github.io/aib-iaas-poc/
 **Live API:** https://iaas-api.onrender.com
+**.NET 9 API (local):** `dotnet run` in `services/dotnet-api/` → http://localhost:5001
+**Backend Switch:** Admin → Feature Flags → Backend API toggle (or [docs](docs/backend-switching.md))
 **API Docs:** https://macleoda-leidos.github.io/aib-iaas-poc/api-docs
 
 **This is a POC — not production software. All data is synthetic. No real payments, credit checks, or system integrations are performed.**
