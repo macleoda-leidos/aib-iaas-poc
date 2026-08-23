@@ -228,6 +228,38 @@ const ADMIN_FEATURES = [
     status: 'Live',
     statusColour: 'bg-green-100 text-green-800',
   },
+  {
+    href: '/admin/workflow-engine',
+    icon: '🔄',
+    name: 'Workflow Engine',
+    description: 'Visual case lifecycle state machine with transition rules and SLA timers.',
+    status: 'Live',
+    statusColour: 'bg-green-100 text-green-800',
+  },
+  {
+    href: '/admin/mi-reports',
+    icon: '📈',
+    name: 'MI Reports',
+    description: 'Management information — KPIs, SLA compliance, staff performance, trends.',
+    status: 'Live',
+    statusColour: 'bg-green-100 text-green-800',
+  },
+  {
+    href: '/admin/integration-monitor',
+    icon: '🔗',
+    name: 'Integration Monitor',
+    description: 'Live health status of all 6 AiB system connections.',
+    status: 'Live',
+    statusColour: 'bg-green-100 text-green-800',
+  },
+  {
+    href: '/admin/correspondence-scheduler',
+    icon: '📅',
+    name: 'Correspondence Scheduler',
+    description: 'Automated letter scheduling with rules and calendar view.',
+    status: 'Live',
+    statusColour: 'bg-green-100 text-green-800',
+  },
 ];
 
 export default function AdminPortalPage() {
