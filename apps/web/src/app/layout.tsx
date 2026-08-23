@@ -23,6 +23,7 @@ import { LanguageToggle, LanguageProvider } from './LanguageToggle';
 import { Providers } from './Providers';
 import { UserNavItem } from './UserNavItem';
 import ApiStatusBar, { ApiStatusProvider } from './ApiStatus';
+import AiChatbot from './components/AiChatbot';
 
 const BASE = process.env.GITHUB_PAGES === 'true' ? '/aib-iaas-poc' : '';
 
@@ -134,6 +135,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </div>
           </div>
         </footer>
+      <AiChatbot />
       </ApiStatusProvider>
       </LanguageProvider>
       </Providers>

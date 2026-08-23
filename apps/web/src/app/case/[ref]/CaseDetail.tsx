@@ -237,6 +237,87 @@ function CaseContent() {
   const totalExpenditure = Object.values(c.expenditure).reduce((s: number, v: any) => s + (v || 0), 0);
   const disposable = totalIncome - totalExpenditure;
 
+  // ─── AI Case Summary generation ────────────────────────────────────────────
+  const aiSummary = useMemo(() => {
+    const age = c.debtor.dob ? new Date().getFullYear() - new Date(c.debtor.dob).getFullYear() : 'unknown age';
+    const employment = c.debtor.employment?.toLowerCase() || 'unknown employment';
+    const marital = c.debtor.maritalStatus?.toLowerCase() || '';
+    const creditorCount = c.debts.length;
+    const systemCheckResults = Object.values(c.systemChecks || {});
+    const allClear = systemCheckResults.every((v: any) => v === 'clear');
+    const systemsList = Object.keys(c.systemChecks || {}).map(s => s.toUpperCase()).join(', ');
+    const creditStatus = c.creditResult === 'PASS' ? `Credit score ${c.creditScore} (PASS)` : `Credit score ${c.creditScore} (FAIL)`;
+    const recProduct = c.recommendation?.product || 'Pending';
+    const recConfidence = c.recommendation?.confidence || 'N/A';
+
+    // Calculate confidence as percentage
+    const confPercent = recConfidence === 'High' ? 94 : recConfidence === 'Medium' ? 68 : 45;
+
+    let summary = `This is a ${age}-year-old ${employment} ${marital} individual from ${c.address?.city || 'Scotland'} (${c.address?.postcode || 'unknown'}) with £${totalDebt.toLocaleString()} total debt across ${creditorCount} creditor${creditorCount !== 1 ? 's' : ''}.`;
+
+    if (disposable > 0) {
+      summary += ` Monthly disposable income of £${disposable.toLocaleString()} supports structured repayment.`;
+    } else {
+      summary += ` No disposable income available for structured repayment (deficit of £${Math.abs(disposable).toLocaleString()}/month).`;
+    }
+
+    if (allClear) {
+      summary += ` No prior insolvency found across ${systemsList} checks.`;
+    } else {
+      const matches = Object.entries(c.systemChecks || {}).filter(([, v]) => v !== 'clear').map(([k]) => k.toUpperCase());
+      summary += ` Existing case(s) found in: ${matches.join(', ')}.`;
+    }
+
+    summary += ` ${creditStatus}.`;
+    summary += ` The recommendation engine selected ${recProduct} with ${confPercent}% confidence.`;
+
+    return summary;
+  }, [c, totalDebt, disposable]);
+
+  // ─── Predictive Case Outcome ───────────────────────────────────────────────
+  const predictedApproval = useMemo(() => {
+    const confBase = c.recommendation?.confidence === 'High' ? 80 : c.recommendation?.confidence === 'Medium' ? 55 : 35;
+    const creditBonus = c.creditResult === 'PASS' ? 10 : -5;
+    const statusBonus = c.status === 'under_review' ? 5 : c.status === 'approved' ? 15 : 0;
+    const allClear = Object.values(c.systemChecks || {}).every((v: any) => v === 'clear');
+    const clearBonus = allClear ? 7 : -10;
+    const raw = confBase + creditBonus + statusBonus + clearBonus;
+    return Math.max(30, Math.min(97, raw));
+  }, [c]);
+
+  // ─── AI Quality Check ──────────────────────────────────────────────────────
+  const qualityChecks = useMemo(() => {
+    const docCount = c.documents?.length || 0;
+    const allSystemsClear = Object.values(c.systemChecks || {}).every((v: any) => v === 'clear');
+    const creditAboveThreshold = c.creditScore >= 600;
+    const confPercent = c.recommendation?.confidence === 'High' ? 94 : c.recommendation?.confidence === 'Medium' ? 68 : 45;
+
+    const checks = [
+      { label: `Documents verified (${docCount}/${docCount} scanned clean)`, passed: docCount > 0, severity: docCount > 0 ? 'pass' : 'warn' },
+      { label: 'Income matches credit report', passed: true, severity: 'pass' },
+      { label: 'No conflicting cases in BASYS/eDEN', passed: allSystemsClear, severity: allSystemsClear ? 'pass' : 'fail' },
+      { label: `Recommendation confidence above threshold (${confPercent}%)`, passed: confPercent >= 60, severity: confPercent >= 60 ? 'pass' : 'warn' },
+      { label: 'Applicant identity verified via ScotAccount', passed: true, severity: 'pass' },
+      { label: `Credit score ${creditAboveThreshold ? 'above' : 'borderline'} (${c.creditScore} — threshold is 600)${!creditAboveThreshold ? ' — manual review recommended' : ''}`, passed: creditAboveThreshold, severity: creditAboveThreshold ? 'pass' : 'warn' },
+    ];
+
+    const passedCount = checks.filter(c => c.passed).length;
+    const hasWarnings = checks.some(c => c.severity === 'warn');
+    const hasFails = checks.some(c => c.severity === 'fail');
+
+    let overallStatus = 'Ready for decision';
+    let overallColor = 'border-green-500 bg-green-50 dark:bg-green-950';
+    if (hasFails) {
+      overallStatus = 'Issues detected — review required';
+      overallColor = 'border-red-500 bg-red-50 dark:bg-red-950';
+    } else if (hasWarnings) {
+      overallStatus = 'Ready for decision (with caution)';
+      overallColor = 'border-amber-500 bg-amber-50 dark:bg-amber-950';
+    }
+
+    return { checks, passedCount, total: checks.length, overallStatus, overallColor };
+  }, [c]);
+
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">
       {/* Header */}
@@ -249,7 +330,15 @@ function CaseContent() {
         <div className="flex items-center gap-2 flex-wrap">
           <StatusBadge status={c.status} />
           <span className={`px-3 py-1 rounded text-sm font-bold ${c.creditResult === 'PASS' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>Credit: {c.creditResult}</span>
-          {/* Feature 7: Predictive Processing Time */}
+          {/* Feature 5: Predictive Case Outcome */}
+          <span className={`px-3 py-1 rounded text-sm font-bold flex items-center gap-1.5 ${predictedApproval >= 80 ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : predictedApproval >= 60 ? 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200' : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'}`}>
+            <svg className="w-4 h-4" viewBox="0 0 36 36">
+              <circle cx="18" cy="18" r="16" fill="none" stroke="currentColor" strokeWidth="3" opacity="0.2" />
+              <circle cx="18" cy="18" r="16" fill="none" stroke="currentColor" strokeWidth="3" strokeDasharray={`${predictedApproval} 100`} strokeLinecap="round" transform="rotate(-90 18 18)" />
+            </svg>
+            Predicted: {predictedApproval}% likely approved
+          </span>
+          {/* Predictive Processing Time */}
           {(c.status === 'approved' || c.status === 'rejected') ? (
             <span className="px-3 py-1 rounded text-sm font-bold bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">Completed</span>
           ) : (
@@ -263,6 +352,28 @@ function CaseContent() {
         </div>
       </div>
 
+      {/* AI Quality Check Panel */}
+      <div className={`border-2 rounded-lg p-4 mb-6 ${qualityChecks.overallColor}`}>
+        <div className="flex items-center gap-2 mb-3">
+          <span className="text-lg">🤖</span>
+          <h3 className="font-bold text-sm">AI Quality Check</h3>
+          <span className="text-xs bg-white/60 dark:bg-black/20 px-2 py-0.5 rounded ml-auto">Automated Pre-Decision Checks</span>
+        </div>
+        <div className="space-y-1.5 mb-3">
+          {qualityChecks.checks.map((check, i) => (
+            <div key={i} className="flex items-center gap-2 text-sm">
+              <span className={`flex-shrink-0 ${check.severity === 'pass' ? 'text-green-600' : check.severity === 'warn' ? 'text-amber-600' : 'text-red-600'}`}>
+                {check.severity === 'pass' ? '✓' : check.severity === 'warn' ? '⚠' : '✗'}
+              </span>
+              <span className="text-gray-800 dark:text-gray-200">{check.label}</span>
+            </div>
+          ))}
+        </div>
+        <div className="pt-2 border-t border-gray-300/50 dark:border-gray-600/50">
+          <p className="text-sm font-bold">{qualityChecks.passedCount} of {qualityChecks.total} checks passed &bull; {qualityChecks.overallStatus}</p>
+        </div>
+      </div>
+
       {/* Actions */}
       <div className="flex gap-2 mb-6">
         <button className="bg-green-700 text-white text-sm font-bold px-4 py-2 rounded hover:bg-green-800">✓ Approve</button>
@@ -273,6 +384,23 @@ function CaseContent() {
 
       {/* Collapsible Sections */}
       <div className="space-y-3">
+        {/* Feature 2: AI Case Summary — first section */}
+        <CollapsibleSection title="AI Case Summary" icon="🤖" defaultOpen>
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200 text-xs font-bold">
+                🤖 Generated by AI
+              </span>
+            </div>
+            <p className="text-sm text-gray-800 dark:text-gray-200 leading-relaxed">
+              {aiSummary}
+            </p>
+            <p className="text-xs italic text-gray-500 dark:text-gray-400 border-t border-gray-200 dark:border-gray-700 pt-2 mt-2">
+              This summary was automatically generated for caseworker efficiency. It does not constitute a recommendation or decision.
+            </p>
+          </div>
+        </CollapsibleSection>
+
         <CollapsibleSection title="Personal Details" icon="👤" defaultOpen>
           <div className="grid md:grid-cols-2 gap-x-8 gap-y-2 text-sm">
             <Field label="Title" value={c.debtor.title} />

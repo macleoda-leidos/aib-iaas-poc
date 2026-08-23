@@ -360,6 +360,66 @@ function AibDashboard({ user }: { user: any }) {
         <KpiCard label="Total Active" value="156" trend="across all products" colour="purple" />
       </div>
 
+      {/* AI Anomaly Alerts */}
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg mb-6">
+        <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center gap-2">
+          <span className="text-lg">🤖</span>
+          <h2 className="font-bold text-sm">AI Anomaly Alerts</h2>
+          <span className="ml-auto text-xs bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300 px-2 py-0.5 rounded-full font-bold">AI-Powered</span>
+        </div>
+        <div className="p-4 space-y-3">
+          {[
+            {
+              severity: 'warn',
+              icon: '⚠️',
+              title: 'Income Discrepancy',
+              description: "IAAS-2026-00010: Declared income £2,600/mo but credit utilisation suggests lower. Confidence: 73%",
+              confidence: 73,
+            },
+            {
+              severity: 'critical',
+              icon: '🔴',
+              title: 'Duplicate Application',
+              description: "Possible match: 'Jon Smith' (DAS-2025-08831) may be same person as 'John Smith' (EDEN-2025-04412). Fuzzy match: 88%",
+              confidence: 88,
+            },
+            {
+              severity: 'info',
+              icon: 'ℹ️',
+              title: 'Processing Delay',
+              description: "IAAS-2026-00009: Case has been in 'submitted' status for 7 days (SLA target: 5 days)",
+              confidence: 95,
+            },
+          ].map((alert, i) => (
+            <div
+              key={i}
+              className={`flex items-start gap-3 p-3 rounded-lg border transition-all duration-500 animate-[fadeIn_0.4s_ease-in] ${
+                alert.severity === 'critical' ? 'border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-950' :
+                alert.severity === 'warn' ? 'border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950' :
+                'border-blue-300 dark:border-blue-700 bg-blue-50 dark:bg-blue-950'
+              }`}
+              style={{ animationDelay: `${i * 150}ms` }}
+            >
+              <span className="text-xl flex-shrink-0">{alert.icon}</span>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="font-bold text-sm text-gray-900 dark:text-gray-100">{alert.title}</span>
+                  <span className={`text-xs px-1.5 py-0.5 rounded font-bold ${
+                    alert.severity === 'critical' ? 'bg-red-200 dark:bg-red-800 text-red-800 dark:text-red-200' :
+                    alert.severity === 'warn' ? 'bg-amber-200 dark:bg-amber-800 text-amber-800 dark:text-amber-200' :
+                    'bg-blue-200 dark:bg-blue-800 text-blue-800 dark:text-blue-200'
+                  }`}>{alert.confidence}%</span>
+                </div>
+                <p className="text-xs text-gray-700 dark:text-gray-300">{alert.description}</p>
+              </div>
+              <button className="flex-shrink-0 text-xs font-bold px-3 py-1.5 rounded bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 transition-colors">
+                Investigate
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* Role-Specific Notifications */}
       <div className="bg-white border border-gray-200 rounded mb-6">
         <div className="p-3 border-b border-gray-200 flex justify-between items-center">

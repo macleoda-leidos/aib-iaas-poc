@@ -1117,14 +1117,164 @@ Users see a moon/sun toggle in the header. Clicking switches between light and d
 
 ---
 
+## F-26: Real-Time Eligibility Indicator
+
+| Attribute | Detail |
+|-----------|--------|
+| Purpose | Provide instant visual feedback on product eligibility as applicants enter financial data |
+| Business Value | Reduces abandoned applications; sets expectations early; improves data quality |
+| Users | Debtors, Money Advisers |
+| Status | Implemented |
+
+### Description
+
+As applicants complete income, expenditure, and debt fields, a live eligibility indicator updates showing which products they may qualify for (DAS, MAP, PTD, Sequestration, DPP). Colour-coded bars show likelihood (green/amber/red) based on current data, updating in real-time without page reload.
+
+---
+
+## F-27: Debtor Risk Score
+
+| Attribute | Detail |
+|-----------|--------|
+| Purpose | Calculate and display a composite risk score for each applicant to inform case prioritisation |
+| Business Value | Enables risk-based triage; highlights complex cases early; supports resource allocation |
+| Users | AiB Case Officers, Senior Officers |
+| Status | Implemented |
+
+### Description
+
+A visual risk gauge (0-100) combining credit score (40%), debt-to-income ratio (35%), and existing case history (25%). Displayed on case detail pages with contributing factors breakdown, colour-coded severity (green/amber/red), and explanatory tooltips. Helps officers prioritise caseload by risk level.
+
+---
+
+## F-28: Guided Decision Support
+
+| Attribute | Detail |
+|-----------|--------|
+| Purpose | Provide case officers with a structured checklist to ensure consistent decision-making |
+| Business Value | Reduces errors; ensures compliance; supports training of new officers |
+| Users | AiB Case Officers |
+| Status | Implemented |
+
+### Description
+
+An interactive checklist on case detail pages that tracks review progress: credit check review, income verification, BASYS lookup, recommendation review, identity confirmation, and decision. Auto-checks items where system data confirms completion. Progress bar shows overall readiness for decision.
+
+---
+
+## F-29: Applicant Communication Portal
+
+| Attribute | Detail |
+|-----------|--------|
+| Purpose | Enable secure messaging between debtors and their assigned money advisers |
+| Business Value | Reduces phone calls; creates audit trail; improves response times |
+| Users | Debtors, Money Advisers |
+| Status | Implemented |
+
+### Description
+
+Debtors can view message history with their assigned adviser, send categorised messages (general, recommendation, upload help, appointment change, urgent), and see adviser availability. Advisers see client messages in their dashboard with response prompts.
+
+---
+
+## F-30: MFA Authentication Flow
+
+| Attribute | Detail |
+|-----------|--------|
+| Purpose | Enforce multi-factor authentication with TOTP, WebAuthn, and email OTP support |
+| Business Value | Meets Cyber Essentials Plus; protects citizen data; regulatory compliance |
+| Users | All authenticated users |
+| Status | Implemented |
+
+### Description
+
+Enhanced MFA flow with method selection (authenticator app, hardware key, email code), animated verification feedback, device trust management, and graceful fallback paths. Integrates with session management for step-up authentication on sensitive operations.
+
+---
+
+## F-31: Multi-Language Support (EN/GD)
+
+| Attribute | Detail |
+|-----------|--------|
+| Purpose | Provide Scottish Gaelic language support alongside English for all public-facing content |
+| Business Value | Meets Gaelic Language Act 2005 obligations; inclusive design; cultural accessibility |
+| Users | All public users |
+| Status | Implemented |
+
+### Description
+
+Language toggle in the site header switches between English and Scottish Gaelic. Key navigation, labels, and informational content translated. Preference persisted via localStorage. Demonstrates bilingual capability for production Gaelic Language Plan compliance.
+
+---
+
+## F-32: Webhook System
+
+| Attribute | Detail |
+|-----------|--------|
+| Purpose | Enable event-driven notifications to external systems when application state changes |
+| Business Value | Real-time integration; reduces polling; supports automation |
+| Users | System Admins, Integration Partners |
+| Status | Implemented |
+
+### Description
+
+Configurable webhooks fire on application events (submitted, approved, rejected, assigned). Supports retry with exponential backoff, HMAC signature verification, and delivery logging. Admin interface shows webhook configuration, recent deliveries, and failure rates.
+
+---
+
+## F-33: API Key Management
+
+| Attribute | Detail |
+|-----------|--------|
+| Purpose | Issue and manage API keys for third-party system integration |
+| Business Value | Secure programmatic access; audit trail; rate limiting per key |
+| Users | System Admins, Integration Partners |
+| Status | Implemented |
+
+### Description
+
+Admin interface for creating, rotating, and revoking API keys. Each key has configurable permissions, rate limits, and expiry dates. Usage metrics show requests per key, error rates, and last-used timestamps. Keys support scope restriction (read-only, write, admin).
+
+---
+
+## F-34: Interactive API Documentation
+
+| Attribute | Detail |
+|-----------|--------|
+| Purpose | Provide live, interactive API documentation with try-it-now capability |
+| Business Value | Accelerates integration development; reduces support queries; self-service onboarding |
+| Users | Developers, Integration Partners |
+| Status | Implemented |
+
+### Description
+
+Swagger/OpenAPI-style documentation page with endpoint listing, request/response examples, authentication guidance, and live API testing. Supports code generation for common languages and copy-paste cURL commands.
+
+---
+
+## F-35: Session Management
+
+| Attribute | Detail |
+|-----------|--------|
+| Purpose | Provide visibility and control over active user sessions across devices |
+| Business Value | Security hygiene; detect compromised sessions; compliance with data protection |
+| Users | All authenticated users, System Admins |
+| Status | Implemented |
+
+### Description
+
+Users can view active sessions (device, location, last activity), revoke individual sessions, and force logout of all devices. Admins can view system-wide active sessions, detect anomalies (concurrent logins from different locations), and force session termination for security incidents.
+
+---
+
 ## Appendix: Feature Status Summary
 
 | Status | Count | Features |
 |--------|-------|----------|
-| Implemented | 20 | F-01 through F-18, F-24, F-25 |
+| Implemented | 30 | F-01 through F-18, F-24 through F-35 |
 | Implemented (Sandbox) | 3 | F-06, F-09, F-07 |
 | Design (Simulated) | 2 | F-02, F-03 |
-| Total | 25 | All features documented |
+| Total | 35 | All features documented |
 
 ---
 
