@@ -74,7 +74,9 @@ function renderMarkdown(md: string): string {
     .replace(/\*(.+?)\*/g, '<em>$1</em>')
     // Inline code
     .replace(/`([^`]+)`/g, '<code class="bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded text-xs">$1</code>')
-    // Links
+    // Links — relative .md links → GitHub view (prevents 404s)
+    .replace(/\[([^\]]+)\]\(\.?\/?([a-zA-Z0-9_-]+\.md)\)/g, '<a href="https://github.com/macleoda-leidos/aib-iaas-poc/blob/main/docs/$2" class="text-blue-700 dark:text-blue-400 underline" target="_blank">$1 ↗</a>')
+    // Links — all other URLs
     .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="text-blue-700 dark:text-blue-400 underline" target="_blank">$1</a>')
     // Lists
     .replace(/^- (.+)$/gm, '<li class="ml-4 list-disc text-sm">$1</li>')
