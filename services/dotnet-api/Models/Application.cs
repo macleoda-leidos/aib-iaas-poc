@@ -9,6 +9,8 @@ public class Application
     public DateTime? SubmittedAt { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    public bool IsDeleted { get; set; } = false;
+    public byte[] RowVersion { get; set; } = Array.Empty<byte>();
 
     public Applicant? Applicant { get; set; }
     public List<Debt> Debts { get; set; } = new();

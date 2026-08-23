@@ -17,9 +17,10 @@ var builder = WebApplication.CreateBuilder(args);
 // MediatR
 builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(Program).Assembly));
 
-// Database — SQLite for dev, PostgreSQL for production
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-if (builder.Environment.IsProduction() && connectionString?.Contains("Host=") == true)
+// Database — PostgreSQL when DATABASE_URL or Host= connection string is present, otherwise SQLite
+var connectionString = Environment.GetEnvironmentVariable("DATABASE_URL")
+    ?? builder.Configuration.GetConnectionString("DefaultConnection");
+if (connectionString?.Contains("Host=") == true || connectionString?.StartsWith("postgresql://") == true)
 {
     builder.Services.AddDbContext<IaasDbContext>(options => options.UseNpgsql(connectionString));
 }
