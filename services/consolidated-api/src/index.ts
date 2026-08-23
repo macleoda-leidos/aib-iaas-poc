@@ -88,6 +88,32 @@ try {
   console.log('[Consolidated API] Seed skipped:', e.message);
 }
 
+// If PostgreSQL (Neon) is configured, initialize it as the persistent store.
+// SQLite remains the runtime query engine (sync, fast, zero breaking changes).
+// Neon holds the schema + seed data for when async migration completes.
+if (process.env.DATABASE_URL?.startsWith('postgresql://')) {
+  const { Pool } = require('pg');
+  const { initPgSchema } = require('@aib-iaas/database');
+  const { seedPgDatabase } = require('@aib-iaas/database');
+
+  (async () => {
+    try {
+      const pool = new Pool({
+        connectionString: process.env.DATABASE_URL,
+        ssl: process.env.DATABASE_URL!.includes('neon.tech')
+          ? { rejectUnauthorized: false }
+          : undefined,
+      });
+      await initPgSchema(pool);
+      await seedPgDatabase(pool);
+      console.log('[Consolidated API] Neon PostgreSQL initialized as persistent store');
+      await pool.end();
+    } catch (e: any) {
+      console.log('[Consolidated API] Neon sync skipped:', e.message);
+    }
+  })();
+}
+
 console.log('[Consolidated API] All databases initialized');
 
 // ===== API GATEWAY ROUTES =====
