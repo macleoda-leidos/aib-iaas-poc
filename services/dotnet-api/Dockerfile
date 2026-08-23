@@ -8,5 +8,5 @@ RUN dotnet publish -c Release -o /app
 FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS runtime
 WORKDIR /app
 COPY --from=build /app .
-ENV ASPNETCORE_URLS=http://+:${PORT:-5001}
-ENTRYPOINT ["dotnet", "IAAS.Api.dll"]
+ENV ASPNETCORE_URLS=http://+:5001
+ENTRYPOINT ["sh", "-c", "dotnet IAAS.Api.dll --urls=http://+:${PORT:-5001}"]
