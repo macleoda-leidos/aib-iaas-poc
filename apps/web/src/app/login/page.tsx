@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { setAuthToken } from '../../lib/apiClient';
 import { navigateTo } from '../../lib/navigation';
 import Link from 'next/link';
@@ -20,6 +20,12 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  // MFA state
+  const [mfaStep, setMfaStep] = useState(false);
+  const [mfaCode, setMfaCode] = useState(['', '', '', '', '', '']);
+  const [mfaVerifying, setMfaVerifying] = useState(false);
+  const [rememberDevice, setRememberDevice] = useState(false);
+  const mfaRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,7 +47,7 @@ export default function LoginPage() {
         return;
       }
 
-      // Store token
+      // Store token temporarily
       const token = data.data?.token || data.token;
       if (token) {
         setAuthToken(token);
@@ -55,14 +61,65 @@ export default function LoginPage() {
         sessionStorage.setItem('iaas-current-user', JSON.stringify(user));
       }
 
-      setSuccess(true);
-      setTimeout(() => {
-        navigateTo('/dashboard');
-      }, 1000);
+      // Move to MFA step instead of redirecting
+      setLoading(false);
+      setMfaStep(true);
     } catch (err) {
       setError('Unable to connect to server. Please try again.');
       setLoading(false);
     }
+  };
+
+  const handleMfaInput = (index: number, value: string) => {
+    if (!/^\d*$/.test(value)) return;
+    const newCode = [...mfaCode];
+    newCode[index] = value.slice(-1);
+    setMfaCode(newCode);
+    // Auto-focus next input
+    if (value && index < 5) {
+      mfaRefs.current[index + 1]?.focus();
+    }
+  };
+
+  const handleMfaKeyDown = (index: number, e: React.KeyboardEvent) => {
+    if (e.key === 'Backspace' && !mfaCode[index] && index > 0) {
+      mfaRefs.current[index - 1]?.focus();
+    }
+  };
+
+  const handleMfaPaste = (e: React.ClipboardEvent) => {
+    const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
+    if (pasted.length > 0) {
+      const newCode = [...mfaCode];
+      for (let i = 0; i < pasted.length && i < 6; i++) {
+        newCode[i] = pasted[i];
+      }
+      setMfaCode(newCode);
+      e.preventDefault();
+    }
+  };
+
+  const handleMfaVerify = () => {
+    const code = mfaCode.join('');
+    if (code.length !== 6) {
+      setError('Please enter a 6-digit code');
+      return;
+    }
+    setMfaVerifying(true);
+    setError('');
+    // Simulate verification delay
+    setTimeout(() => {
+      setMfaVerifying(false);
+      setSuccess(true);
+      // Store session info
+      localStorage.setItem('iaas-session-start', Date.now().toString());
+      if (rememberDevice) {
+        localStorage.setItem('iaas-remember-device', 'true');
+      }
+      setTimeout(() => {
+        navigateTo('/dashboard');
+      }, 1000);
+    }, 1200);
   };
 
   const fillDemoAccount = (demoEmail: string) => {
@@ -88,13 +145,13 @@ export default function LoginPage() {
         {/* Login Card */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
           <div className="bg-gray-50 dark:bg-gray-750 border-b dark:border-gray-700 px-6 py-3 flex items-center justify-between">
-            <span className="text-xs text-gray-500 dark:text-gray-400">Authentication</span>
+            <span className="text-xs text-gray-500 dark:text-gray-400">
+              {mfaStep ? 'Multi-Factor Authentication' : 'Authentication'}
+            </span>
             <span className="text-xs bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 px-2 py-0.5 rounded font-bold">Live API</span>
           </div>
 
           <div className="p-6">
-            <h1 className="text-xl font-bold text-center mb-6 text-gray-800 dark:text-gray-100">Sign in to AiB Services</h1>
-
             {success ? (
               <div className="text-center py-8">
                 <div className="w-12 h-12 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center mx-auto mb-3">
@@ -102,61 +159,125 @@ export default function LoginPage() {
                 </div>
                 <p className="font-bold text-green-800 dark:text-green-300 text-lg">Login Successful</p>
                 <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">Redirecting to dashboard...</p>
+                <p className="text-xs text-gray-500 dark:text-gray-500 mt-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded px-3 py-2">
+                  Session expires in 8 hours
+                </p>
               </div>
-            ) : (
-              <form onSubmit={handleLogin}>
-                {/* Error */}
+            ) : mfaStep ? (
+              /* MFA Step */
+              <div>
+                <h1 className="text-xl font-bold text-center mb-2 text-gray-800 dark:text-gray-100">Two-Factor Authentication</h1>
+                <p className="text-sm text-gray-600 dark:text-gray-400 text-center mb-6">
+                  Enter the 6-digit code from your authenticator app
+                </p>
+
                 {error && (
                   <div className="mb-4 p-3 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded text-sm text-red-800 dark:text-red-300">
                     {error}
                   </div>
                 )}
 
-                {/* Email */}
-                <div className="mb-4">
-                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Email address</label>
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="Enter your email"
-                    required
-                    className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded p-2.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                  />
+                {/* 6 digit code boxes */}
+                <div className="flex justify-center gap-2 mb-6" onPaste={handleMfaPaste}>
+                  {mfaCode.map((digit, i) => (
+                    <input
+                      key={i}
+                      ref={el => { mfaRefs.current[i] = el; }}
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={1}
+                      value={digit}
+                      onChange={e => handleMfaInput(i, e.target.value)}
+                      onKeyDown={e => handleMfaKeyDown(i, e)}
+                      className="w-12 h-14 text-center text-2xl font-bold border-2 border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-500 transition-colors"
+                      aria-label={`Digit ${i + 1}`}
+                    />
+                  ))}
                 </div>
 
-                {/* Password */}
-                <div className="mb-6">
-                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Password</label>
+                {/* Remember device */}
+                <label className="flex items-center gap-2 mb-4 cursor-pointer">
                   <input
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Enter your password"
-                    required
-                    className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded p-2.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                    type="checkbox"
+                    checked={rememberDevice}
+                    onChange={e => setRememberDevice(e.target.checked)}
+                    className="w-4 h-4 rounded border-gray-300 dark:border-gray-600"
                   />
-                </div>
+                  <span className="text-sm text-gray-700 dark:text-gray-300">Remember this device for 30 days</span>
+                </label>
 
-                {/* Submit */}
+                {/* Verify button */}
                 <button
-                  type="submit"
-                  disabled={loading}
+                  onClick={handleMfaVerify}
+                  disabled={mfaVerifying || mfaCode.join('').length !== 6}
                   className="w-full bg-blue-600 text-white font-bold py-3 rounded hover:bg-blue-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed mb-4"
                 >
-                  {loading ? (
+                  {mfaVerifying ? (
                     <span className="flex items-center justify-center gap-2">
                       <span className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></span>
-                      Signing in...
+                      Verifying...
                     </span>
-                  ) : 'Sign In'}
+                  ) : 'Verify'}
                 </button>
-              </form>
-            )}
 
-            {/* Demo Accounts */}
-            {!success && (
+                <p className="text-xs text-center text-gray-500 dark:text-gray-400">
+                  Lost access to your authenticator? <a href="#" className="text-blue-600 dark:text-blue-400 underline">Use a backup code</a>
+                </p>
+              </div>
+            ) : (
               <>
+                <h1 className="text-xl font-bold text-center mb-6 text-gray-800 dark:text-gray-100">Sign in to AiB Services</h1>
+
+                <form onSubmit={handleLogin}>
+                  {/* Error */}
+                  {error && (
+                    <div className="mb-4 p-3 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded text-sm text-red-800 dark:text-red-300">
+                      {error}
+                    </div>
+                  )}
+
+                  {/* Email */}
+                  <div className="mb-4">
+                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Email address</label>
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="Enter your email"
+                      required
+                      className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded p-2.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  {/* Password */}
+                  <div className="mb-6">
+                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Password</label>
+                    <input
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Enter your password"
+                      required
+                      className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded p-2.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  {/* Submit */}
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full bg-blue-600 text-white font-bold py-3 rounded hover:bg-blue-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed mb-4"
+                  >
+                    {loading ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <span className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></span>
+                        Signing in...
+                      </span>
+                    ) : 'Sign In'}
+                  </button>
+                </form>
+
+                {/* Demo Accounts */}
                 <div className="flex items-center gap-3 mb-4">
                   <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700"></div>
                   <span className="text-xs text-gray-400">Demo Accounts</span>
@@ -185,11 +306,17 @@ export default function LoginPage() {
             )}
           </div>
 
-          {/* Footer */}
-          <div className="bg-gray-50 dark:bg-gray-750 border-t dark:border-gray-700 px-6 py-3 text-center">
+          {/* Footer — Keycloak badge */}
+          <div className="bg-gray-50 dark:bg-gray-750 border-t dark:border-gray-700 px-6 py-3 flex items-center justify-between">
             <p className="text-xs text-gray-400">
-              POC Authentication — connects to live API at iaas-api.onrender.com
+              POC Authentication — connects to live API
             </p>
+            <div className="flex items-center gap-1.5">
+              <div className="w-4 h-4 rounded bg-[#4d4d4d] flex items-center justify-center">
+                <span className="text-white text-[8px] font-bold">K</span>
+              </div>
+              <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">Powered by Keycloak</span>
+            </div>
           </div>
         </div>
 

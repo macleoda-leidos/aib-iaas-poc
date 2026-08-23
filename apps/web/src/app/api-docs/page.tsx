@@ -80,6 +80,11 @@ export default function ApiDocsPage() {
         <p className="text-sm text-blue-800 dark:text-blue-200">
           <strong>Interactive API Explorer</strong> — Click &quot;Try it&quot; on any endpoint to make a live request to the deployed API. All data is synthetic (POC).
         </p>
+        <p className="text-sm text-blue-800 dark:text-blue-200 mt-2">
+          <Link href="/api-docs/openapi" className="font-bold underline text-blue-700 dark:text-blue-300">
+            View full OpenAPI 3.0 Specification →
+          </Link>
+        </p>
       </div>
 
       <div className="space-y-3">

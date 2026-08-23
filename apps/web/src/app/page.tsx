@@ -1,4 +1,7 @@
+'use client';
+
 import Link from 'next/link';
+import { useLanguage } from './LanguageToggle';
 
 function AnimatedCounter({ target, label }: { target: number; label: string }) {
   return (
@@ -10,6 +13,8 @@ function AnimatedCounter({ target, label }: { target: number; label: string }) {
 }
 
 export default function Home() {
+  const { language, t } = useLanguage();
+
   return (
     <div className="gov-main">
       {/* Service Status Banner */}
@@ -24,15 +29,20 @@ export default function Home() {
         </div>
       </div>
 
-      <h1>Find the right debt solution for your situation</h1>
+      {language === 'gd' && (
+        <div className="bg-purple-50 dark:bg-purple-950 border border-purple-200 dark:border-purple-800 rounded px-4 py-2 mb-4 text-xs text-purple-800 dark:text-purple-200">
+          <strong>Gaidhlig:</strong> Tha eadar-theangachadh ri fhaighinn airson na prìomh dhuilleig. Bidh duilleagan eile ann am Beurla fhathast.
+        </div>
+      )}
+
+      <h1>{t('home.title')}</h1>
 
       <p className="text-lg mb-6">
-        The Initial Application Advice Service helps you understand which debt solution
-        may be most suitable based on your financial circumstances.
+        {t('home.description')}
       </p>
 
       <div className="bg-blue-50 dark:bg-blue-950 border-l-4 border-gov-blue p-6 mb-8">
-        <h2 className="text-lg font-bold mb-2 text-gray-900 dark:text-gray-100">Before you start</h2>
+        <h2 className="text-lg font-bold mb-2 text-gray-900 dark:text-gray-100">{t('home.before')}</h2>
         <p className="mb-4 text-gray-800 dark:text-gray-200">You will need:</p>
         <ul className="list-disc pl-6 space-y-2 text-gray-800 dark:text-gray-200">
           <li>Your personal details and address</li>
@@ -44,7 +54,7 @@ export default function Home() {
       </div>
 
       <div className="mb-8">
-        <h2>What this service does</h2>
+        <h2>{t('home.what')}</h2>
         <ol className="list-decimal pl-6 space-y-3 mb-6">
           <li>Collects information about your financial situation</li>
           <li>Checks whether you may already have an active case with AiB</li>
@@ -56,7 +66,7 @@ export default function Home() {
       </div>
 
       <div className="mb-8">
-        <h2>Available Scottish debt solutions</h2>
+        <h2>{t('home.solutions')}</h2>
         <div className="grid md:grid-cols-2 gap-4">
           {[
             { name: 'Debt Arrangement Scheme (DAS)', desc: 'Repay debts in full over an extended period with statutory protection', url: 'https://www.aib.gov.uk/debt-solutions/debt-arrangement-scheme' },
@@ -80,7 +90,7 @@ export default function Home() {
         className="inline-block bg-gov-green text-white font-bold py-3 px-8 no-underline hover:bg-green-800 focus:outline-2 focus:outline-gov-yellow"
         role="button"
       >
-        Start your application
+        {t('home.start')}
       </Link>
 
       <div className="mt-8 gov-inset">

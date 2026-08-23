@@ -19,6 +19,7 @@ export const metadata: Metadata = {
 };
 
 import { ThemeToggle } from './ThemeToggle';
+import { LanguageToggle, LanguageProvider } from './LanguageToggle';
 import { Providers } from './Providers';
 import { UserNavItem } from './UserNavItem';
 import ApiStatusBar, { ApiStatusProvider } from './ApiStatus';
@@ -30,6 +31,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" suppressHydrationWarning>
       <body className="min-h-screen flex flex-col bg-white dark:bg-gray-900 text-gov-black dark:text-gray-100 transition-colors">
       <Providers>
+      <LanguageProvider>
       <ApiStatusProvider>
 
         {/* Header — AiB brand red */}
@@ -43,7 +45,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 <span className="text-red-200 text-xs">Initial Application Advice Service</span>
               </div>
             </Link>
-            <ThemeToggle />
+            <div className="flex items-center gap-2">
+              <LanguageToggle />
+              <ThemeToggle />
+            </div>
           </div>
 
           {/* Navigation bar */}
@@ -130,6 +135,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </div>
         </footer>
       </ApiStatusProvider>
+      </LanguageProvider>
       </Providers>
       </body>
     </html>
