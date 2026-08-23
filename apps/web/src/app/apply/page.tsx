@@ -14,6 +14,7 @@ import {
   Recommendation,
   CreditCheckResult,
 } from '../../lib/apiClient';
+import { searchOrganisations, Organisation } from '../../lib/organisations';
 
 // Section definitions with validation rules
 const SECTIONS = [
@@ -955,11 +956,32 @@ function DebtsSection({ formData, updateField, errors }: { formData: any; update
   const debts = formData.debts?.items || [];
   const totalDebt = debts.reduce((s: number, d: any) => s + (parseFloat(d.outstandingAmount) || 0), 0);
 
+  const [creditorSuggestions, setCreditorSuggestions] = useState<Organisation[]>([]);
+  const [activeSuggestionIndex, setActiveSuggestionIndex] = useState<number | null>(null);
+
   const addDebt = () => updateField('debts', 'items', [...debts, { creditorName: '', creditorType: 'other', outstandingAmount: 0, monthlyPayment: 0 }]);
   const updateDebt = (i: number, field: string, value: any) => {
     const items = [...debts]; items[i] = { ...items[i], [field]: value }; updateField('debts', 'items', items);
   };
   const removeDebt = (i: number) => updateField('debts', 'items', debts.filter((_: any, idx: number) => idx !== i));
+
+  const handleCreditorChange = (value: string, debtIndex: number) => {
+    updateDebt(debtIndex, 'creditorName', value);
+    if (value.length >= 2) {
+      const results = searchOrganisations(value);
+      setCreditorSuggestions(results.slice(0, 6));
+      setActiveSuggestionIndex(debtIndex);
+    } else {
+      setCreditorSuggestions([]);
+      setActiveSuggestionIndex(null);
+    }
+  };
+
+  const selectCreditor = (debtIndex: number, org: Organisation) => {
+    updateDebt(debtIndex, 'creditorName', org.name);
+    setCreditorSuggestions([]);
+    setActiveSuggestionIndex(null);
+  };
 
   return (
     <div className="space-y-4">
@@ -976,7 +998,24 @@ function DebtsSection({ formData, updateField, errors }: { formData: any; update
           <button onClick={() => removeDebt(i)} className="absolute top-2 right-2 text-red-600 text-xs hover:underline">Remove</button>
           <p className="font-bold text-sm mb-2">Debt {i + 1}</p>
           <div className="grid md:grid-cols-2 gap-3">
-            <Input label="Creditor name *" value={debt.creditorName} onChange={v => updateDebt(i, 'creditorName', v)} error={errors[`debts.${i}.creditorName`]} />
+            <div className="relative">
+              <Input label="Creditor name *" value={debt.creditorName} onChange={v => handleCreditorChange(v, i)} error={errors[`debts.${i}.creditorName`]} />
+              {activeSuggestionIndex === i && creditorSuggestions.length > 0 && (
+                <div className="absolute z-10 w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-b shadow-lg max-h-48 overflow-y-auto">
+                  {creditorSuggestions.map(org => (
+                    <button key={org.id} onClick={() => selectCreditor(i, org)}
+                      className="w-full text-left px-3 py-2 text-sm hover:bg-blue-50 dark:hover:bg-blue-900 border-b border-gray-100 dark:border-gray-700">
+                      <span className="font-medium">{org.name}</span>
+                      <span className="text-xs text-gray-400 ml-2">({org.type.replace(/_/g, ' ')})</span>
+                    </button>
+                  ))}
+                  <button onClick={() => { setCreditorSuggestions([]); setActiveSuggestionIndex(null); }}
+                    className="w-full text-left px-3 py-2 text-xs text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-800 italic">
+                    Use custom creditor name
+                  </button>
+                </div>
+              )}
+            </div>
             <div>
               <label className="block font-bold mb-1 text-sm">Type *</label>
               <select value={debt.creditorType} onChange={e => updateDebt(i, 'creditorType', e.target.value)} className={`border-2 ${errors[`debts.${i}.creditorType`] ? 'border-red-500' : 'border-gray-900 dark:border-gray-600'} dark:bg-gray-800 p-2.5 min-h-[44px] w-full`}>
