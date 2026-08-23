@@ -122,6 +122,30 @@ app.use('/api/mock/roi', latencyMiddleware, roiRouter);
 app.use('/api/mock/credit-check', latencyMiddleware, mockCreditCheckRouter);
 app.use('/api/mock', mockHealthRouter);
 
+// ===== ROOT =====
+app.get('/', (_req, res) => {
+  res.json({
+    service: 'AiB IAAS API',
+    version: '0.1.0',
+    status: 'operational',
+    description: 'Accountant in Bankruptcy — Initial Application Advice Service API',
+    endpoints: {
+      health: '/api/health',
+      applications: '/api/applications',
+      auth: '/api/auth/login',
+      recommend: '/api/recommend',
+      audit: '/api/audit/events',
+      organisations: '/api/organisations',
+      users: '/api/users',
+      creditCheck: '/api/credit-check',
+      documents: '/api/documents',
+      payments: '/api/payments',
+    },
+    documentation: 'https://macleoda-leidos.github.io/aib-iaas-poc/architecture/',
+    frontend: 'https://macleoda-leidos.github.io/aib-iaas-poc/',
+  });
+});
+
 // ===== HEALTH =====
 app.get('/api/health', (_req, res) => {
   res.json({
