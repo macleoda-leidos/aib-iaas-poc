@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, Suspense } from 'react';
+import { useState, Suspense, useMemo } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import CaseTimeline from './components/CaseTimeline';
@@ -8,6 +8,135 @@ import { TIMELINE_DATA } from './data/timeline-data';
 import { RECOMMENDATION_DATA } from './data/recommendation-data';
 import NotificationPanel from './components/NotificationPanel';
 import EmailLog from './components/EmailLog';
+
+// ─── Feature 7: Predictive Processing Time ─────────────────────────────────────
+const PROCESSING_TIMES: Record<string, string> = {
+  'DAS': '~5 working days',
+  'Debt Arrangement Scheme (DAS)': '~5 working days',
+  'MAP': '~3 working days',
+  'Minimal Asset Process (MAP)': '~3 working days',
+  'PTD': '~8 working days',
+  'Protected Trust Deed (PTD)': '~8 working days',
+  'Sequestration': '~10 working days',
+  'Sequestration (Bankruptcy)': '~10 working days',
+  'DPP': '~4 working days',
+  'Debt Payment Programme (DPP)': '~4 working days',
+};
+
+// ─── Feature 2: Risk Score Calculator ───────────────────────────────────────────
+function calculateRiskScore(creditScore: number, totalDebt: number, totalIncome: number, basysResult: string): { score: number; level: string; color: string; factors: Array<{ label: string; impact: string; value: string }> } {
+  // Normalise credit score to 0-100 (higher score = lower risk, so invert)
+  const creditRisk = Math.max(0, Math.min(100, 100 - (creditScore / 10)));
+  // Debt-to-income ratio (higher = riskier)
+  const dtiRatio = totalIncome > 0 ? Math.min(100, (totalDebt / (totalIncome * 12)) * 50) : 80;
+  // Existing cases risk
+  const existingCaseRisk = basysResult === 'found' ? 100 : 0;
+
+  const score = Math.round(creditRisk * 0.4 + dtiRatio * 0.35 + existingCaseRisk * 0.25);
+  const clampedScore = Math.max(0, Math.min(100, score));
+
+  const level = clampedScore <= 30 ? 'Low' : clampedScore <= 60 ? 'Medium' : 'High';
+  const color = clampedScore <= 30 ? 'green' : clampedScore <= 60 ? 'amber' : 'red';
+
+  const factors = [
+    { label: 'Credit Score', impact: creditRisk > 50 ? 'negative' : 'positive', value: `${creditScore} (${creditRisk > 60 ? 'Poor' : creditRisk > 40 ? 'Fair' : 'Good'})` },
+    { label: 'Debt-to-Income Ratio', impact: dtiRatio > 50 ? 'negative' : 'positive', value: totalIncome > 0 ? `${(totalDebt / (totalIncome * 12) * 100).toFixed(0)}%` : 'N/A' },
+    { label: 'Existing Cases', impact: basysResult === 'found' ? 'negative' : 'positive', value: basysResult === 'found' ? 'Previous case found' : 'No existing cases' },
+  ];
+
+  return { score: clampedScore, level, color, factors };
+}
+
+function RiskGauge({ score, level, color }: { score: number; level: string; color: string }) {
+  // SVG semi-circle gauge
+  const radius = 60;
+  const circumference = Math.PI * radius; // half circle
+  const strokeDasharray = circumference;
+  const strokeDashoffset = circumference - (score / 100) * circumference;
+
+  const gaugeColor = color === 'green' ? '#16a34a' : color === 'amber' ? '#d97706' : '#dc2626';
+  const bgColor = color === 'green' ? 'bg-green-50 dark:bg-green-950' : color === 'amber' ? 'bg-amber-50 dark:bg-amber-950' : 'bg-red-50 dark:bg-red-950';
+  const textColor = color === 'green' ? 'text-green-700 dark:text-green-400' : color === 'amber' ? 'text-amber-700 dark:text-amber-400' : 'text-red-700 dark:text-red-400';
+
+  return (
+    <div className={`flex flex-col items-center p-4 rounded-lg ${bgColor}`}>
+      <svg width="140" height="80" viewBox="0 0 140 80" className="mb-2">
+        {/* Background arc */}
+        <path d="M 10 70 A 60 60 0 0 1 130 70" fill="none" stroke="#e5e7eb" strokeWidth="10" strokeLinecap="round" />
+        {/* Score arc */}
+        <path d="M 10 70 A 60 60 0 0 1 130 70" fill="none" stroke={gaugeColor} strokeWidth="10" strokeLinecap="round"
+          strokeDasharray={`${(score / 100) * 188.5} 188.5`} />
+      </svg>
+      <p className={`text-3xl font-bold ${textColor}`}>{score}</p>
+      <p className={`text-sm font-bold ${textColor}`}>Risk: {level}</p>
+    </div>
+  );
+}
+
+// ─── Feature 4: Guided Decision Support ─────────────────────────────────────────
+function GuidedDecisionSupport({ caseData }: { caseData: any }) {
+  const initialChecks = useMemo(() => {
+    const checks = [
+      { id: 'credit', label: 'Review credit check results', autoCheck: !!caseData.creditScore },
+      { id: 'income', label: 'Verify income documentation', autoCheck: caseData.documents?.some((d: any) => d.category === 'Income') },
+      { id: 'basys', label: 'Check BASYS for existing cases', autoCheck: !!caseData.systemChecks?.basys },
+      { id: 'recommendation', label: 'Review recommendation confidence', autoCheck: !!caseData.recommendation?.product },
+      { id: 'identity', label: 'Confirm applicant identity', autoCheck: false },
+      { id: 'decision', label: 'Make decision (Approve/Reject/Request Info)', autoCheck: false },
+    ];
+    return checks;
+  }, [caseData]);
+
+  const [checkedItems, setCheckedItems] = useState<Record<string, boolean>>(() => {
+    const initial: Record<string, boolean> = {};
+    initialChecks.forEach(c => { initial[c.id] = c.autoCheck; });
+    return initial;
+  });
+
+  const toggleCheck = (id: string) => {
+    setCheckedItems(prev => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  const completedCount = Object.values(checkedItems).filter(Boolean).length;
+  const totalCount = initialChecks.length;
+  const progressPercent = Math.round((completedCount / totalCount) * 100);
+
+  return (
+    <div className="space-y-3">
+      {/* Progress bar */}
+      <div className="flex items-center gap-3">
+        <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-3">
+          <div className="bg-green-600 h-3 rounded-full transition-all duration-300" style={{ width: `${progressPercent}%` }}></div>
+        </div>
+        <span className="text-sm font-bold text-gray-700 dark:text-gray-300">{completedCount} of {totalCount} steps</span>
+      </div>
+      {completedCount === totalCount && (
+        <div className="bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded p-2 text-center">
+          <p className="text-sm font-bold text-green-800 dark:text-green-300">All review steps complete — ready for decision</p>
+        </div>
+      )}
+      {/* Checklist */}
+      <div className="space-y-2">
+        {initialChecks.map((check) => (
+          <label key={check.id} className="flex items-center gap-3 p-2 rounded hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors">
+            <input
+              type="checkbox"
+              checked={checkedItems[check.id] || false}
+              onChange={() => toggleCheck(check.id)}
+              className="w-4 h-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
+            />
+            <span className={`text-sm ${checkedItems[check.id] ? 'line-through text-gray-400' : 'text-gray-800 dark:text-gray-200'}`}>
+              {check.label}
+            </span>
+            {check.autoCheck && (
+              <span className="ml-auto text-xs bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 px-1.5 py-0.5 rounded">Auto</span>
+            )}
+          </label>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 // ─── Full Case Data (synthetic) ──────────────────────────────────────────────
 
@@ -120,6 +249,14 @@ function CaseContent() {
         <div className="flex items-center gap-2 flex-wrap">
           <StatusBadge status={c.status} />
           <span className={`px-3 py-1 rounded text-sm font-bold ${c.creditResult === 'PASS' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>Credit: {c.creditResult}</span>
+          {/* Feature 7: Predictive Processing Time */}
+          {(c.status === 'approved' || c.status === 'rejected') ? (
+            <span className="px-3 py-1 rounded text-sm font-bold bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">Completed</span>
+          ) : (
+            <span className="px-3 py-1 rounded text-sm font-bold bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 flex items-center gap-1">
+              <span>&#9201;</span> Est. completion: {PROCESSING_TIMES[c.product] || '~5 working days'}
+            </span>
+          )}
           {assignee !== 'Unassigned' && (
             <span className="px-3 py-1 rounded text-sm font-bold bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">Assigned: {assignee}</span>
           )}
@@ -232,6 +369,43 @@ function CaseContent() {
             <div className="text-center p-3 bg-gray-50 dark:bg-gray-700 rounded"><p className="text-xl font-bold">{c.creditScore < 400 ? 2 : 0}</p><p className="text-xs text-gray-500">Defaults</p></div>
             <div className="text-center p-3 bg-gray-50 dark:bg-gray-700 rounded"><p className="text-xl font-bold">{c.creditScore < 350 ? 1 : 0}</p><p className="text-xs text-gray-500">CCJs</p></div>
           </div>
+        </CollapsibleSection>
+
+        {/* Feature 2: Debtor Risk Score */}
+        <CollapsibleSection title="Risk Assessment" icon="⚡" defaultOpen>
+          {(() => {
+            const riskData = calculateRiskScore(c.creditScore, totalDebt, totalIncome, c.systemChecks.basys);
+            return (
+              <div className="space-y-4">
+                <div className="grid md:grid-cols-2 gap-6">
+                  <RiskGauge score={riskData.score} level={riskData.level} color={riskData.color} />
+                  <div>
+                    <h4 className="font-bold text-sm mb-3">Key Factors</h4>
+                    <div className="space-y-2">
+                      {riskData.factors.map((f, i) => (
+                        <div key={i} className="flex items-center gap-2 text-sm">
+                          <span className={`w-5 h-5 rounded-full flex items-center justify-center text-xs ${f.impact === 'positive' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                            {f.impact === 'positive' ? '✓' : '!'}
+                          </span>
+                          <span className="text-gray-700 dark:text-gray-300">{f.label}:</span>
+                          <span className="font-medium ml-auto">{f.value}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="mt-4 p-3 bg-gray-50 dark:bg-gray-700 rounded text-xs text-gray-600 dark:text-gray-400">
+                      <p><strong>Score composition:</strong> Credit Score (40%) + Debt-to-Income (35%) + Existing Cases (25%)</p>
+                      <p className="mt-1">0-30 = Low risk | 31-60 = Medium risk | 61-100 = High risk</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+        </CollapsibleSection>
+
+        {/* Feature 4: Guided Decision Support */}
+        <CollapsibleSection title="Suggested Actions" icon="📋" defaultOpen>
+          <GuidedDecisionSupport caseData={c} />
         </CollapsibleSection>
 
         <CollapsibleSection title="Recommendation" icon="✅" defaultOpen>

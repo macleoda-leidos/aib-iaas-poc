@@ -293,6 +293,105 @@ function validateStep(step: number, formData: Record<string, any>): Record<strin
   return errors;
 }
 
+// ============ ELIGIBILITY INDICATOR LOGIC ============
+
+interface EligibilityResult {
+  product: string;
+  confidence: number;
+  color: string;
+  description: string;
+}
+
+function computeEligibility(formData: Record<string, any>): EligibilityResult[] {
+  const debts = formData.debts?.items || [];
+  const totalDebt = debts.reduce((s: number, d: any) => s + (parseFloat(d.outstandingAmount) || 0), 0);
+  const income = formData.income || {};
+  const expenditure = formData.expenditure || {};
+  const totalIncome = (parseFloat(income.wages) || 0) + (parseFloat(income.benefits) || 0) + (parseFloat(income.pension) || 0) + (parseFloat(income.other) || 0);
+  const totalExp = (parseFloat(expenditure.rent) || 0) + (parseFloat(expenditure.councilTax) || 0) + (parseFloat(expenditure.utilities) || 0) + (parseFloat(expenditure.food) || 0) + (parseFloat(expenditure.transport) || 0) + (parseFloat(expenditure.insurance) || 0) + (parseFloat(expenditure.childcare) || 0) + (parseFloat(expenditure.other) || 0);
+  const disposable = totalIncome - totalExp;
+  const assets = formData.assets || {};
+  const totalAssets = [...(assets.properties || []), ...(assets.vehicles || []), ...(assets.savings || []), ...(assets.other || [])].reduce((s: number, a: any) => s + (parseFloat(a.value) || 0), 0);
+
+  if (totalDebt === 0) return [];
+
+  const results: EligibilityResult[] = [];
+
+  if (totalDebt < 1500) {
+    results.push({ product: 'Signposting Advice', confidence: 85, color: 'gray', description: 'Debt is below threshold for formal solutions. Free money advice is recommended.' });
+  }
+  if (totalDebt >= 1500 && totalDebt <= 5000 && disposable > 0 && (totalDebt / Math.max(disposable, 1)) <= 48) {
+    results.push({ product: 'Debt Payment Programme', confidence: 70, color: 'blue', description: 'Manageable debt that could be repaid within 48 months with current disposable income.' });
+  }
+  if (totalDebt >= 5000 && totalDebt <= 25000 && disposable > 100) {
+    results.push({ product: 'Debt Arrangement Scheme', confidence: 80, color: 'green', description: 'Structured repayment with statutory creditor protection. Repay in full over extended period.' });
+  }
+  if (totalAssets > 5000 && totalDebt > 5000) {
+    results.push({ product: 'Protected Trust Deed', confidence: 65, color: 'purple', description: 'Allows retention of key assets while managing debt over 4 years.' });
+  }
+  if (totalDebt >= 1500 && totalDebt <= 25000 && totalAssets < 2000 && disposable < 50) {
+    results.push({ product: 'Minimal Asset Process', confidence: 75, color: 'amber', description: 'Debt relief within 6 months for those with low income and minimal assets.' });
+  }
+  if (totalDebt > 25000) {
+    results.push({ product: 'Sequestration', confidence: 60, color: 'red', description: 'Formal bankruptcy may be appropriate for high debt levels. Provides a fresh start.' });
+  }
+
+  return results.sort((a, b) => b.confidence - a.confidence);
+}
+
+function EligibilityIndicator({ formData, currentStep }: { formData: Record<string, any>; currentStep: number }) {
+  const results = computeEligibility(formData);
+
+  // Only show on steps 2-4 (debts, income, assets)
+  if (currentStep < 2 || currentStep > 4 || results.length === 0) return null;
+
+  const colorMap: Record<string, string> = {
+    gray: 'border-gray-400 bg-gray-50 dark:bg-gray-800',
+    blue: 'border-blue-500 bg-blue-50 dark:bg-blue-950',
+    green: 'border-green-500 bg-green-50 dark:bg-green-950',
+    purple: 'border-purple-500 bg-purple-50 dark:bg-purple-950',
+    amber: 'border-amber-500 bg-amber-50 dark:bg-amber-950',
+    red: 'border-red-500 bg-red-50 dark:bg-red-950',
+  };
+
+  const barColorMap: Record<string, string> = {
+    gray: 'bg-gray-500',
+    blue: 'bg-blue-600',
+    green: 'bg-green-600',
+    purple: 'bg-purple-600',
+    amber: 'bg-amber-500',
+    red: 'bg-red-600',
+  };
+
+  const top = results[0];
+
+  return (
+    <div className={`border-2 rounded-lg p-4 ${colorMap[top.color]}`}>
+      <div className="flex items-center gap-2 mb-2">
+        <span className="text-sm">🎯</span>
+        <h3 className="font-bold text-sm">Live Eligibility Indicator</h3>
+      </div>
+      <div className="space-y-3">
+        {results.slice(0, 3).map((r, i) => (
+          <div key={i} className={`${i === 0 ? '' : 'opacity-70'}`}>
+            <div className="flex justify-between items-center mb-1">
+              <span className={`text-sm font-bold ${i === 0 ? '' : 'text-gray-600 dark:text-gray-400'}`}>{r.product}</span>
+              <span className="text-xs font-mono">{r.confidence}%</span>
+            </div>
+            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+              <div className={`h-2 rounded-full ${barColorMap[r.color]} transition-all duration-500`} style={{ width: `${r.confidence}%` }}></div>
+            </div>
+            {i === 0 && <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">{r.description}</p>}
+          </div>
+        ))}
+      </div>
+      <p className="text-xs text-gray-500 dark:text-gray-400 mt-3 italic border-t border-gray-200 dark:border-gray-700 pt-2">
+        This is indicative only — based on data entered so far. Final recommendation uses the full rules engine.
+      </p>
+    </div>
+  );
+}
+
 export default function ApplyPage() {
   const [currentSection, setCurrentSection] = useState(0);
   const [formData, setFormData] = useState<Record<string, any>>({});
@@ -569,32 +668,43 @@ export default function ApplyPage() {
         <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-green-500 inline-block"></span> Complete</span>
       </div>
 
-      {/* Current section content */}
-      <div className={`border-2 rounded-lg p-6 mb-6 ring-2 ${getSectionStatusRing(getSectionStatus(SECTIONS[currentSection].id))} transition-opacity duration-200 ${transitioning ? 'opacity-0' : 'opacity-100'}`}>
-        <div className="flex items-center gap-2 mb-4">
-          <span className="text-2xl">{SECTIONS[currentSection].icon}</span>
-          <h2 className="text-xl font-bold">{SECTIONS[currentSection].label}</h2>
-          <span className={`ml-auto px-2 py-0.5 rounded text-xs font-bold text-white ${getSectionStatusColour(getSectionStatus(SECTIONS[currentSection].id))}`}>
-            {getSectionStatusLabel(getSectionStatus(SECTIONS[currentSection].id))}
-          </span>
+      {/* Current section content with eligibility panel */}
+      <div className="flex flex-col lg:flex-row gap-6 mb-6">
+        <div className={`flex-1 border-2 rounded-lg p-6 ring-2 ${getSectionStatusRing(getSectionStatus(SECTIONS[currentSection].id))} transition-opacity duration-200 ${transitioning ? 'opacity-0' : 'opacity-100'}`}>
+          <div className="flex items-center gap-2 mb-4">
+            <span className="text-2xl">{SECTIONS[currentSection].icon}</span>
+            <h2 className="text-xl font-bold">{SECTIONS[currentSection].label}</h2>
+            <span className={`ml-auto px-2 py-0.5 rounded text-xs font-bold text-white ${getSectionStatusColour(getSectionStatus(SECTIONS[currentSection].id))}`}>
+              {getSectionStatusLabel(getSectionStatus(SECTIONS[currentSection].id))}
+            </span>
+          </div>
+
+          {Object.keys(errors).length > 0 && (
+            <div className="bg-red-50 dark:bg-red-950 border-l-4 border-red-600 p-4 mb-4" role="alert">
+              <h3 className="font-bold text-red-800 dark:text-red-300 text-sm mb-1">There are errors in this section</h3>
+              <p className="text-xs text-red-700 dark:text-red-400">Please correct the highlighted fields before continuing.</p>
+            </div>
+          )}
+
+          {currentSection === 0 && <PersonalSection formData={formData} updateField={updateField} errors={errors} />}
+          {currentSection === 1 && <AddressSection formData={formData} updateField={updateField} errors={errors} />}
+          {currentSection === 2 && <DebtsSection formData={formData} updateField={updateField} errors={errors} />}
+          {currentSection === 3 && <IncomeSection formData={formData} updateField={updateField} errors={errors} />}
+          {currentSection === 4 && <AssetsSection formData={formData} updateField={updateField} errors={errors} />}
+          {currentSection === 5 && <DocumentsSection formData={formData} updateField={updateField} />}
+          {currentSection === 6 && <ChecksSection formData={formData} updateField={updateField} />}
+          {currentSection === 7 && <RecommendationSection formData={formData} updateField={updateField} />}
+          {currentSection === 8 && <PaymentSection formData={formData} updateField={updateField} applicationId={application.applicationId} />}
         </div>
 
-        {Object.keys(errors).length > 0 && (
-          <div className="bg-red-50 dark:bg-red-950 border-l-4 border-red-600 p-4 mb-4" role="alert">
-            <h3 className="font-bold text-red-800 dark:text-red-300 text-sm mb-1">There are errors in this section</h3>
-            <p className="text-xs text-red-700 dark:text-red-400">Please correct the highlighted fields before continuing.</p>
+        {/* Eligibility Indicator — floating panel on right (desktop), inline above on mobile */}
+        {currentSection >= 2 && currentSection <= 4 && (
+          <div className="lg:w-80 lg:flex-shrink-0 order-first lg:order-last">
+            <div className="lg:sticky lg:top-4">
+              <EligibilityIndicator formData={formData} currentStep={currentSection} />
+            </div>
           </div>
         )}
-
-        {currentSection === 0 && <PersonalSection formData={formData} updateField={updateField} errors={errors} />}
-        {currentSection === 1 && <AddressSection formData={formData} updateField={updateField} errors={errors} />}
-        {currentSection === 2 && <DebtsSection formData={formData} updateField={updateField} errors={errors} />}
-        {currentSection === 3 && <IncomeSection formData={formData} updateField={updateField} errors={errors} />}
-        {currentSection === 4 && <AssetsSection formData={formData} updateField={updateField} errors={errors} />}
-        {currentSection === 5 && <DocumentsSection formData={formData} updateField={updateField} />}
-        {currentSection === 6 && <ChecksSection formData={formData} updateField={updateField} />}
-        {currentSection === 7 && <RecommendationSection formData={formData} updateField={updateField} />}
-        {currentSection === 8 && <PaymentSection formData={formData} updateField={updateField} applicationId={application.applicationId} />}
       </div>
 
       {/* Navigation buttons */}
@@ -919,8 +1029,23 @@ function IncomeSection({ formData, updateField, errors }: { formData: any; updat
       </div>
       <div className="bg-blue-50 dark:bg-blue-950 p-3 rounded">
         <p><strong>Total expenditure: £{totalExp.toLocaleString()}/month</strong></p>
-        <p className={`font-bold mt-1 ${totalIncome - totalExp >= 0 ? 'text-green-700' : 'text-red-700'}`}>
-          Disposable income: £{(totalIncome - totalExp).toLocaleString()}/month
+      </div>
+
+      {/* Feature 8: Smart Auto-Calculate Disposable Income — prominent real-time display */}
+      <div className={`mt-4 p-4 rounded-lg border-2 ${(totalIncome - totalExp) > 200 ? 'border-green-500 bg-green-50 dark:bg-green-950' : (totalIncome - totalExp) >= 50 ? 'border-amber-500 bg-amber-50 dark:bg-amber-950' : 'border-red-500 bg-red-50 dark:bg-red-950'}`}>
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Disposable Income</p>
+            <p className={`text-2xl font-bold ${(totalIncome - totalExp) > 200 ? 'text-green-700 dark:text-green-400' : (totalIncome - totalExp) >= 50 ? 'text-amber-700 dark:text-amber-400' : 'text-red-700 dark:text-red-400'}`}>
+              £{(totalIncome - totalExp).toLocaleString()}<span className="text-sm font-normal">/month</span>
+            </p>
+          </div>
+          <div className={`w-12 h-12 rounded-full flex items-center justify-center ${(totalIncome - totalExp) > 200 ? 'bg-green-200 dark:bg-green-800' : (totalIncome - totalExp) >= 50 ? 'bg-amber-200 dark:bg-amber-800' : 'bg-red-200 dark:bg-red-800'}`}>
+            <span className="text-lg">{(totalIncome - totalExp) > 200 ? '✓' : (totalIncome - totalExp) >= 50 ? '⚠' : '✗'}</span>
+          </div>
+        </div>
+        <p className="text-xs text-gray-600 dark:text-gray-400 mt-2">
+          This is your monthly surplus after essential costs. {(totalIncome - totalExp) > 200 ? 'Good disposable income — DAS or DPP likely suitable.' : (totalIncome - totalExp) >= 50 ? 'Limited disposable income — MAP or DAS may be considered.' : 'Very low/negative disposable income — MAP or Sequestration may be appropriate.'}
         </p>
       </div>
     </div>

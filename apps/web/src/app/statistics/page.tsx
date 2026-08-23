@@ -130,6 +130,20 @@ export default function StatisticsPage() {
   const [timeRange, setTimeRange] = useState<'week' | 'month' | 'quarter' | 'year'>('year');
   const [chartView, setChartView] = useState<'line' | 'area' | 'stacked'>('area');
 
+  // Feature 6: Live counter animation — increment KPI values every 10 seconds
+  const [liveOffsets, setLiveOffsets] = useState({ total: 0, week: 0, month: 0 });
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setLiveOffsets(prev => ({
+        total: prev.total + 1,
+        week: Math.random() > 0.5 ? prev.week + 1 : prev.week,
+        month: Math.random() > 0.7 ? prev.month + 1 : prev.month,
+      }));
+    }, 10000);
+    return () => clearInterval(interval);
+  }, []);
+
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -167,7 +181,14 @@ export default function StatisticsPage() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold mb-1">Statistics & Analytics</h1>
+          <div className="flex items-center gap-3 mb-1">
+            <h1 className="text-3xl font-bold">Statistics & Analytics</h1>
+            {/* Feature 6: LIVE badge with pulsing green dot */}
+            <span className="flex items-center gap-1.5 px-2.5 py-1 bg-green-100 dark:bg-green-900 border border-green-300 dark:border-green-700 rounded-full">
+              <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+              <span className="text-xs font-bold text-green-800 dark:text-green-300 uppercase">Live</span>
+            </span>
+          </div>
           <p className="text-gray-600 dark:text-gray-400">AiB IAAS — Real-time application intelligence</p>
         </div>
         <div className="flex gap-2 mt-4 md:mt-0">
@@ -180,11 +201,11 @@ export default function StatisticsPage() {
         </div>
       </div>
 
-      {/* ─── Section A: KPI Cards ──────────────────────────────────────── */}
+      {/* ─── Section A: KPI Cards (Feature 6: counters tick up every 10s) ── */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
-        <KpiCard label="Total Applications" value={formatNumber(data.summary.totalApplications)} trend="+12% vs last month" icon="📊" color="blue" />
-        <KpiCard label="This Week" value={String(data.summary.thisWeek)} trend="+3 today" icon="📈" color="green" />
-        <KpiCard label="This Month" value={String(data.summary.thisMonth)} trend="on track" icon="📅" color="purple" />
+        <KpiCard label="Total Applications" value={formatNumber(data.summary.totalApplications + liveOffsets.total)} trend="+12% vs last month" icon="📊" color="blue" />
+        <KpiCard label="This Week" value={String(data.summary.thisWeek + liveOffsets.week)} trend="+3 today" icon="📈" color="green" />
+        <KpiCard label="This Month" value={String(data.summary.thisMonth + liveOffsets.month)} trend="on track" icon="📅" color="purple" />
         <KpiCard label="Avg Processing" value={`${data.summary.averageProcessingDays}d`} trend="↓ 0.3d improvement" icon="⚡" color="orange" />
         <KpiCard label="SLA Compliance" value={`${data.performance.slaCompliance}%`} trend="above 85% target" icon="✅" color="green" />
       </div>

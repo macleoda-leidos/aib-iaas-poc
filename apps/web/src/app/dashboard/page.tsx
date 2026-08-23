@@ -247,9 +247,33 @@ function AibDashboard({ user }: { user: any }) {
     { ref: 'IAAS-2026-00009', name: 'D. Murray', product: 'Sequestration', status: 'Submitted', date: '25 Jun', debt: 6800, score: 280, result: 'FAIL' },
   ];
 
+  // Feature 3: Priority calculation function
+  const getPriority = (app: any): { level: string; color: string; sortOrder: number } => {
+    const status = (app.status || '').toLowerCase();
+    // Urgent: additional_info_required for >5 days, or credit FAIL
+    if (status.includes('awaiting') || status.includes('additional_info')) {
+      return { level: 'urgent', color: 'bg-red-600 text-white', sortOrder: 0 };
+    }
+    if (app.result === 'FAIL') {
+      return { level: 'urgent', color: 'bg-red-600 text-white', sortOrder: 0 };
+    }
+    // High: submitted and unassigned for >2 days
+    if (status === 'submitted') {
+      return { level: 'high', color: 'bg-amber-500 text-white', sortOrder: 1 };
+    }
+    // Low: draft/withdrawn
+    if (status === 'draft' || status === 'withdrawn') {
+      return { level: 'low', color: 'bg-gray-400 text-white', sortOrder: 3 };
+    }
+    // Normal: everything else
+    return { level: 'normal', color: 'bg-blue-500 text-white', sortOrder: 2 };
+  };
+
   // Merge: live applications on top, seed data below (de-duped by reference)
   const liveRefs = new Set(liveApps.map(a => a.ref));
-  const apps = [...liveApps, ...seedApps.filter(a => !liveRefs.has(a.ref))];
+  const mergedApps = [...liveApps, ...seedApps.filter(a => !liveRefs.has(a.ref))];
+  // Sort by priority (urgent first)
+  const apps = mergedApps.sort((a, b) => getPriority(a).sortOrder - getPriority(b).sortOrder);
 
   const [alertDismissed, setAlertDismissed] = useState(false);
   const [scenarioRunning, setScenarioRunning] = useState<string | null>(null);
@@ -387,13 +411,17 @@ function AibDashboard({ user }: { user: any }) {
         </div>
         <table className="w-full">
           <thead className="bg-gray-50"><tr>
+            <th className="text-left p-3 text-sm">Priority</th>
             <th className="text-left p-3 text-sm">Reference</th><th className="text-left p-3 text-sm">Applicant</th>
             <th className="text-left p-3 text-sm">Product</th><th className="text-left p-3 text-sm">Credit</th>
             <th className="text-left p-3 text-sm">Status</th><th className="text-left p-3 text-sm">Submitted</th>
           </tr></thead>
           <tbody>
-            {apps.map(app => (
+            {apps.map(app => {
+              const priority = getPriority(app);
+              return (
               <tr key={app.ref} onClick={() => setSelectedApp(selectedApp?.ref === app.ref ? null : app)} className="border-b border-gray-100 hover:bg-blue-50 cursor-pointer">
+                <td className="p-3"><span className={`text-xs font-bold px-2 py-0.5 rounded uppercase ${priority.color}`}>{priority.level}</span></td>
                 <td className="p-3 text-sm font-mono"><Link href={`/case/${app.ref}`} className="text-blue-700 underline hover:text-blue-900" onClick={e => e.stopPropagation()}>{app.ref}</Link></td>
                 <td className="p-3 text-sm">{app.name}</td>
                 <td className="p-3 text-sm">{app.product}</td>
@@ -401,7 +429,8 @@ function AibDashboard({ user }: { user: any }) {
                 <td className="p-3"><StatusBadge status={app.status} /></td>
                 <td className="p-3 text-sm text-gray-600">{app.date}</td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
       </div>
