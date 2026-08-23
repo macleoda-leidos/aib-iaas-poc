@@ -18,6 +18,10 @@ Thumbs.db
 /data/
 services/*/data/
 
+# .NET build artifacts
+services/dotnet-api/bin/
+services/dotnet-api/obj/
+
 # Build artifacts
 apps/web/out/
 apps/web/.netlify/
