@@ -20,7 +20,16 @@ builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(Progr
 // Database — PostgreSQL when DATABASE_URL or Host= connection string is present, otherwise SQLite
 var connectionString = Environment.GetEnvironmentVariable("DATABASE_URL")
     ?? builder.Configuration.GetConnectionString("DefaultConnection");
-if (connectionString?.Contains("Host=") == true || connectionString?.StartsWith("postgresql://") == true)
+
+// Convert postgresql:// URI to ADO.NET format for Npgsql
+if (connectionString?.StartsWith("postgresql://") == true || connectionString?.StartsWith("postgres://") == true)
+{
+    var uri = new Uri(connectionString);
+    var userInfo = uri.UserInfo.Split(':');
+    connectionString = $"Host={uri.Host};Port={(uri.Port > 0 ? uri.Port : 5432)};Database={uri.AbsolutePath.TrimStart('/')};Username={userInfo[0]};Password={userInfo[1]};SSL Mode=Require;Trust Server Certificate=true";
+}
+
+if (connectionString?.Contains("Host=") == true)
 {
     builder.Services.AddDbContext<IaasDbContext>(options => options.UseNpgsql(connectionString));
 }
