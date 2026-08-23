@@ -9,6 +9,7 @@ import { RECOMMENDATION_DATA } from './data/recommendation-data';
 import NotificationPanel from './components/NotificationPanel';
 import EmailLog from './components/EmailLog';
 import { auditRepo } from '../../../lib/persistence';
+import { seedApplications } from '../../../lib/seedData';
 
 // ─── Feature 7: Predictive Processing Time ─────────────────────────────────────
 const PROCESSING_TIMES: Record<string, string> = {
@@ -233,11 +234,102 @@ function CaseContent() {
   const [auditEvents, setAuditEvents] = useState<Array<{ date: string; action: string; actor: string; icon: string }>>([]);
 
   if (!c) {
+    // Try to find in seed data
+    const seedApp = seedApplications.find(a => a.ref === ref);
+    if (!seedApp) {
+      return (
+        <div className="max-w-4xl mx-auto px-4 py-8 text-center">
+          <h1 className="text-2xl font-bold mb-2">Case Not Found</h1>
+          <p className="text-gray-600 mb-4">Reference <code className="font-mono bg-gray-100 px-2 py-0.5 rounded">{ref}</code> was not found.</p>
+          <Link href="/dashboard" className="text-blue-700 underline">← Back to Dashboard</Link>
+        </div>
+      );
+    }
+
+    // Generate a case view from seed data
     return (
-      <div className="max-w-4xl mx-auto px-4 py-8 text-center">
-        <h1 className="text-2xl font-bold mb-2">Case Not Found</h1>
-        <p className="text-gray-600 mb-4">Reference <code className="font-mono bg-gray-100 px-2 py-0.5 rounded">{ref}</code> was not found.</p>
-        <Link href="/dashboard" className="text-blue-700 underline">← Back to Dashboard</Link>
+      <div className="max-w-5xl mx-auto px-4 py-8">
+        <Link href="/dashboard" className="text-blue-700 dark:text-blue-400 text-sm underline mb-3 inline-block">← Back to Dashboard</Link>
+        <div className="flex flex-wrap justify-between items-start mb-6 gap-4">
+          <div>
+            <h1 className="text-2xl font-bold font-mono">{seedApp.ref}</h1>
+            <p className="text-gray-600 dark:text-gray-400">{seedApp.firstName} {seedApp.lastName} • {seedApp.product} • {seedApp.date}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className={`px-3 py-1 rounded text-sm font-bold uppercase ${
+              seedApp.status === 'approved' ? 'bg-green-100 text-green-800' :
+              seedApp.status === 'rejected' ? 'bg-red-100 text-red-800' :
+              seedApp.status === 'submitted' ? 'bg-blue-100 text-blue-800' :
+              seedApp.status === 'under_review' ? 'bg-purple-100 text-purple-800' :
+              'bg-gray-200 text-gray-700'
+            }`}>{seedApp.status.replace(/_/g, ' ')}</span>
+            <span className="px-3 py-1 rounded text-sm font-bold bg-blue-100 text-blue-800">{seedApp.confidence}% confidence</span>
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="flex gap-2 mb-6">
+          <button className="bg-green-700 text-white text-sm font-bold px-4 py-2 rounded hover:bg-green-800">✓ Approve</button>
+          <button className="bg-red-700 text-white text-sm font-bold px-4 py-2 rounded hover:bg-red-800">✗ Reject</button>
+          <button className="bg-orange-500 text-white text-sm font-bold px-4 py-2 rounded hover:bg-orange-600">⚠ Request Info</button>
+        </div>
+
+        <div className="space-y-3">
+          {/* Personal Details */}
+          <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+            <div className="p-4 bg-gray-50 dark:bg-gray-800 font-bold text-sm">👤 Personal Details</div>
+            <div className="p-4 grid md:grid-cols-2 gap-x-8 gap-y-2 text-sm">
+              <div className="flex justify-between py-1 border-b border-gray-100 dark:border-gray-700"><span className="text-gray-500">Name</span><span className="font-medium">{seedApp.firstName} {seedApp.lastName}</span></div>
+              <div className="flex justify-between py-1 border-b border-gray-100 dark:border-gray-700"><span className="text-gray-500">NI Number</span><span className="font-medium font-mono">{seedApp.ni}</span></div>
+              <div className="flex justify-between py-1 border-b border-gray-100 dark:border-gray-700"><span className="text-gray-500">Employment</span><span className="font-medium capitalize">{seedApp.employment.replace('_', '-')}</span></div>
+              <div className="flex justify-between py-1 border-b border-gray-100 dark:border-gray-700"><span className="text-gray-500">Email</span><span className="font-medium">{seedApp.email}</span></div>
+              <div className="flex justify-between py-1 border-b border-gray-100 dark:border-gray-700"><span className="text-gray-500">City</span><span className="font-medium">{seedApp.city}</span></div>
+              <div className="flex justify-between py-1 border-b border-gray-100 dark:border-gray-700"><span className="text-gray-500">Postcode</span><span className="font-medium">{seedApp.postcode}</span></div>
+            </div>
+          </div>
+
+          {/* Debts */}
+          <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+            <div className="p-4 bg-gray-50 dark:bg-gray-800 font-bold text-sm">💳 Debts — £{seedApp.debt.toLocaleString()}</div>
+            <div className="p-4 text-sm">
+              <p className="text-gray-600 dark:text-gray-400">Total debt: <strong>£{seedApp.debt.toLocaleString()}</strong></p>
+            </div>
+          </div>
+
+          {/* Recommendation */}
+          <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+            <div className="p-4 bg-gray-50 dark:bg-gray-800 font-bold text-sm">✅ Recommendation</div>
+            <div className="p-4">
+              <div className="bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded p-4">
+                <p className="font-bold text-green-800 dark:text-green-300 text-lg">{seedApp.product}</p>
+                <p className="text-sm text-green-700 dark:text-green-400">Confidence: {seedApp.confidence}%</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Assignment */}
+          <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+            <div className="p-4 bg-gray-50 dark:bg-gray-800 font-bold text-sm">👤 Assignment</div>
+            <div className="p-4 text-sm">
+              <p>Assigned to: <strong>{seedApp.assignedTo}</strong></p>
+              <p className="text-gray-500">Source system: {seedApp.source}</p>
+            </div>
+          </div>
+
+          {/* Timeline */}
+          <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+            <div className="p-4 bg-gray-50 dark:bg-gray-800 font-bold text-sm">📋 Activity Timeline</div>
+            <div className="p-4 space-y-3 text-sm">
+              <div className="flex gap-3 items-start"><div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">📋</div><div><p className="font-medium">Application submitted</p><p className="text-xs text-gray-500">{seedApp.firstName} {seedApp.lastName} • {seedApp.date}</p></div></div>
+              <div className="flex gap-3 items-start"><div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">✓</div><div><p className="font-medium">Credit check completed</p><p className="text-xs text-gray-500">System • {seedApp.date}</p></div></div>
+              <div className="flex gap-3 items-start"><div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">🔍</div><div><p className="font-medium">Cross-system checks — all clear</p><p className="text-xs text-gray-500">System • {seedApp.date}</p></div></div>
+              <div className="flex gap-3 items-start"><div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">✅</div><div><p className="font-medium">Recommendation: {seedApp.product} ({seedApp.confidence}%)</p><p className="text-xs text-gray-500">Rules Engine • {seedApp.date}</p></div></div>
+              {seedApp.assignedTo !== 'Unassigned' && <div className="flex gap-3 items-start"><div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center">👤</div><div><p className="font-medium">Assigned to {seedApp.assignedTo}</p><p className="text-xs text-gray-500">Karen MacLeod • {seedApp.date}</p></div></div>}
+              {seedApp.status === 'approved' && <div className="flex gap-3 items-start"><div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">✅</div><div><p className="font-medium">Application approved</p><p className="text-xs text-gray-500">{seedApp.assignedTo} • {seedApp.date}</p></div></div>}
+              {seedApp.status === 'rejected' && <div className="flex gap-3 items-start"><div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center">✗</div><div><p className="font-medium">Application rejected</p><p className="text-xs text-gray-500">{seedApp.assignedTo} • {seedApp.date}</p></div></div>}
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
