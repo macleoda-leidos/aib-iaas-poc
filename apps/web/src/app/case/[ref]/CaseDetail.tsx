@@ -8,6 +8,7 @@ import { TIMELINE_DATA } from './data/timeline-data';
 import { RECOMMENDATION_DATA } from './data/recommendation-data';
 import NotificationPanel from './components/NotificationPanel';
 import EmailLog from './components/EmailLog';
+import { auditRepo } from '../../../lib/persistence';
 
 // ─── Feature 7: Predictive Processing Time ─────────────────────────────────────
 const PROCESSING_TIMES: Record<string, string> = {
@@ -221,6 +222,16 @@ function CaseContent() {
   const [notes, setNotes] = useState<Array<{ text: string; author: string; timestamp: string }>>([]);
   const [newNote, setNewNote] = useState('');
 
+  // ─── Feature: Approve/Reject/Request Info ─────────────────────────────────
+  const [caseStatus, setCaseStatus] = useState<string>(c?.status || 'submitted');
+  const [showApproveModal, setShowApproveModal] = useState(false);
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [showInfoModal, setShowInfoModal] = useState(false);
+  const [rejectReason, setRejectReason] = useState('');
+  const [infoRequest, setInfoRequest] = useState('');
+  const [toastMessage, setToastMessage] = useState<{ text: string; type: 'success' | 'error' | 'warning' } | null>(null);
+  const [auditEvents, setAuditEvents] = useState<Array<{ date: string; action: string; actor: string; icon: string }>>([]);
+
   if (!c) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-8 text-center">
@@ -328,7 +339,7 @@ function CaseContent() {
           <p className="text-gray-600 dark:text-gray-400">{c.debtor.firstName} {c.debtor.lastName} • {c.product} • Submitted {c.submittedAt}</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <StatusBadge status={c.status} />
+          <StatusBadge status={caseStatus} />
           <span className={`px-3 py-1 rounded text-sm font-bold ${c.creditResult === 'PASS' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>Credit: {c.creditResult}</span>
           {/* Feature 5: Predictive Case Outcome */}
           <span className={`px-3 py-1 rounded text-sm font-bold flex items-center gap-1.5 ${predictedApproval >= 80 ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : predictedApproval >= 60 ? 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200' : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'}`}>
@@ -374,13 +385,123 @@ function CaseContent() {
         </div>
       </div>
 
+      {/* Toast notification */}
+      {toastMessage && (
+        <div className={`fixed top-4 right-4 z-50 px-6 py-3 rounded-lg shadow-lg text-sm font-bold transition-all ${
+          toastMessage.type === 'success' ? 'bg-green-600 text-white' :
+          toastMessage.type === 'error' ? 'bg-red-600 text-white' :
+          'bg-amber-500 text-white'
+        }`}>
+          <div className="flex items-center gap-2">
+            <span>{toastMessage.text}</span>
+            <button onClick={() => setToastMessage(null)} className="ml-2 opacity-70 hover:opacity-100">×</button>
+          </div>
+        </div>
+      )}
+
       {/* Actions */}
       <div className="flex gap-2 mb-6">
-        <button className="bg-green-700 text-white text-sm font-bold px-4 py-2 rounded hover:bg-green-800">✓ Approve</button>
-        <button className="bg-red-700 text-white text-sm font-bold px-4 py-2 rounded hover:bg-red-800">✗ Reject</button>
-        <button className="bg-orange-500 text-white text-sm font-bold px-4 py-2 rounded hover:bg-orange-600">⚠ Request Info</button>
+        <button onClick={() => setShowApproveModal(true)} className="bg-green-700 text-white text-sm font-bold px-4 py-2 rounded hover:bg-green-800">✓ Approve</button>
+        <button onClick={() => setShowRejectModal(true)} className="bg-red-700 text-white text-sm font-bold px-4 py-2 rounded hover:bg-red-800">✗ Reject</button>
+        <button onClick={() => setShowInfoModal(true)} className="bg-orange-500 text-white text-sm font-bold px-4 py-2 rounded hover:bg-orange-600">⚠ Request Info</button>
         <Link href="/correspondence" className="bg-gray-200 dark:bg-gray-700 text-sm font-bold px-4 py-2 rounded hover:bg-gray-300 no-underline text-gray-800 dark:text-gray-200">📧 Send Letter</Link>
       </div>
+
+      {/* Approve Modal */}
+      {showApproveModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-6">
+            <h3 className="text-lg font-bold mb-3">Approve Application</h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">Approve this application? This will notify the applicant.</p>
+            <div className="flex gap-3 justify-end">
+              <button onClick={() => setShowApproveModal(false)} className="px-4 py-2 text-sm font-bold border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-100 dark:hover:bg-gray-700">Cancel</button>
+              <button
+                onClick={() => {
+                  setCaseStatus('approved');
+                  auditRepo.log({ ref, action: 'Application Approved', actor: 'Karen MacLeod' });
+                  setAuditEvents(prev => [{ date: new Date().toLocaleString('en-GB'), action: 'Application Approved', actor: 'Karen MacLeod', icon: '✅' }, ...prev]);
+                  setToastMessage({ text: '✓ Application approved. Notification sent to applicant.', type: 'success' });
+                  setShowApproveModal(false);
+                  setTimeout(() => setToastMessage(null), 5000);
+                }}
+                className="bg-green-700 text-white text-sm font-bold px-4 py-2 rounded hover:bg-green-800"
+              >
+                Confirm Approval
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reject Modal */}
+      {showRejectModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-6">
+            <h3 className="text-lg font-bold mb-3">Reject Application</h3>
+            <label className="block text-sm font-bold mb-1">Reason for rejection</label>
+            <textarea
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              placeholder="Enter the reason for rejecting this application..."
+              className="w-full border-2 border-gray-300 dark:border-gray-600 dark:bg-gray-700 p-3 text-sm rounded resize-none mb-4"
+              rows={4}
+            />
+            <div className="flex gap-3 justify-end">
+              <button onClick={() => { setShowRejectModal(false); setRejectReason(''); }} className="px-4 py-2 text-sm font-bold border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-100 dark:hover:bg-gray-700">Cancel</button>
+              <button
+                onClick={() => {
+                  setCaseStatus('rejected');
+                  auditRepo.log({ ref, action: 'Application Rejected', actor: 'Karen MacLeod', details: rejectReason });
+                  setAuditEvents(prev => [{ date: new Date().toLocaleString('en-GB'), action: `Application Rejected — ${rejectReason}`, actor: 'Karen MacLeod', icon: '❌' }, ...prev]);
+                  setToastMessage({ text: '✗ Application rejected. Notification sent to applicant.', type: 'error' });
+                  setShowRejectModal(false);
+                  setRejectReason('');
+                  setTimeout(() => setToastMessage(null), 5000);
+                }}
+                disabled={!rejectReason.trim()}
+                className="bg-red-700 text-white text-sm font-bold px-4 py-2 rounded hover:bg-red-800 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Confirm Rejection
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Request Info Modal */}
+      {showInfoModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-6">
+            <h3 className="text-lg font-bold mb-3">Request Additional Information</h3>
+            <label className="block text-sm font-bold mb-1">What information is needed?</label>
+            <textarea
+              value={infoRequest}
+              onChange={(e) => setInfoRequest(e.target.value)}
+              placeholder="Describe what additional information is required from the applicant..."
+              className="w-full border-2 border-gray-300 dark:border-gray-600 dark:bg-gray-700 p-3 text-sm rounded resize-none mb-4"
+              rows={4}
+            />
+            <div className="flex gap-3 justify-end">
+              <button onClick={() => { setShowInfoModal(false); setInfoRequest(''); }} className="px-4 py-2 text-sm font-bold border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-100 dark:hover:bg-gray-700">Cancel</button>
+              <button
+                onClick={() => {
+                  setCaseStatus('additional_info_required');
+                  auditRepo.log({ ref, action: 'Additional Information Requested', actor: 'Karen MacLeod', details: infoRequest });
+                  setAuditEvents(prev => [{ date: new Date().toLocaleString('en-GB'), action: `Additional info requested — ${infoRequest}`, actor: 'Karen MacLeod', icon: '⚠' }, ...prev]);
+                  setToastMessage({ text: '⚠ Additional information requested.', type: 'warning' });
+                  setShowInfoModal(false);
+                  setInfoRequest('');
+                  setTimeout(() => setToastMessage(null), 5000);
+                }}
+                disabled={!infoRequest.trim()}
+                className="bg-orange-500 text-white text-sm font-bold px-4 py-2 rounded hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Send Request
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Collapsible Sections */}
       <div className="space-y-3">
@@ -585,6 +706,21 @@ function CaseContent() {
         </CollapsibleSection>
 
         <CollapsibleSection title="Activity Timeline" icon="📋" defaultOpen>
+          {/* Dynamic audit events from Approve/Reject/Request Info actions */}
+          {auditEvents.length > 0 && (
+            <div className="mb-4 space-y-2">
+              {auditEvents.map((event, i) => (
+                <div key={`audit-${i}`} className="flex items-start gap-3 p-2 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded">
+                  <span className="text-lg flex-shrink-0">{event.icon}</span>
+                  <div className="flex-1">
+                    <p className="text-sm font-bold text-gray-800 dark:text-gray-200">{event.action}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">{event.actor} — {event.date}</p>
+                  </div>
+                </div>
+              ))}
+              <div className="border-b border-gray-200 dark:border-gray-700 mt-3 mb-2"></div>
+            </div>
+          )}
           <CaseTimeline
             events={TIMELINE_DATA[ref] || []}
             compact

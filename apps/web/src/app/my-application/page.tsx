@@ -64,6 +64,22 @@ const TIMELINE_EVENTS = [
   { date: '8 Jul 2026', label: 'Money adviser contact', description: 'If approved, a qualified money adviser will contact you.', upcoming: true },
 ];
 
+// ─── Collapsible Section component ──────────────────────────────────────────
+function CollapsibleSection({ title, icon, children, defaultOpen = false }: { title: string; icon: string; children: React.ReactNode; defaultOpen?: boolean }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+      <button onClick={() => setOpen(!open)} className="w-full flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-750 text-left">
+        <span className="flex items-center gap-2 font-bold text-sm">
+          <span>{icon}</span> {title}
+        </span>
+        <span className="text-gray-400 text-lg">{open ? '−' : '+'}</span>
+      </button>
+      {open && <div className="p-4 border-t border-gray-200 dark:border-gray-700">{children}</div>}
+    </div>
+  );
+}
+
 export default function MyApplicationPage() {
   const [selectedMessage, setSelectedMessage] = useState<typeof MESSAGES[0] | null>(null);
 
@@ -152,6 +168,121 @@ export default function MyApplicationPage() {
               </div>
             ))}
           </div>
+        </div>
+      </div>
+
+      {/* Your Application Details — collapsible sections */}
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6 mb-6">
+        <h2 className="text-lg font-bold mb-2">Your Application Details</h2>
+        <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+          Reference: <Link href="/case/IAAS-2026-00012" className="font-mono text-blue-700 dark:text-blue-400 underline hover:text-blue-900">IAAS-2026-00012</Link>
+        </p>
+        <div className="space-y-3">
+          <CollapsibleSection title="Personal Details" icon="👤">
+            <div className="grid md:grid-cols-2 gap-x-8 gap-y-2 text-sm">
+              <div className="flex justify-between py-1 border-b border-gray-100 dark:border-gray-700"><span className="text-gray-500">Title</span><span className="font-medium">Mr</span></div>
+              <div className="flex justify-between py-1 border-b border-gray-100 dark:border-gray-700"><span className="text-gray-500">First Name</span><span className="font-medium">Alistair</span></div>
+              <div className="flex justify-between py-1 border-b border-gray-100 dark:border-gray-700"><span className="text-gray-500">Last Name</span><span className="font-medium">Morrison</span></div>
+              <div className="flex justify-between py-1 border-b border-gray-100 dark:border-gray-700"><span className="text-gray-500">Date of Birth</span><span className="font-medium">22/11/1988</span></div>
+              <div className="flex justify-between py-1 border-b border-gray-100 dark:border-gray-700"><span className="text-gray-500">National Insurance</span><span className="font-medium">AB654321C</span></div>
+              <div className="flex justify-between py-1 border-b border-gray-100 dark:border-gray-700"><span className="text-gray-500">Marital Status</span><span className="font-medium">Married</span></div>
+              <div className="flex justify-between py-1 border-b border-gray-100 dark:border-gray-700"><span className="text-gray-500">Dependants</span><span className="font-medium">1</span></div>
+              <div className="flex justify-between py-1 border-b border-gray-100 dark:border-gray-700"><span className="text-gray-500">Employment</span><span className="font-medium">Employed</span></div>
+            </div>
+          </CollapsibleSection>
+
+          <CollapsibleSection title="Address History" icon="🏠">
+            <div className="text-sm">
+              <h4 className="font-bold text-xs text-gray-500 uppercase mb-1">Current Address</h4>
+              <p className="font-medium">15 Highland Road, Edinburgh, EH3 5AA</p>
+              <p className="text-gray-500">Resident since: March 2019</p>
+              <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+                <h4 className="font-bold text-xs text-gray-500 uppercase mb-1">Previous Address</h4>
+                <p className="text-gray-600 dark:text-gray-400">42 Leith Walk, Edinburgh, EH6 8PA (2016 — 2019)</p>
+              </div>
+            </div>
+          </CollapsibleSection>
+
+          <CollapsibleSection title="Debts (4 creditors — £18,400)" icon="💳">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 dark:bg-gray-700">
+                <tr><th className="text-left p-2">Creditor</th><th className="text-left p-2">Type</th><th className="text-right p-2">Amount</th><th className="text-right p-2">Monthly</th></tr>
+              </thead>
+              <tbody>
+                <tr className="border-b border-gray-100 dark:border-gray-700"><td className="p-2 font-medium">Royal Bank of Scotland</td><td className="p-2">Personal Loan</td><td className="p-2 text-right">£8,200</td><td className="p-2 text-right">£180</td></tr>
+                <tr className="border-b border-gray-100 dark:border-gray-700"><td className="p-2 font-medium">Barclays Card</td><td className="p-2">Credit Card</td><td className="p-2 text-right">£5,400</td><td className="p-2 text-right">£120</td></tr>
+                <tr className="border-b border-gray-100 dark:border-gray-700"><td className="p-2 font-medium">Glasgow Council</td><td className="p-2">Council Tax</td><td className="p-2 text-right">£2,800</td><td className="p-2 text-right">£0</td></tr>
+                <tr className="border-b border-gray-100 dark:border-gray-700"><td className="p-2 font-medium">ScotPower</td><td className="p-2">Utility</td><td className="p-2 text-right">£2,000</td><td className="p-2 text-right">£85</td></tr>
+                <tr className="font-bold bg-gray-50 dark:bg-gray-700"><td className="p-2">TOTAL</td><td></td><td className="p-2 text-right">£18,400</td><td className="p-2 text-right">£385</td></tr>
+              </tbody>
+            </table>
+          </CollapsibleSection>
+
+          <CollapsibleSection title="Income & Expenditure" icon="💰">
+            <div className="grid md:grid-cols-2 gap-6 text-sm">
+              <div>
+                <h4 className="font-bold mb-2">Monthly Income</h4>
+                <div className="flex justify-between py-1"><span className="text-gray-600">Wages</span><span className="font-medium">£2,600</span></div>
+                <div className="flex justify-between py-1 border-t mt-1 font-bold"><span>Total Income</span><span>£2,600</span></div>
+              </div>
+              <div>
+                <h4 className="font-bold mb-2">Monthly Expenditure</h4>
+                <div className="flex justify-between py-1"><span className="text-gray-600">Rent/Mortgage</span><span className="font-medium">£850</span></div>
+                <div className="flex justify-between py-1"><span className="text-gray-600">Council Tax</span><span className="font-medium">£130</span></div>
+                <div className="flex justify-between py-1"><span className="text-gray-600">Utilities</span><span className="font-medium">£140</span></div>
+                <div className="flex justify-between py-1"><span className="text-gray-600">Food</span><span className="font-medium">£380</span></div>
+                <div className="flex justify-between py-1"><span className="text-gray-600">Transport</span><span className="font-medium">£120</span></div>
+                <div className="flex justify-between py-1"><span className="text-gray-600">Insurance</span><span className="font-medium">£60</span></div>
+                <div className="flex justify-between py-1"><span className="text-gray-600">Childcare</span><span className="font-medium">£200</span></div>
+                <div className="flex justify-between py-1"><span className="text-gray-600">Other</span><span className="font-medium">£50</span></div>
+                <div className="flex justify-between py-1 border-t mt-1 font-bold"><span>Total Expenditure</span><span>£1,930</span></div>
+              </div>
+            </div>
+            <div className="mt-3 p-3 rounded text-center font-bold bg-green-50 dark:bg-green-950 text-green-800 dark:text-green-300">
+              Disposable Income: £670/month
+            </div>
+          </CollapsibleSection>
+
+          <CollapsibleSection title="Assets" icon="🏡">
+            <div className="text-sm space-y-3">
+              <div>
+                <h4 className="font-bold text-xs text-gray-500 uppercase mb-1">Vehicles</h4>
+                <p>2019 Volkswagen Golf — Value: £8,500, Finance: £3,200 (Essential for work)</p>
+              </div>
+              <div>
+                <h4 className="font-bold text-xs text-gray-500 uppercase mb-1">Savings</h4>
+                <p>Bank savings (Nationwide) — £1,200</p>
+              </div>
+            </div>
+          </CollapsibleSection>
+
+          <CollapsibleSection title="Documents" icon="📄">
+            <div className="space-y-2 text-sm">
+              <div className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-700 rounded">
+                <span>📄 payslip_june_2026.pdf</span>
+                <span className="text-xs font-bold bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-300 px-2 py-0.5 rounded">✓ Verified</span>
+              </div>
+              <div className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-700 rounded">
+                <span>📄 bank_statement_may.pdf</span>
+                <span className="text-xs font-bold bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-300 px-2 py-0.5 rounded">✓ Verified</span>
+              </div>
+              <div className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-700 rounded">
+                <span>📄 council_tax_notice.pdf</span>
+                <span className="text-xs font-bold bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-300 px-2 py-0.5 rounded">✓ Verified</span>
+              </div>
+            </div>
+          </CollapsibleSection>
+
+          <CollapsibleSection title="Recommendation" icon="✅">
+            <div className="bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded p-4">
+              <p className="font-bold text-green-800 dark:text-green-300 text-lg">Debt Arrangement Scheme (DAS)</p>
+              <p className="text-sm text-green-700 dark:text-green-400 mt-1">94% confidence</p>
+              <p className="text-sm text-green-800 dark:text-green-300 mt-2">Debt level within DAS range, disposable income supports structured repayment, no existing insolvency proceedings.</p>
+              <Link href="/case/IAAS-2026-00012/recommendation" className="inline-flex items-center gap-1 text-sm font-bold text-green-700 dark:text-green-400 hover:text-green-900 underline mt-3">
+                View full recommendation explanation →
+              </Link>
+            </div>
+          </CollapsibleSection>
         </div>
       </div>
 
