@@ -50,7 +50,11 @@ const GITHUB_RAW_BASE = 'https://raw.githubusercontent.com/macleoda-leidos/aib-i
 function renderMarkdown(md: string): string {
   let html = md
     // Code blocks (before other processing)
-    .replace(/```mermaid\n([\s\S]*?)```/g, '<div class="mermaid">$1</div>')
+    .replace(/```mermaid\s*\n([\s\S]*?)```/g, (_, diagram) => {
+      // Clean diagram content: trim, remove leading/trailing whitespace per line
+      const cleaned = diagram.trim().replace(/^\s+/gm, (m: string) => m);
+      return `<pre class="mermaid">${cleaned}</pre>`;
+    })
     .replace(/```(\w*)\n([\s\S]*?)```/g, '<pre class="bg-gray-100 dark:bg-gray-800 p-4 rounded overflow-x-auto text-xs"><code>$2</code></pre>')
     // Tables
     .replace(/\|(.+)\|\n\|[-| :]+\|\n((?:\|.+\|\n)*)/g, (match, header, body) => {
@@ -116,9 +120,20 @@ export default function DevDocumentationPage() {
   // Load Mermaid.js for diagram rendering
   useEffect(() => {
     if (content.includes('class="mermaid"')) {
+      const existingScript = document.querySelector('script[src*="mermaid"]');
+      if (existingScript) {
+        // Mermaid already loaded — just re-run
+        try { (window as any).mermaid?.run({ querySelector: '.mermaid' }); } catch {}
+        return;
+      }
       const script = document.createElement('script');
       script.src = 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js';
-      script.onload = () => { (window as any).mermaid?.init(); };
+      script.onload = () => {
+        try {
+          (window as any).mermaid?.initialize({ startOnLoad: false, theme: 'default', securityLevel: 'loose' });
+          (window as any).mermaid?.run({ querySelector: '.mermaid' });
+        } catch (e) { console.warn('Mermaid render error:', e); }
+      };
       document.head.appendChild(script);
     }
   }, [content]);

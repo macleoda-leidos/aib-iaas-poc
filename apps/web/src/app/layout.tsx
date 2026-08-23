@@ -128,6 +128,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </div>
             <div className="mt-8 pt-4 border-t border-gray-300 dark:border-gray-700 flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
               <p className="text-xs text-gray-500 dark:text-gray-400">© Crown copyright</p>
+              <p className="text-xs text-gray-400">IAAS Platform v0.15.0</p>
               <p className="text-xs text-gray-500 dark:text-gray-400">
                 <a href="https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/" className="underline" target="_blank" rel="noopener noreferrer">Open Government Licence v3.0</a>
               </p>
