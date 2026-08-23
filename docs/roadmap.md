@@ -14,9 +14,9 @@
 | Sprint 8 | Enterprise Polish — Account management, Data export, Batch processing, Admin hub (28 features) | Complete |
 | Sprint 9 | Platform Completeness — Compliance, Training mode, Integration monitor, Performance metrics | Complete |
 | Sprint 10 | Final Integration — Documentation suite, Demo readiness, Final polish | Complete |
-| Sprint 11 | Alpha Preparation — Real identity provider (ScotAccount test), PostgreSQL migration | Planned |
-| Sprint 12 | Integration Alpha — BASYS/eDEN test environment connections, GOV.UK Notify | Planned |
-| Sprint 13 | UAT Readiness — Staff pilot onboarding, Accessibility audit, Pen test preparation | Planned |
+| Sprint 11 | Test & Document — 102 new tests (423 total), onboarding guide, demo script, functionality breakdown | Complete |
+| Sprint 12 | Operational Excellence — 78 Playwright regression tests (501 total), runbooks, security scan, load test, DR plan | Complete |
+| Sprint 13 | Handover & Scale — ADRs, cost model, team scaling, vendor assessment, go-live checklist, API SDK guide | Complete |
 
 ---
 

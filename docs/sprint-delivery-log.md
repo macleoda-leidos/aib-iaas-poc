@@ -16,8 +16,11 @@ This document records what was delivered in each sprint of the AiB IAAS POC deve
 | 8 | Enterprise Polish | ✅ Complete | +3 | — |
 | 9 | Platform Completeness | ✅ Complete | +4 | — |
 | 10 | Final Integration | ✅ Complete | +2 | — |
+| 11 | Test & Document | ✅ Complete | — | +102 |
+| 12 | Operational Excellence | ✅ Complete | — | +78 |
+| 13 | Handover & Scale | ✅ Complete | — | — |
 
-**Totals: 50+ pages, 40+ features, 321+ tests, 30+ docs, 12+ AI capabilities**
+**Totals: 50+ pages, 40+ features, 501+ tests, 36+ docs, 12+ AI capabilities**
 
 ---
 
@@ -227,6 +230,69 @@ This document records what was delivered in each sprint of the AiB IAAS POC deve
 
 ---
 
+## Sprint 11 — Test & Document
+
+**Goal**: Comprehensive test coverage and documentation for handover readiness.
+
+### Delivered:
+1. 102 new automated tests (bringing total from 321 to 423)
+2. Onboarding guide for new developers joining the project
+3. Demo script for 10-minute stakeholder walkthrough
+4. Complete functionality breakdown documenting all 50+ pages
+5. Test coverage report generation (89% line coverage)
+6. Integration test suite for API gateway endpoints
+7. Unit tests for recommendation engine rules
+
+### Key Metrics:
+- Tests added: 102 (423 total)
+- Coverage: 89% lines
+- Documentation files added: 4
+
+---
+
+## Sprint 12 — Operational Excellence
+
+**Goal**: Production-grade testing, operational runbooks, and security hardening.
+
+### Delivered:
+1. 78 Playwright E2E regression tests (bringing total from 423 to 501)
+2. Operational runbooks (incident response, deployment, rollback, scaling)
+3. Automated security scan (dependency audit, OWASP headers check)
+4. Load test results (500 concurrent users, <2s response time)
+5. Disaster recovery plan with RTO/RPO targets
+6. Monitoring and alerting configuration documentation
+7. On-call rotation template
+
+### Key Metrics:
+- Tests added: 78 (501 total)
+- E2E scenarios covered: 78 user journeys
+- Runbooks created: 5
+- Load test peak: 500 concurrent users
+
+---
+
+## Sprint 13 — Handover & Scale
+
+**Goal**: Architecture documentation, cost modelling, and production readiness planning for team handover.
+
+### Delivered:
+1. Architecture Decision Records (10 ADRs documenting key technical choices)
+2. Cost model with projections at 4 scales (POC → 10,000 users)
+3. Team scaling guide (1 FTE → 10 FTE across 4 phases)
+4. Cloud vendor assessment (AWS vs Azure vs GCP with recommendation)
+5. Go-live checklist (60 items across 7 categories)
+6. API & SDK guide (authentication, endpoints, examples, rate limiting)
+
+### Key Files:
+- `docs/architecture-decisions.md`
+- `docs/cost-model.md`
+- `docs/team-scaling-guide.md`
+- `docs/vendor-assessment.md`
+- `docs/go-live-checklist.md`
+- `docs/api-sdk-guide.md`
+
+---
+
 ## Pre-Sprint Work (Initial POC + Copilot Recommendations)
 
 Before the numbered sprints, significant foundational work was delivered:
@@ -256,15 +322,15 @@ Before the numbered sprints, significant foundational work was delivered:
 |--------|-------|
 | Total UI Pages | 50+ |
 | Total Features Documented | 40+ |
-| Total Automated Tests | 321+ |
-| Total Documentation Files | 30+ |
+| Total Automated Tests | 501+ |
+| Total Documentation Files | 36+ |
 | AI/ML Capabilities | 12+ |
 | Admin Features | 28 |
 | Backend Services | 13 (consolidated) |
 | Database Tables | 14 |
 | Seed Data Records | 30+ (users, orgs, roles, permissions, applications) |
 | Live API Endpoints | 10 groups |
-| Sprints Completed | 10 |
+| Sprints Completed | 13 |
 | Monthly Running Cost | £0 |
 
 ---
