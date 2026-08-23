@@ -1,37 +1,219 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { dispatchDemoAction, DemoAction } from '../../lib/demoEvents';
+import { generateRandomApplication, GeneratedApplication } from '../../lib/applicationGenerator';
 
-const DEMO_STEPS = [
-  { path: '/', duration: 5, title: '🏠 Welcome', narration: 'Welcome to IAAS — AiB\'s digital front door. Service status shows all systems operational.' },
-  { path: '/login', duration: 5, title: '🔐 Staff Login', narration: 'Staff authenticate via Keycloak with MFA. 4 demo accounts available.' },
-  { path: '/dashboard', duration: 6, title: '📊 Staff Dashboard', narration: 'AI prioritisation, anomaly alerts, live notifications. Cases sorted by urgency.' },
-  { path: '/case/IAAS-2026-00012', duration: 7, title: '📋 Case Detail', narration: 'AI Summary auto-generated. Risk score: Low. Quality check: 5/6 passed. Predicted: 92% approved.' },
-  { path: '/case/IAAS-2026-00012/recommendation', duration: 6, title: '✅ Recommendation', narration: 'DAS at 94% confidence. Decision factors, alternatives chart, evidence from 6 systems.' },
-  { path: '/case/IAAS-2026-00012/audit', duration: 5, title: '📜 Audit Trail', narration: '18 events permanently recorded. Full compliance. Every action traceable.' },
-  { path: '/', duration: 3, title: '👤 Citizen Journey...', narration: 'Now the citizen experience — applying for debt advice online.' },
-  { path: '/apply', duration: 6, title: '📝 Step 1: Personal Details', narration: 'Citizen enters name, DOB, NI number. Validated in real-time (format, age, prefix checks).' },
-  { path: '/apply', duration: 5, title: '🏠 Step 2: Address', narration: 'Address history with UK postcode validation. 5-year requirement checked.' },
-  { path: '/apply', duration: 5, title: '💳 Step 3: Debts', narration: 'Multiple creditors added. £2,000 + £3,000 + £2,000 = £7,000 total.' },
-  { path: '/apply', duration: 5, title: '💰 Step 4: Income', narration: 'Salary, benefits, other income. Auto-calculated disposable income shown live.' },
-  { path: '/apply', duration: 5, title: '📊 Step 5: Expenditure', narration: 'Utilities, rent, food, transport. Eligibility meter predicts DAS.' },
-  { path: '/apply', duration: 4, title: '🏡 Step 6: Assets', narration: 'House, car, savings declared. Affects PTD vs DAS recommendation.' },
-  { path: '/apply', duration: 4, title: '📄 Step 7: Documents', narration: 'Payslip.pdf, BankStatement.pdf, UtilityBill.pdf uploaded. ClamAV virus scan: Clean ✓' },
-  { path: '/apply', duration: 5, title: '🔍 Step 8: System Checks', narration: 'BASYS, eDEN, DAS, CFT, Moratorium, RoI — all checked in parallel. All clear.' },
-  { path: '/apply', duration: 6, title: '✅ Step 9: Recommendation', narration: 'AI generates: Debt Arrangement Scheme (DAS) at 94% confidence.' },
-  { path: '/apply', duration: 5, title: '📨 Step 10: Submit', narration: 'Application submitted! Reference IAAS-2026-00101 generated. Confirmation shown.' },
-  { path: '/dashboard', duration: 5, title: '📥 In Staff Queue', narration: 'New case appears in dashboard immediately. Priority: High. Assigned to Karen MacLeod.' },
-  { path: '/case/IAAS-2026-00012', duration: 5, title: '✓ Caseworker Approves', narration: 'AI quality check passes (5/6). Karen clicks Approve. Audit event created.' },
-  { path: '/my-application', duration: 5, title: '🎉 Debtor Notified', narration: 'Citizen sees: Status updated to Approved. Decision notification email sent.' },
-  { path: '/search', duration: 5, title: '🔍 Cross-System Search', narration: '100 applications searchable. Fuzzy matching finds "Jhon Smith" from "John Smith".' },
-  { path: '/admin', duration: 5, title: '⚙️ Admin: 32 Features', narration: 'Rules engine, Digital Mailroom, AI Governance, Policy Simulation, and 28 more.' },
-  { path: '/admin/ai-explainability', duration: 5, title: '🧠 AI Explainability', narration: 'Visual decision tree. Full transparency — exactly HOW the AI decided.' },
-  { path: '/', duration: 6, title: '🏁 Demo Complete', narration: 'Live API • 57+ pages • 648 tests • 12 AI capabilities • 32 admin features • £0/month. Questions?' },
-];
+interface DemoStepAction {
+  delay: number; // ms after step starts
+  action: DemoAction;
+}
+
+interface DemoStep {
+  path: string;
+  duration: number; // total seconds for this step
+  title: string;
+  narration: string;
+  actions?: DemoStepAction[];
+}
+
+function buildDemoSteps(app: GeneratedApplication): DemoStep[] {
+  const totalDebt = app.debts.reduce((s, d) => s + d.outstandingAmount, 0);
+  const totalIncome = app.income.wages + app.income.benefits + app.income.pension + app.income.other;
+  const totalExp = app.expenditure.rent + app.expenditure.councilTax + app.expenditure.utilities + app.expenditure.food + app.expenditure.transport + app.expenditure.insurance + app.expenditure.childcare + app.expenditure.other;
+
+  return [
+    // Staff demo (steps 0-6)
+    {
+      path: '/',
+      duration: 5,
+      title: '\u{1F3E0} Welcome',
+      narration: 'Welcome to IAAS — AiB\'s digital front door. Service status shows all systems operational.',
+    },
+    {
+      path: '/login',
+      duration: 5,
+      title: '\u{1F510} Staff Login',
+      narration: 'Staff authenticate via Keycloak with MFA. 4 demo accounts available.',
+    },
+    {
+      path: '/dashboard',
+      duration: 6,
+      title: '\u{1F4CA} Staff Dashboard',
+      narration: 'AI prioritisation, anomaly alerts, live notifications. Cases sorted by urgency.',
+    },
+    {
+      path: '/case/IAAS-2026-00012',
+      duration: 7,
+      title: '\u{1F4CB} Case Detail',
+      narration: 'AI Summary auto-generated. Risk score: Low. Quality check: 5/6 passed. Predicted: 92% approved.',
+    },
+    {
+      path: '/case/IAAS-2026-00012/recommendation',
+      duration: 6,
+      title: '✅ Recommendation',
+      narration: 'DAS at 94% confidence. Decision factors, alternatives chart, evidence from 6 systems.',
+    },
+    {
+      path: '/case/IAAS-2026-00012/audit',
+      duration: 5,
+      title: '\u{1F4DC} Audit Trail',
+      narration: '18 events permanently recorded. Full compliance. Every action traceable.',
+    },
+    {
+      path: '/',
+      duration: 3,
+      title: '\u{1F464} Citizen Journey...',
+      narration: 'Now the citizen experience — applying for debt advice online.',
+    },
+
+    // Apply form interaction (steps 7-16)
+    {
+      path: '/apply',
+      duration: 7,
+      title: '\u{1F4DD} Step 1: Personal Details',
+      narration: `Filling personal details: ${app.personal.firstName} ${app.personal.lastName}, DOB ${app.personal.dateOfBirth}, NI ${app.personal.nationalInsuranceNumber}`,
+      actions: [
+        { delay: 1000, action: { type: 'FILL_PERSONAL', data: app.personal } },
+        { delay: 5500, action: { type: 'NEXT_STEP' } },
+      ],
+    },
+    {
+      path: '/apply',
+      duration: 6,
+      title: '\u{1F3E0} Step 2: Address',
+      narration: `Address: ${app.address.line1}, ${app.address.city} ${app.address.postcode}. Resident since ${app.address.residentSince}.`,
+      actions: [
+        { delay: 1000, action: { type: 'FILL_ADDRESS', data: app.address } },
+        { delay: 4500, action: { type: 'NEXT_STEP' } },
+      ],
+    },
+    {
+      path: '/apply',
+      duration: 7,
+      title: '\u{1F4B3} Step 3: Debts',
+      narration: `${app.debts.length} creditors entered. Total debt: £${totalDebt.toLocaleString()}. Largest: ${app.debts[0]?.creditorName}.`,
+      actions: [
+        { delay: 1000, action: { type: 'FILL_DEBTS', data: app.debts } },
+        { delay: 5500, action: { type: 'NEXT_STEP' } },
+      ],
+    },
+    {
+      path: '/apply',
+      duration: 6,
+      title: '\u{1F4B0} Step 4: Income & Expenditure',
+      narration: `Income: £${totalIncome.toLocaleString()}/mo. Expenditure: £${totalExp.toLocaleString()}/mo. Disposable: £${(totalIncome - totalExp).toLocaleString()}/mo.`,
+      actions: [
+        { delay: 800, action: { type: 'FILL_INCOME', data: app.income } },
+        { delay: 1500, action: { type: 'FILL_EXPENDITURE', data: app.expenditure } },
+        { delay: 4500, action: { type: 'NEXT_STEP' } },
+      ],
+    },
+    {
+      path: '/apply',
+      duration: 5,
+      title: '\u{1F3E1} Step 5: Assets',
+      narration: app.assets.noAssets
+        ? 'No assets declared. This opens eligibility for MAP.'
+        : `Assets declared: ${app.assets.vehicles.length} vehicle(s), ${app.assets.properties.length} property(ies), ${app.assets.savings.length} savings account(s).`,
+      actions: [
+        { delay: 1000, action: { type: 'FILL_ASSETS', data: app.assets } },
+        { delay: 3500, action: { type: 'NEXT_STEP' } },
+      ],
+    },
+    {
+      path: '/apply',
+      duration: 5,
+      title: '\u{1F4C4} Step 6: Documents',
+      narration: 'Payslip.pdf, BankStatement.pdf, UtilityBill.pdf uploaded. ClamAV virus scan: Clean ✓',
+      actions: [
+        { delay: 3500, action: { type: 'NEXT_STEP' } },
+      ],
+    },
+    {
+      path: '/apply',
+      duration: 6,
+      title: '\u{1F50D} Step 7: System Checks',
+      narration: 'BASYS, eDEN, DAS, CFT, Moratorium, RoI — all checked in parallel. All clear.',
+      actions: [
+        { delay: 1000, action: { type: 'RUN_CHECKS' } },
+        { delay: 4500, action: { type: 'NEXT_STEP' } },
+      ],
+    },
+    {
+      path: '/apply',
+      duration: 6,
+      title: '✅ Step 8: Recommendation',
+      narration: `AI rules engine recommends: ${app.expectedProduct} based on financial profile. Confidence: High.`,
+      actions: [
+        { delay: 4500, action: { type: 'NEXT_STEP' } },
+      ],
+    },
+    {
+      path: '/apply',
+      duration: 6,
+      title: '\u{1F4E8} Step 9: Submit',
+      narration: 'Application submitted! Reference IAAS-2026-00101 generated. Confirmation shown.',
+      actions: [
+        { delay: 1500, action: { type: 'SUBMIT' } },
+      ],
+    },
+
+    // Post-submission (steps 17-22)
+    {
+      path: '/dashboard',
+      duration: 5,
+      title: '\u{1F4E5} In Staff Queue',
+      narration: 'New case appears in dashboard immediately. Priority: High. Assigned to Karen MacLeod.',
+      actions: [
+        { delay: 1000, action: { type: 'SCROLL_TO', selector: '.applications-table' } },
+      ],
+    },
+    {
+      path: '/case/IAAS-2026-00012',
+      duration: 5,
+      title: '✓ Caseworker Approves',
+      narration: 'AI quality check passes (5/6). Karen clicks Approve. Audit event created.',
+      actions: [
+        { delay: 2000, action: { type: 'APPROVE_CASE' } },
+      ],
+    },
+    {
+      path: '/my-application',
+      duration: 5,
+      title: '\u{1F389} Debtor Notified',
+      narration: 'Citizen sees: Status updated to Approved. Decision notification email sent.',
+    },
+    {
+      path: '/search',
+      duration: 5,
+      title: '\u{1F50D} Cross-System Search',
+      narration: '100 applications searchable. Fuzzy matching finds "Jhon Smith" from "John Smith".',
+    },
+    {
+      path: '/admin',
+      duration: 5,
+      title: '⚙️ Admin: 32 Features',
+      narration: 'Rules engine, Digital Mailroom, AI Governance, Policy Simulation, and 28 more.',
+    },
+    {
+      path: '/admin/ai-explainability',
+      duration: 5,
+      title: '\u{1F9E0} AI Explainability',
+      narration: 'Visual decision tree. Full transparency — exactly HOW the AI decided.',
+    },
+    {
+      path: '/',
+      duration: 6,
+      title: '\u{1F3C1} Demo Complete',
+      narration: 'Live API • 57+ pages • 648 tests • 12 AI capabilities • 32 admin features • £0/month. Questions?',
+    },
+  ];
+}
 
 type Speed = 'slow' | 'normal' | 'fast';
-const SPEED_MS: Record<Speed, number> = { slow: 10000, normal: 6000, fast: 3000 };
+const SPEED_MULTIPLIER: Record<Speed, number> = { slow: 1.5, normal: 1, fast: 0.6 };
 
 export default function DemoMode() {
   const router = useRouter();
@@ -40,38 +222,77 @@ export default function DemoMode() {
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState<Speed>('normal');
   const [progress, setProgress] = useState(0);
+  const [demoApp, setDemoApp] = useState<GeneratedApplication | null>(null);
+  const [demoSteps, setDemoSteps] = useState<DemoStep[]>([]);
+  const actionTimersRef = useRef<NodeJS.Timeout[]>([]);
 
-  const currentStep = DEMO_STEPS[step];
+  const currentStep = demoSteps[step];
+
+  // Clear all pending action timers
+  const clearActionTimers = useCallback(() => {
+    actionTimersRef.current.forEach(t => clearTimeout(t));
+    actionTimersRef.current = [];
+  }, []);
+
+  // Execute actions for the current step
+  const executeStepActions = useCallback((stepIndex: number, speedMult: number) => {
+    clearActionTimers();
+    const s = demoSteps[stepIndex];
+    if (!s?.actions) return;
+
+    s.actions.forEach(({ delay, action }) => {
+      const timer = setTimeout(() => {
+        dispatchDemoAction(action);
+      }, delay * speedMult);
+      actionTimersRef.current.push(timer);
+    });
+  }, [demoSteps, clearActionTimers]);
 
   const goToStep = useCallback((idx: number) => {
-    if (idx >= 0 && idx < DEMO_STEPS.length) {
+    if (idx >= 0 && idx < demoSteps.length) {
+      clearActionTimers();
       setStep(idx);
       setProgress(0);
-      router.push(DEMO_STEPS[idx].path);
+      router.push(demoSteps[idx].path);
+      if (playing) {
+        // Small delay to let page render before dispatching actions
+        setTimeout(() => executeStepActions(idx, SPEED_MULTIPLIER[speed]), 300);
+      }
     }
-  }, [router]);
+  }, [router, demoSteps, playing, speed, clearActionTimers, executeStepActions]);
 
   const startDemo = () => {
+    const app = generateRandomApplication();
+    setDemoApp(app);
+    const steps = buildDemoSteps(app);
+    setDemoSteps(steps);
     setActive(true);
     setStep(0);
     setPlaying(true);
     setProgress(0);
-    router.push(DEMO_STEPS[0].path);
+    router.push(steps[0].path);
   };
 
   const endDemo = () => {
+    clearActionTimers();
     setActive(false);
     setPlaying(false);
     setStep(0);
     setProgress(0);
+    setDemoApp(null);
+    setDemoSteps([]);
   };
 
   // Auto-advance timer
   useEffect(() => {
-    if (!active || !playing) return;
+    if (!active || !playing || !currentStep) return;
 
-    const stepDuration = (currentStep?.duration || 6) * 1000;
-    const tick = 100; // progress update every 100ms
+    const speedMult = SPEED_MULTIPLIER[speed];
+    const stepDuration = (currentStep.duration * 1000) * speedMult;
+    const tick = 100;
+
+    // Execute actions when step begins
+    executeStepActions(step, speedMult);
 
     const interval = setInterval(() => {
       setProgress(prev => {
@@ -79,9 +300,11 @@ export default function DemoMode() {
         if (next >= 100) {
           // Advance to next step
           const nextStep = step + 1;
-          if (nextStep < DEMO_STEPS.length) {
+          if (nextStep < demoSteps.length) {
+            clearActionTimers();
             setStep(nextStep);
-            router.push(DEMO_STEPS[nextStep].path);
+            router.push(demoSteps[nextStep].path);
+            // Actions for next step will fire via the next useEffect cycle
             return 0;
           } else {
             setPlaying(false);
@@ -92,8 +315,12 @@ export default function DemoMode() {
       });
     }, tick);
 
-    return () => clearInterval(interval);
-  }, [active, playing, step, currentStep, router]);
+    return () => {
+      clearInterval(interval);
+      clearActionTimers();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active, playing, step, speed]);
 
   // Floating start button
   if (!active) {
@@ -109,7 +336,7 @@ export default function DemoMode() {
     <div className="fixed bottom-0 left-0 right-0 z-50 print:hidden">
       {/* Progress bar */}
       <div className="h-1 bg-gray-200 dark:bg-gray-700">
-        <div className="h-full bg-purple-600 transition-all duration-100" style={{ width: `${(step / DEMO_STEPS.length) * 100 + (progress / DEMO_STEPS.length)}%` }} />
+        <div className="h-full bg-purple-600 transition-all duration-100" style={{ width: `${(step / demoSteps.length) * 100 + (progress / demoSteps.length)}%` }} />
       </div>
 
       {/* Narration panel */}
@@ -119,7 +346,7 @@ export default function DemoMode() {
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-0.5">
               <span className="bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-300 px-2 py-0.5 rounded text-xs font-bold whitespace-nowrap">
-                {step + 1} / {DEMO_STEPS.length}
+                {step + 1} / {demoSteps.length}
               </span>
               <span className="font-bold text-sm truncate">{currentStep?.title}</span>
             </div>
@@ -132,7 +359,7 @@ export default function DemoMode() {
             <button onClick={() => setPlaying(!playing)} className="w-8 h-8 flex items-center justify-center rounded bg-purple-700 text-white text-sm hover:bg-purple-800">
               {playing ? '⏸' : '▶'}
             </button>
-            <button onClick={() => goToStep(step + 1)} disabled={step >= DEMO_STEPS.length - 1} className="w-8 h-8 flex items-center justify-center rounded border border-gray-300 dark:border-gray-600 text-sm disabled:opacity-30 hover:bg-gray-100 dark:hover:bg-gray-800">⏭</button>
+            <button onClick={() => goToStep(step + 1)} disabled={step >= demoSteps.length - 1} className="w-8 h-8 flex items-center justify-center rounded border border-gray-300 dark:border-gray-600 text-sm disabled:opacity-30 hover:bg-gray-100 dark:hover:bg-gray-800">⏭</button>
 
             {/* Speed */}
             <select value={speed} onChange={e => setSpeed(e.target.value as Speed)} className="text-xs border border-gray-300 dark:border-gray-600 dark:bg-gray-800 rounded px-1 py-1 ml-1">

@@ -15,6 +15,7 @@ import {
   CreditCheckResult,
 } from '../../lib/apiClient';
 import { searchOrganisations, Organisation } from '../../lib/organisations';
+import { onDemoAction, DemoAction } from '../../lib/demoEvents';
 
 // Section definitions with validation rules
 const SECTIONS = [
@@ -408,6 +409,126 @@ export default function ApplyPage() {
   const { application, setApplication, addRecentApplication, setApiConnected } = useAppContext();
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const applicationCreated = useRef(false);
+
+  // Demo mode event listener — responds to DemoMode dispatched actions
+  useEffect(() => {
+    const cleanup = onDemoAction((action: DemoAction) => {
+      switch (action.type) {
+        case 'FILL_PERSONAL': {
+          const d = action.data;
+          setFormData(prev => ({
+            ...prev,
+            personal: {
+              ...prev.personal,
+              firstName: d.firstName,
+              lastName: d.lastName,
+              title: d.title,
+              dateOfBirth: d.dateOfBirth,
+              nationalInsuranceNumber: d.nationalInsuranceNumber,
+              maritalStatus: d.maritalStatus?.toLowerCase().replace(' ', '_'),
+              employmentStatus: d.employmentStatus,
+              dependants: d.dependants,
+            },
+          }));
+          break;
+        }
+        case 'FILL_ADDRESS': {
+          const d = action.data;
+          setFormData(prev => ({
+            ...prev,
+            address: {
+              ...prev.address,
+              line1: d.line1,
+              city: d.city,
+              postcode: d.postcode,
+              residentSince: d.residentSince,
+              email: `${d.line1?.replace(/\s/g, '').toLowerCase().slice(0, 8)}@email.co.uk`,
+              phone: '07' + String(Math.floor(Math.random() * 900000000) + 100000000),
+            },
+          }));
+          break;
+        }
+        case 'FILL_DEBTS': {
+          const debts = action.data;
+          setFormData(prev => ({
+            ...prev,
+            debts: { items: debts },
+          }));
+          break;
+        }
+        case 'FILL_INCOME': {
+          const d = action.data;
+          setFormData(prev => ({
+            ...prev,
+            income: {
+              wages: d.wages || 0,
+              benefits: d.benefits || 0,
+              pension: d.pension || 0,
+              other: d.other || 0,
+            },
+          }));
+          break;
+        }
+        case 'FILL_EXPENDITURE': {
+          const d = action.data;
+          setFormData(prev => ({
+            ...prev,
+            expenditure: {
+              rent: d.rent || 0,
+              councilTax: d.councilTax || 0,
+              utilities: d.utilities || 0,
+              food: d.food || 0,
+              transport: d.transport || 0,
+              insurance: d.insurance || 0,
+              childcare: d.childcare || 0,
+              other: d.other || 0,
+            },
+          }));
+          break;
+        }
+        case 'FILL_ASSETS': {
+          const d = action.data;
+          setFormData(prev => ({
+            ...prev,
+            assets: {
+              noAssets: d.noAssets,
+              properties: d.properties || [],
+              vehicles: d.vehicles || [],
+              savings: d.savings || [],
+              other: d.other || [],
+            },
+          }));
+          break;
+        }
+        case 'RUN_CHECKS': {
+          // Mark checks as completed with synthetic results
+          setFormData(prev => ({
+            ...prev,
+            checks: { started: true, completed: true },
+            documents: { ...prev.documents, uploaded: 3 },
+          }));
+          break;
+        }
+        case 'NEXT_STEP': {
+          setErrors({});
+          setCurrentSection(prev => Math.min(prev + 1, SECTIONS.length - 1));
+          break;
+        }
+        case 'SUBMIT': {
+          // Mark payment as completed with synthetic reference
+          setFormData(prev => ({
+            ...prev,
+            recommendation: { ...prev.recommendation, received: true },
+            payment: { method: 'card', completed: true },
+          }));
+          setSubmitted(true);
+          setSubmittedRef(`IAAS-2026-${String(Math.floor(Math.random() * 99999)).padStart(5, '0')}`);
+          break;
+        }
+      }
+    });
+    return cleanup;
+  }, []);
 
   // Create draft application on first interaction
   const ensureApplicationExists = useCallback(async () => {
