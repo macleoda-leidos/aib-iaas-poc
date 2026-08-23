@@ -16,6 +16,8 @@ import {
 } from '../../lib/apiClient';
 import { searchOrganisations, Organisation } from '../../lib/organisations';
 import { onDemoAction, DemoAction } from '../../lib/demoEvents';
+import { useDemoTools } from '../DemoTools';
+import { generateRandomApplication } from '../../lib/applicationGenerator';
 
 // Section definitions with validation rules
 const SECTIONS = [
@@ -848,6 +850,41 @@ export default function ApplyPage() {
 }
 
 // ============ SECTION COMPONENTS ============
+
+function AutoFillButton({ section, formData, updateField }: { section: string; formData: any; updateField: any }) {
+  const { enabled } = useDemoTools();
+  if (!enabled) return null;
+
+  const handleAutoFill = () => {
+    const app = generateRandomApplication();
+    switch (section) {
+      case 'personal':
+        Object.entries(app.personal).forEach(([key, value]) => updateField('personal', key, value));
+        break;
+      case 'address':
+        Object.entries(app.address).forEach(([key, value]) => updateField('address', key, value));
+        updateField('address', 'email', `${app.personal.firstName.toLowerCase()}.${app.personal.lastName.toLowerCase()}@email.co.uk`);
+        updateField('address', 'phone', '07' + String(Math.floor(Math.random() * 900000000) + 100000000));
+        break;
+      case 'debts':
+        updateField('debts', 'items', app.debts);
+        break;
+      case 'income':
+        Object.entries(app.income).forEach(([key, value]) => updateField('income', key, value));
+        Object.entries(app.expenditure).forEach(([key, value]) => updateField('expenditure', key, value));
+        break;
+      case 'assets':
+        Object.entries(app.assets).forEach(([key, value]) => updateField('assets', key, value));
+        break;
+    }
+  };
+
+  return (
+    <button onClick={handleAutoFill} className="mb-3 px-3 py-1.5 bg-amber-100 dark:bg-amber-900 border border-amber-300 dark:border-amber-700 rounded text-xs font-bold text-amber-800 dark:text-amber-200 hover:bg-amber-200 dark:hover:bg-amber-800 transition-colors">
+      🎲 Auto-fill this step
+    </button>
+  );
+}
 
 function PersonalSection({ formData, updateField, errors }: { formData: any; updateField: any; errors: Record<string, string> }) {
   const d = formData.personal || {};

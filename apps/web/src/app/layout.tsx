@@ -25,6 +25,7 @@ import { UserNavItem } from './UserNavItem';
 import ApiStatusBar, { ApiStatusProvider } from './ApiStatus';
 import AiChatbot from './components/AiChatbot';
 import DemoMode from './components/DemoMode';
+import { DemoToolsProvider, DemoToolsToggle } from './DemoTools';
 
 const BASE = process.env.GITHUB_PAGES === 'true' ? '/aib-iaas-poc' : '';
 
@@ -34,6 +35,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="min-h-screen flex flex-col bg-white dark:bg-gray-900 text-gov-black dark:text-gray-100 transition-colors">
       <Providers>
       <LanguageProvider>
+      <DemoToolsProvider>
       <ApiStatusProvider>
 
         {/* Header — AiB brand red */}
@@ -137,7 +139,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </footer>
       <AiChatbot />
       <DemoMode />
+      <DemoToolsToggle />
       </ApiStatusProvider>
+      </DemoToolsProvider>
       </LanguageProvider>
       </Providers>
       </body>
