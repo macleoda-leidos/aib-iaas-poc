@@ -19,13 +19,17 @@ The POC implements a complete end-to-end journey: identity verification, multi-s
 
 ### Sprint Completion Status
 
-| Sprint | Focus | Status |
-|--------|-------|--------|
-| Sprint 1 | Core Platform — Forms, Services, Architecture | Complete |
-| Sprint 2 | Integration — Credit Checks, Payments, Notifications | Complete |
-| Sprint 3 | Admin Portal — Users, Orgs, RBAC, Digital Mailroom | Complete |
-| Sprint 4 | Polish — Statistics, Security SOC, Correspondence, Search | Complete |
-| Sprint 5 | Live Verification — PWA, Accessibility, Smoke Tests, API Docs | Complete |
+| Sprint | Focus | Key Deliverables | Status |
+|--------|-------|-----------------|--------|
+| Sprint 1 | Operational Beta | Live API on Render, PostgreSQL-ready persistence, repository pattern, auto-seed | ✅ Complete |
+| Sprint 2 | Robustness | API status bar, offline fallback, loading skeletons, PDF export, caseworker notes | ✅ Complete |
+| Sprint 3 | Production Readiness | Auth flow, role-based access, rate limits, session expiry, document upload | ✅ Complete |
+| Sprint 4 | Intelligent Platform | Eligibility meter, risk scoring, case prioritisation, decision support, applicant portal | ✅ Complete |
+| Sprint 5 | Live Verification | PWA, WCAG fixes, smoke test endpoint, API docs, error tracking | ✅ Complete |
+| Sprint 6 | Scale & Security | MFA, multi-language (EN/GD), webhooks, API keys, security headers | ✅ Complete |
+| Sprint 7 | AI Showcase | AI chatbot, case summary, anomaly detection, quality check, predictive outcomes | ✅ Complete |
+
+📋 [Full Sprint Delivery Log](docs/sprint-delivery-log.md)
 
 ---
 

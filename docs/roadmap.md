@@ -10,7 +10,8 @@
 | Sprint 4 | Polish — Statistics, Security SOC, Correspondence, Search | Complete |
 | Sprint 5 | Live Verification — PWA, Accessibility, Smoke Tests, API Docs | Complete |
 | Sprint 6 | Scale & Security — MFA, Multi-language, Webhooks, API Keys | Complete |
-| Sprint 7 | AI Showcase — Chatbot, Document Analysis, Predictions | Planned |
+| Sprint 7 | AI Showcase — Chatbot, Case Summary, Anomaly Detection, Quality Check, Predictions | Complete |
+| Sprint 8 | Enterprise Polish — PWA offline, Data export, Batch processing | Planned |
 | Sprint 8 | Enterprise Polish — PWA offline, Data export, Batch processing | Planned |
 
 ---
