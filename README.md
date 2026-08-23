@@ -31,8 +31,12 @@ The POC implements a complete end-to-end journey: identity verification, multi-s
 | Sprint 8 | Enterprise Polish | Account management, data export, batch processing, 28-feature admin hub | ✅ Complete |
 | Sprint 9 | Platform Completeness | Compliance, training mode, integration monitor, performance metrics | ✅ Complete |
 | Sprint 10 | Final Integration | Documentation suite, demo readiness, final polish, 50+ pages | ✅ Complete |
+| Sprint 11 | Test & Document | 102 new tests (423 total), onboarding guide, demo script | ✅ Complete |
+| Sprint 12 | Operational Excellence | 78 Playwright E2E tests (501 total), runbooks, load test | ✅ Complete |
+| Sprint 13 | Handover & Scale | ADRs, cost model, vendor assessment, go-live checklist | ✅ Complete |
+| Sprint 14 | Stakeholder Value | Creditor portal, adviser workspace, workflow engine, MI reports, 600+ tests | ✅ Complete |
 
-**50+ pages | 28 admin features | 12+ AI capabilities | 10 sprints | £0/month hosting**
+**57+ pages | 32 admin features | 12+ AI capabilities | 14 sprints | £0/month hosting**
 
 📋 [Full Sprint Delivery Log](docs/sprint-delivery-log.md) | 📖 [Onboarding Guide](docs/onboarding-guide.md)
 

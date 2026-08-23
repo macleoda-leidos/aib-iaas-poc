@@ -19,8 +19,9 @@ This document records what was delivered in each sprint of the AiB IAAS POC deve
 | 11 | Test & Document | ✅ Complete | — | +102 |
 | 12 | Operational Excellence | ✅ Complete | — | +78 |
 | 13 | Handover & Scale | ✅ Complete | — | — |
+| 14 | Stakeholder Value | ✅ Complete | +7 | +60 |
 
-**Totals: 50+ pages, 40+ features, 501+ tests, 36+ docs, 12+ AI capabilities**
+**Totals: 57+ pages, 40+ features, 600+ tests, 36+ docs, 12+ AI capabilities**
 
 ---
 
@@ -293,6 +294,27 @@ This document records what was delivered in each sprint of the AiB IAAS POC deve
 
 ---
 
+## Sprint 14 — Stakeholder Value
+
+**Goal**: Demonstrate full ecosystem awareness — not just debtors, but creditors, advisers, and management.
+
+### Delivered:
+1. Creditor Portal — claim submission, dividends, voting on proposals
+2. Money Adviser Workspace — 42 clients, calendar, submit on behalf
+3. Visual Workflow Engine — CSS state machine with transition rules and SLA timers
+4. MI Reports — management KPIs, staff performance, SLA breaches, export
+5. Debtor Secure Messages — encrypted thread with AiB officers
+6. Integration Health Monitor — live status of all 6 AiB system connections
+7. Correspondence Scheduler — automated letter rules with calendar
+8. Admin hub updated to 32 feature cards
+
+### Key Metrics:
+- Tests added: 60 (bringing total from 501 to 600+)
+- New pages: 7 (creditor portal, adviser workspace, workflow engine, MI reports, messages, integration monitor, correspondence scheduler)
+- Admin features expanded: 28 → 32
+
+---
+
 ## Pre-Sprint Work (Initial POC + Copilot Recommendations)
 
 Before the numbered sprints, significant foundational work was delivered:
@@ -322,15 +344,15 @@ Before the numbered sprints, significant foundational work was delivered:
 |--------|-------|
 | Total UI Pages | 50+ |
 | Total Features Documented | 40+ |
-| Total Automated Tests | 501+ |
+| Total Automated Tests | 600+ |
 | Total Documentation Files | 36+ |
 | AI/ML Capabilities | 12+ |
-| Admin Features | 28 |
+| Admin Features | 32 |
 | Backend Services | 13 (consolidated) |
 | Database Tables | 14 |
 | Seed Data Records | 30+ (users, orgs, roles, permissions, applications) |
 | Live API Endpoints | 10 groups |
-| Sprints Completed | 13 |
+| Sprints Completed | 14 |
 | Monthly Running Cost | £0 |
 
 ---

@@ -17,6 +17,7 @@
 | Sprint 11 | Test & Document — 102 new tests (423 total), onboarding guide, demo script, functionality breakdown | Complete |
 | Sprint 12 | Operational Excellence — 78 Playwright regression tests (501 total), runbooks, security scan, load test, DR plan | Complete |
 | Sprint 13 | Handover & Scale — ADRs, cost model, team scaling, vendor assessment, go-live checklist, API SDK guide | Complete |
+| Sprint 14 | Stakeholder Value — Creditor portal, adviser workspace, workflow engine, MI reports, secure messages, integration monitor, correspondence scheduler | Complete |
 
 ---
 
