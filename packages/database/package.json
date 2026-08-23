@@ -10,7 +10,8 @@
     "clean": "rimraf dist"
   },
   "dependencies": {
-    "better-sqlite3": "^11.7.0"
+    "better-sqlite3": "^11.7.0",
+    "pg": "^8.12.0"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.8",
