@@ -137,7 +137,7 @@ export default function RulesPage() {
                   >
                     <td className="px-4 py-3 font-mono text-gray-600">{rule.priority}</td>
                     <td className="px-4 py-3">
-                      <Link href={`/rules/${rule.id}`} className="text-blue-700 hover:underline font-medium">
+                      <Link href={`/admin/rules/${rule.id}`} className="text-blue-700 hover:underline font-medium">
                         {rule.name}
                       </Link>
                     </td>
@@ -150,7 +150,7 @@ export default function RulesPage() {
                       {rule.conditions[0]?.displayText || '—'}
                     </td>
                     <td className="px-4 py-3">
-                      <Link href={`/rules/${rule.id}`} className="text-blue-700 hover:underline text-sm">
+                      <Link href={`/admin/rules/${rule.id}`} className="text-blue-700 hover:underline text-sm">
                         View
                       </Link>
                     </td>

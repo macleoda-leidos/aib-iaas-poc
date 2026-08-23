@@ -104,7 +104,7 @@ export default function RecommendationContent() {
         <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-0">
           Recommendation Explanation
         </h1>
-        <PdfExport />
+        <PdfExport caseRef={ref} product={data.product} confidence={data.confidencePercent} />
       </div>
 
       {/* ─── Hero Section ─── */}
