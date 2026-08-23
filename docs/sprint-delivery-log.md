@@ -21,7 +21,7 @@ This document records what was delivered in each sprint of the AiB IAAS POC deve
 | 13 | Handover & Scale | ✅ Complete | — | — |
 | 14 | Stakeholder Value | ✅ Complete | +7 | +60 |
 
-**Totals: 57+ pages, 40+ features, 600+ tests, 36+ docs, 12+ AI capabilities**
+**Totals: 57+ pages, 40+ features, 648+ tests, 36+ docs, 12+ AI capabilities**
 
 ---
 
@@ -315,6 +315,18 @@ This document records what was delivered in each sprint of the AiB IAAS POC deve
 
 ---
 
+## Phase 14 — Organisation Service
+
+**Goal**: Demonstrate shared master data / microservice pattern for creditors.
+
+### Delivered:
+1. Organisation Service — 54 seeded organisations across 8 types
+2. Creditor Type-Ahead — auto-suggest in debt entry form
+3. Organisation utility functions (search, filter by type, get by ID)
+4. Demonstrates service-oriented architecture pattern
+
+---
+
 ## Pre-Sprint Work (Initial POC + Copilot Recommendations)
 
 Before the numbered sprints, significant foundational work was delivered:
@@ -344,7 +356,7 @@ Before the numbered sprints, significant foundational work was delivered:
 |--------|-------|
 | Total UI Pages | 50+ |
 | Total Features Documented | 40+ |
-| Total Automated Tests | 600+ |
+| Total Automated Tests | 648+ |
 | Total Documentation Files | 36+ |
 | AI/ML Capabilities | 12+ |
 | Admin Features | 32 |

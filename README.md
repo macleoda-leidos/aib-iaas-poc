@@ -35,8 +35,9 @@ The POC implements a complete end-to-end journey: identity verification, multi-s
 | Sprint 12 | Operational Excellence | 78 Playwright E2E tests (501 total), runbooks, load test | ✅ Complete |
 | Sprint 13 | Handover & Scale | ADRs, cost model, vendor assessment, go-live checklist | ✅ Complete |
 | Sprint 14 | Stakeholder Value | Creditor portal, adviser workspace, workflow engine, MI reports, 600+ tests | ✅ Complete |
+| Phase 14 | Organisation Service | Shared master data, creditor type-ahead, 54 seeded orgs, 648 tests | ✅ Complete |
 
-**57+ pages | 32 admin features | 12+ AI capabilities | 14 sprints | £0/month hosting**
+**57+ pages | 33 admin features | 648 tests | 14 sprints | £0/month hosting**
 
 📋 [Full Sprint Delivery Log](docs/sprint-delivery-log.md) | 📖 [Onboarding Guide](docs/onboarding-guide.md)
 

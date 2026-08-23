@@ -1267,14 +1267,81 @@ Users can view active sessions (device, location, last activity), revoke individ
 
 ---
 
+## F-61: Organisation Service
+
+| Attribute | Detail |
+|-----------|--------|
+| Purpose | Shared master data for creditors, banks, utilities, councils |
+| Business Value | Eliminates duplicate creditor entries, enables cross-case analytics |
+| Users | Citizens (apply form), Staff (case detail), Admin |
+| Status | Implemented |
+| Pages | /apply (type-ahead), /admin/organisations |
+
+### Description
+54 seeded organisations across 8 types. Provides type-ahead creditor search in the debt entry form. Demonstrates shared microservice pattern.
+
+## F-62: Creditor Type-Ahead
+
+| Attribute | Detail |
+|-----------|--------|
+| Purpose | Auto-suggest creditor names from Organisation Service |
+| Business Value | Reduces data entry errors, ensures consistent creditor naming |
+| Users | Citizens |
+| Status | Implemented |
+| Pages | /apply (debts step) |
+
+### Description
+As user types 2+ characters, matching organisations appear in a dropdown. User can select from the list or enter custom text. Demonstrates service-oriented architecture.
+
+## F-63: LocalStorage Persistence
+
+| Attribute | Detail |
+|-----------|--------|
+| Purpose | Applications survive browser refresh without backend |
+| Business Value | Zero data loss during demo, works offline |
+| Users | All |
+| Status | Implemented |
+| Pages | All (via persistence.ts) |
+
+### Description
+IApplicationRepository + IAuditRepository backed by LocalStorage. Initializes with 100 seed applications. Survives refresh, navigation, logout. Interface-ready for .NET API migration.
+
+## F-64: Notification Centre
+
+| Attribute | Detail |
+|-----------|--------|
+| Purpose | Centralised view of all platform notifications |
+| Business Value | Staff awareness, SLA tracking, event visibility |
+| Users | Staff |
+| Status | Implemented |
+| Pages | /notifications |
+
+### Description
+15 notifications across types (application, system, decision, anomaly). Tabs for All/Unread/Applications/System. Mark as read functionality.
+
+## F-65: Dev Documentation Viewer
+
+| Attribute | Detail |
+|-----------|--------|
+| Purpose | Browse all 36+ project docs inline with rendered Markdown |
+| Business Value | Self-service documentation for team members and stakeholders |
+| Users | Developers, Architects, PMs |
+| Status | Implemented |
+| Pages | /admin/dev |
+
+### Description
+Fetches raw markdown from GitHub, renders with headings, tables, code blocks, and Mermaid diagrams. Category filters (Strategic, Functional, Technical, Operations, Delivery, Compliance).
+
+---
+
 ## Appendix: Feature Status Summary
 
 | Status | Count | Features |
 |--------|-------|----------|
-| Implemented | 30 | F-01 through F-18, F-24 through F-35 |
+| Implemented | 35 | F-01 through F-18, F-24 through F-35, F-61 through F-65 |
 | Implemented (Sandbox) | 3 | F-06, F-09, F-07 |
 | Design (Simulated) | 2 | F-02, F-03 |
-| Total | 35 | All features documented |
+| Total | 40 | All features documented |
 
 ---
 
