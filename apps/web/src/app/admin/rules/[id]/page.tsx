@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { RULES } from '../data/rules-data';
 import RuleDetail from './RuleDetail';
 
@@ -23,7 +24,7 @@ export default async function RuleDetailPage({ params }: { params: Promise<{ id:
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
         <div className="text-center">
           <h1 className="text-2xl font-bold text-white mb-2">Rule Not Found</h1>
-          <a href="/admin/rules" className="text-blue-400 hover:underline">&larr; Back to Rules</a>
+          <Link href="/admin/rules" className="text-blue-400 hover:underline">← Back to Rules</Link>
         </div>
       </div>
     );
