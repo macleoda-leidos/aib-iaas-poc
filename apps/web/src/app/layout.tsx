@@ -46,7 +46,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 <span className="text-red-200 text-xs">Initial Application Advice Service</span>
               </div>
             </Link>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
+              <span className="hidden lg:flex items-center gap-1.5 text-xs text-green-200/80">
+                <span className="w-1.5 h-1.5 rounded-full bg-green-400"></span>
+                All Systems Operational
+              </span>
               <LanguageToggle />
               <ThemeToggle />
             </div>
@@ -55,7 +59,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           {/* Navigation bar */}
           <nav aria-label="Main navigation" className="bg-[#a81b03] border-t border-red-400/30">
             <div className="max-w-6xl mx-auto px-4">
-              <ul className="flex items-center gap-0 overflow-x-auto text-sm -mb-px">
+              <ul className="flex items-center gap-0 overflow-x-auto text-sm -mb-px scrollbar-hide">
                 <NavItem href="/">Home</NavItem>
                 <NavItem href="/my-application">My Application</NavItem>
                 <NavItem href="/apply">Apply</NavItem>
@@ -69,11 +73,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 <NavItem href="/architecture">Architecture</NavItem>
                 <NavItem href="/api-docs">API Docs</NavItem>
                 <UserNavItem />
-                {/* System status indicator */}
-                <li className="ml-auto flex-shrink-0 hidden md:flex items-center gap-1.5 px-3 py-2.5 text-xs text-green-200/90 whitespace-nowrap">
-                  <span className="w-1.5 h-1.5 rounded-full bg-green-400"></span>
-                  All Systems Operational
-                </li>
               </ul>
             </div>
           </nav>
