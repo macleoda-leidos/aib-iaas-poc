@@ -51,8 +51,7 @@ function renderMarkdown(md: string): string {
   let html = md
     // Code blocks (before other processing)
     .replace(/```mermaid\s*\n([\s\S]*?)```/g, (_, diagram) => {
-      // Clean diagram content: trim, remove leading/trailing whitespace per line
-      const cleaned = diagram.trim().replace(/^\s+/gm, (m: string) => m);
+      const cleaned = diagram.trim();
       return `<pre class="mermaid">${cleaned}</pre>`;
     })
     .replace(/```(\w*)\n([\s\S]*?)```/g, '<pre class="bg-gray-100 dark:bg-gray-800 p-4 rounded overflow-x-auto text-xs"><code>$2</code></pre>')
@@ -120,20 +119,37 @@ export default function DevDocumentationPage() {
   // Load Mermaid.js for diagram rendering
   useEffect(() => {
     if (content.includes('class="mermaid"')) {
+      const runMermaid = async () => {
+        try {
+          const m = (window as any).mermaid;
+          if (m) {
+            m.initialize({ startOnLoad: false, theme: 'default', securityLevel: 'loose', suppressErrors: true });
+            // Process each diagram individually so one failure doesn't break all
+            const elements = document.querySelectorAll('.mermaid:not([data-processed])');
+            for (const el of elements) {
+              try {
+                const { svg } = await m.render(`mermaid-${Math.random().toString(36).slice(2)}`, el.textContent || '');
+                el.innerHTML = svg;
+                el.setAttribute('data-processed', 'true');
+              } catch {
+                // Diagram failed — show as formatted code block instead
+                el.classList.remove('mermaid');
+                el.classList.add('bg-gray-100', 'dark:bg-gray-800', 'p-3', 'rounded', 'text-xs', 'overflow-x-auto');
+                el.setAttribute('data-processed', 'true');
+              }
+            }
+          }
+        } catch {}
+      };
+
       const existingScript = document.querySelector('script[src*="mermaid"]');
       if (existingScript) {
-        // Mermaid already loaded — just re-run
-        try { (window as any).mermaid?.run({ querySelector: '.mermaid' }); } catch {}
+        runMermaid();
         return;
       }
       const script = document.createElement('script');
-      script.src = 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js';
-      script.onload = () => {
-        try {
-          (window as any).mermaid?.initialize({ startOnLoad: false, theme: 'default', securityLevel: 'loose' });
-          (window as any).mermaid?.run({ querySelector: '.mermaid' });
-        } catch (e) { console.warn('Mermaid render error:', e); }
-      };
+      script.src = 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js';
+      script.onload = () => runMermaid();
       document.head.appendChild(script);
     }
   }, [content]);
