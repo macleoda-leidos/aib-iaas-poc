@@ -60,6 +60,46 @@ const ADMIN_FEATURES = [
     status: 'Live',
     statusColour: 'bg-green-100 text-green-800',
   },
+  {
+    href: '/admin/export',
+    icon: '📥',
+    name: 'Data Export',
+    description: 'Export applications and audit data as CSV or PDF for compliance and reporting.',
+    status: 'Live',
+    statusColour: 'bg-green-100 text-green-800',
+  },
+  {
+    href: '/admin/reports',
+    icon: '📊',
+    name: 'Report Builder',
+    description: 'Custom reports with filters by product, status, date range, and region.',
+    status: 'Live',
+    statusColour: 'bg-green-100 text-green-800',
+  },
+  {
+    href: '/admin/activity',
+    icon: '📈',
+    name: 'Activity Heatmap',
+    description: 'Visual calendar showing case processing activity over 12 months.',
+    status: 'Live',
+    statusColour: 'bg-green-100 text-green-800',
+  },
+  {
+    href: '/admin/system-health',
+    icon: '💚',
+    name: 'System Health',
+    description: 'Service monitoring — uptime, latency, error rates, incident log.',
+    status: 'Live',
+    statusColour: 'bg-green-100 text-green-800',
+  },
+  {
+    href: '/admin/feature-flags',
+    icon: '🚩',
+    name: 'Feature Flags',
+    description: 'Enable/disable features per role with instant propagation.',
+    status: 'Live',
+    statusColour: 'bg-green-100 text-green-800',
+  },
 ];
 
 export default function AdminPortalPage() {
