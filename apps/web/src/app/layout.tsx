@@ -62,14 +62,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <div className="max-w-6xl mx-auto px-4">
               <ul className="flex items-center gap-0 overflow-x-auto text-sm -mb-px scrollbar-hide">
                 <NavItem href="/">Home</NavItem>
+                <NavItem href="/search">Search</NavItem>
                 <NavItem href="/my-application">My Application</NavItem>
                 <NavItem href="/apply">Apply</NavItem>
                 <NavItem href="/dashboard">Dashboard</NavItem>
                 <NavItem href="/portal">Portal</NavItem>
                 <NavItem href="/statistics">Statistics</NavItem>
                 <NavItem href="/security">Security</NavItem>
-                <NavItem href="/search">Search</NavItem>
-                <NavItem href="/correspondence">Digital Mailroom</NavItem>
                 <NavItem href="/admin">Admin</NavItem>
                 <NavItem href="/architecture">Architecture</NavItem>
                 <NavItem href="/api-docs">API Docs</NavItem>
