@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import Link from 'next/link';
 import Fuse, { FuseResult, FuseResultMatch } from 'fuse.js';
 import { applications as applicationsApi, ApplicationSummary } from '../../lib/apiClient';
 import { seedApplications } from '../../lib/seedData';
@@ -119,6 +120,8 @@ function getMatchedFields(matches: readonly FuseResultMatch[] | undefined): stri
 export default function SearchPage() {
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [productFilter, setProductFilter] = useState('all');
+  const [sortBy, setSortBy] = useState('relevance');
   const [results, setResults] = useState<FuseResult<typeof SEED_RESULTS[0]>[]>([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
@@ -170,10 +173,18 @@ export default function SearchPage() {
       // Fallback to fuzzy search on seed data
       let fuzzyResults = normalisedTerm ? fuse.search(normalisedTerm) : SEED_RESULTS.map((item, i) => ({ item, score: 0, refIndex: i, matches: [] as any }));
 
-      // Apply status filter on top of fuzzy results
+      // Apply status filter
       if (statusFilter !== 'all') {
         fuzzyResults = fuzzyResults.filter(r => r.item.status === statusFilter);
       }
+      // Apply product filter
+      if (productFilter !== 'all') {
+        fuzzyResults = fuzzyResults.filter(r => r.item.product === productFilter);
+      }
+      // Apply sort
+      if (sortBy === 'debt_high') fuzzyResults.sort((a, b) => b.item.debt - a.item.debt);
+      else if (sortBy === 'debt_low') fuzzyResults.sort((a, b) => a.item.debt - b.item.debt);
+      else if (sortBy === 'name_az') fuzzyResults.sort((a, b) => a.item.name.localeCompare(b.item.name));
 
       setResults(fuzzyResults);
       setApiOnline(false);
@@ -234,6 +245,25 @@ export default function SearchPage() {
           <option value="approved">Approved</option>
           <option value="rejected">Rejected</option>
         </select>
+        <select value={productFilter} onChange={e => setProductFilter(e.target.value)}
+          className="border-2 border-gray-900 dark:border-gray-600 dark:bg-gray-800 p-3 min-h-[48px]">
+          <option value="all">All products</option>
+          <option value="DAS">DAS</option>
+          <option value="MAP">MAP</option>
+          <option value="PTD">PTD</option>
+          <option value="Sequestration">Sequestration</option>
+          <option value="DPP">DPP</option>
+          <option value="Signposting">Signposting</option>
+        </select>
+        <select value={sortBy} onChange={e => setSortBy(e.target.value)}
+          className="border-2 border-gray-900 dark:border-gray-600 dark:bg-gray-800 p-3 min-h-[48px]">
+          <option value="relevance">Sort: Relevance</option>
+          <option value="date_newest">Date (newest)</option>
+          <option value="date_oldest">Date (oldest)</option>
+          <option value="debt_high">Debt (highest)</option>
+          <option value="debt_low">Debt (lowest)</option>
+          <option value="name_az">Name (A-Z)</option>
+        </select>
       </div>
 
       {/* Status */}
@@ -269,7 +299,7 @@ export default function SearchPage() {
       {/* Results */}
       <div className="space-y-3">
         {results.map((r, i) => (
-          <a key={i} href={`/case/${r.item.ref}`} className="block border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950 transition-all no-underline text-inherit">
+          <Link key={i} href={`/case/${r.item.ref}`} className="block border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950 transition-all no-underline text-inherit">
             <div className="flex items-start justify-between gap-4">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-3 mb-1 flex-wrap">
@@ -314,7 +344,7 @@ export default function SearchPage() {
                 <p className="text-xs text-gray-400">Total debt</p>
               </div>
             </div>
-          </a>
+          </Link>
         ))}
       </div>
 
