@@ -432,6 +432,7 @@ export default function ApplyPage() {
               dependants: d.dependants,
             },
           }));
+          setTimeout(() => window.scrollTo({ top: 250, behavior: 'smooth' }), 300);
           break;
         }
         case 'FILL_ADDRESS': {
@@ -448,6 +449,7 @@ export default function ApplyPage() {
               phone: '07' + String(Math.floor(Math.random() * 900000000) + 100000000),
             },
           }));
+          setTimeout(() => window.scrollTo({ top: 250, behavior: 'smooth' }), 300);
           break;
         }
         case 'FILL_DEBTS': {
@@ -456,6 +458,7 @@ export default function ApplyPage() {
             ...prev,
             debts: { items: debts },
           }));
+          setTimeout(() => window.scrollTo({ top: 250, behavior: 'smooth' }), 300);
           break;
         }
         case 'FILL_INCOME': {
@@ -469,6 +472,7 @@ export default function ApplyPage() {
               other: d.other || 0,
             },
           }));
+          setTimeout(() => window.scrollTo({ top: 250, behavior: 'smooth' }), 300);
           break;
         }
         case 'FILL_EXPENDITURE': {
@@ -486,6 +490,7 @@ export default function ApplyPage() {
               other: d.other || 0,
             },
           }));
+          setTimeout(() => window.scrollTo({ top: 250, behavior: 'smooth' }), 300);
           break;
         }
         case 'FILL_ASSETS': {
@@ -500,6 +505,7 @@ export default function ApplyPage() {
               other: d.other || [],
             },
           }));
+          setTimeout(() => window.scrollTo({ top: 250, behavior: 'smooth' }), 300);
           break;
         }
         case 'RUN_CHECKS': {
@@ -509,11 +515,13 @@ export default function ApplyPage() {
             checks: { started: true, completed: true },
             documents: { ...prev.documents, uploaded: 3 },
           }));
+          setTimeout(() => window.scrollTo({ top: 250, behavior: 'smooth' }), 300);
           break;
         }
         case 'NEXT_STEP': {
           setErrors({});
           setCurrentSection(prev => Math.min(prev + 1, SECTIONS.length - 1));
+          setTimeout(() => window.scrollTo({ top: 250, behavior: 'smooth' }), 300);
           break;
         }
         case 'SUBMIT': {
@@ -525,6 +533,7 @@ export default function ApplyPage() {
           }));
           setSubmitted(true);
           setSubmittedRef(`IAAS-2026-${String(Math.floor(Math.random() * 99999)).padStart(5, '0')}`);
+          setTimeout(() => window.scrollTo({ top: 250, behavior: 'smooth' }), 300);
           break;
         }
       }

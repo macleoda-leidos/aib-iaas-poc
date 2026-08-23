@@ -7,6 +7,10 @@ using IAAS.Api.Features.Organisations;
 using IAAS.Api.Features.Recommendations;
 using IAAS.Api.Features.Users;
 using IAAS.Api.Features.Integrations;
+using IAAS.Api.Features.Documents;
+using IAAS.Api.Features.Payments;
+using IAAS.Api.Features.CreditCheck;
+using IAAS.Api.Features.Notifications;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -79,5 +83,9 @@ app.MapOrganisationEndpoints();
 app.MapUserEndpoints();
 app.MapRecommendEndpoints();
 app.MapIntegrationEndpoints();
+app.MapDocumentEndpoints();
+app.MapPaymentEndpoints();
+app.MapCreditCheckEndpoints();
+app.MapNotificationEndpoints();
 
 app.Run();
