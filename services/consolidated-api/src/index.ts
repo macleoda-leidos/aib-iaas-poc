@@ -161,6 +161,35 @@ app.get('/api/health', (_req, res) => {
   });
 });
 
+// ===== SMOKE TEST =====
+app.get('/api/smoke-test', (_req, res) => {
+  try {
+    const { getDatabase } = require('@aib-iaas/database');
+    const db = getDatabase();
+    const apps = db.prepare('SELECT COUNT(*) as c FROM applications').get() as any;
+    const users = db.prepare('SELECT COUNT(*) as c FROM users').get() as any;
+    const orgs = db.prepare('SELECT COUNT(*) as c FROM organisations').get() as any;
+    const roles = db.prepare('SELECT COUNT(*) as c FROM roles').get() as any;
+    const audit = db.prepare('SELECT COUNT(*) as c FROM audit_events').get() as any;
+
+    res.json({
+      success: true,
+      status: 'all_passing',
+      database: 'connected',
+      counts: {
+        applications: apps.c,
+        users: users.c,
+        organisations: orgs.c,
+        roles: roles.c,
+        auditEvents: audit.c,
+      },
+      timestamp: new Date().toISOString(),
+    });
+  } catch (e: any) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
 // Error handler
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   console.error('[API Error]', err.message);

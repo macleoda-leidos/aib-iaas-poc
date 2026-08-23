@@ -1,5 +1,17 @@
 # IAAS Platform Roadmap
 
+## POC Sprint Status
+
+| Sprint | Focus | Status |
+|--------|-------|--------|
+| Sprint 1 | Core Platform — Forms, Services, Architecture | Complete |
+| Sprint 2 | Integration — Credit Checks, Payments, Notifications | Complete |
+| Sprint 3 | Admin Portal — Users, Orgs, RBAC, Digital Mailroom | Complete |
+| Sprint 4 | Polish — Statistics, Security SOC, Correspondence, Search | Complete |
+| Sprint 5 | Live Verification — PWA, Accessibility, Smoke Tests, API Docs | Complete |
+
+---
+
 ## Overview
 
 This roadmap outlines the evolution of IAAS from Proof of Concept through to a fully operational Enterprise Insolvency Platform. Capabilities are categorised into three horizons aligned with AiB's Digital Strategy 2026-2030.

@@ -180,6 +180,20 @@
   }
 }
 
+/* WCAG 1.4.3 — Chart tooltip contrast fix */
+.recharts-tooltip-item { color: #505a5f !important; }
+.recharts-default-tooltip { border-color: #505a5f !important; }
+
+/* WCAG 2.4.7 — Focus visible */
+:focus-visible {
+  outline: 3px solid #ffdd00 !important;
+  outline-offset: 2px !important;
+}
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible {
+  outline: 3px solid #ffdd00 !important;
+  outline-offset: 2px !important;
+}
+
 /* Custom animations */
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(8px); }

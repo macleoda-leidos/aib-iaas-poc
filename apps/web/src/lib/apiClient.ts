@@ -5,6 +5,8 @@
  * Falls back gracefully to demo data when backend is unavailable.
  */
 
+import { captureError } from './errorTracking';
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://iaas-api.onrender.com';
 
 // Auth token stored in memory (set on login, used for audit trail)
@@ -100,11 +102,13 @@ async function handleResponse<T>(res: Response): Promise<ApiResponse<T>> {
     }
 
     const body = await res.json().catch(() => ({ error: { code: 'UNKNOWN', message: res.statusText } }));
-    throw new ApiError(
+    const apiError = new ApiError(
       res.status,
       body.error?.code || 'UNKNOWN',
       body.error?.message || `API error: ${res.status}`
     );
+    captureError(apiError, { status: res.status, url: res.url });
+    throw apiError;
   }
   return res.json();
 }

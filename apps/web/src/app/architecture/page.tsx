@@ -1,6 +1,12 @@
 'use client';
 
+// WCAG 3.1.2 — Language of Parts: Code/pre blocks on this page use English content
+// within the page's lang="en" scope (set in layout.tsx <html lang="en">). Decorative
+// code elements (endpoint lists in mono font) are presented as <ul> lists, not <code>,
+// so no additional lang attribute is needed.
+
 import { useState } from 'react';
+import Link from 'next/link';
 
 // Architecture data — each tile has detail content
 const TILES: Record<string, { icon: string; name: string; category: string; status: string; statusColour: string; brief: string; detail: { description: string; endpoints?: string[]; dependencies?: string[]; dataFlow?: string; mockBehaviour?: string; productionPath?: string; connectedTo?: string[] } }> = {
@@ -59,7 +65,25 @@ export default function ArchitecturePage() {
     <div className="max-w-7xl mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold mb-2">Interactive Architecture</h1>
       <p className="text-gray-600 mb-2">AiB Applications Gateway — Click any component to drill down</p>
-      <p className="text-xs text-gray-400 mb-6">🟢 Live | 🟡 Sandbox | 🟣 Design | ⚫ Mock</p>
+      <p className="text-xs text-gray-400 mb-4">🟢 Live | 🟡 Sandbox | 🟣 Design | ⚫ Mock</p>
+
+      {/* Live API Links */}
+      <div className="flex flex-wrap gap-3 mb-6">
+        <a
+          href="https://iaas-api.onrender.com"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-2 px-4 py-2 bg-green-50 dark:bg-green-900/20 border border-green-300 dark:border-green-700 rounded-lg text-sm font-medium text-green-800 dark:text-green-200 hover:bg-green-100 dark:hover:bg-green-900/40 no-underline min-h-0"
+        >
+          <span>🔗</span> Live API: iaas-api.onrender.com
+        </a>
+        <Link
+          href="/api-docs"
+          className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-300 dark:border-blue-700 rounded-lg text-sm font-medium text-blue-800 dark:text-blue-200 hover:bg-blue-100 dark:hover:bg-blue-900/40 no-underline min-h-0"
+        >
+          <span>📖</span> API Documentation &rarr;
+        </Link>
+      </div>
 
       {/* Tile Grid by Category */}
       {CATEGORIES.map(cat => (

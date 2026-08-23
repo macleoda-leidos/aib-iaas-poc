@@ -15,6 +15,7 @@ export const metadata: Metadata = {
   icons: {
     icon: `${process.env.GITHUB_PAGES === 'true' ? '/aib-iaas-poc' : ''}/favicon.svg`,
   },
+  manifest: `${process.env.GITHUB_PAGES === 'true' ? '/aib-iaas-poc' : ''}/manifest.json`,
 };
 
 import { ThemeToggle } from './ThemeToggle';
@@ -60,6 +61,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 <NavItem href="/correspondence">Digital Mailroom</NavItem>
                 <NavItem href="/admin">Admin</NavItem>
                 <NavItem href="/architecture">Architecture</NavItem>
+                <NavItem href="/api-docs">API Docs</NavItem>
                 <UserNavItem />
                 {/* System status indicator */}
                 <li className="ml-auto flex-shrink-0 hidden md:flex items-center gap-1.5 px-3 py-2.5 text-xs text-green-200/90 whitespace-nowrap">

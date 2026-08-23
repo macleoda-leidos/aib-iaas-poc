@@ -63,7 +63,7 @@ The CI pipeline executes on every push and pull request:
 Pipeline stages:
   1. Lint (ESLint + Prettier check)
   2. Type Check (tsc --noEmit across all workspaces)
-  3. Unit Tests (vitest run --coverage) — 298 tests across 26 files
+  3. Unit Tests (vitest run --coverage) — 298+ tests across 26+ files
   4. Integration Tests (docker-compose up → test → down)
   5. Security Scan (npm audit + Snyk)
   6. Build Verification (next build for apps)

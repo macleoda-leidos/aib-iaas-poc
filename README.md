@@ -1,5 +1,8 @@
 # AiB Initial Application Advice Service (IAAS) — Proof of Concept
 
+![API Status](https://img.shields.io/website?url=https%3A%2F%2Fiaas-api.onrender.com%2Fapi%2Fhealth&label=API&up_message=operational&down_message=offline)
+![Frontend](https://img.shields.io/website?url=https%3A%2F%2Fmacleoda-leidos.github.io%2Faib-iaas-poc%2F&label=Frontend&up_message=live&down_message=offline)
+
 > **Applications Gateway Service** — Schedule 19 SOW Technical Demonstration
 
 ## Overview
@@ -9,8 +12,20 @@ This repository contains a fully functional Proof of Concept for the Accountant 
 The POC implements a complete end-to-end journey: identity verification, multi-step application form, real-time system checks against 6 AiB databases, rules-based recommendation across 7 Scottish debt products, correspondence generation, case management, statistics dashboards, and a Security Operations Centre.
 
 **Live Demo:** https://macleoda-leidos.github.io/aib-iaas-poc/
+**Live API:** https://iaas-api.onrender.com
+**API Docs:** https://macleoda-leidos.github.io/aib-iaas-poc/api-docs
 
 **This is a POC — not production software. All data is synthetic. No real payments, credit checks, or system integrations are performed.**
+
+### Sprint Completion Status
+
+| Sprint | Focus | Status |
+|--------|-------|--------|
+| Sprint 1 | Core Platform — Forms, Services, Architecture | Complete |
+| Sprint 2 | Integration — Credit Checks, Payments, Notifications | Complete |
+| Sprint 3 | Admin Portal — Users, Orgs, RBAC, Digital Mailroom | Complete |
+| Sprint 4 | Polish — Statistics, Security SOC, Correspondence, Search | Complete |
+| Sprint 5 | Live Verification — PWA, Accessibility, Smoke Tests, API Docs | Complete |
 
 ---
 
