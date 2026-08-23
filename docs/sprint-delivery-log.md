@@ -21,7 +21,7 @@ This document records what was delivered in each sprint of the AiB IAAS POC deve
 | 13 | Handover & Scale | ✅ Complete | — | — |
 | 14 | Stakeholder Value | ✅ Complete | +7 | +60 |
 
-**Totals: 57+ pages, 40+ features, 648+ tests, 36+ docs, 12+ AI capabilities**
+**Totals: 57+ pages, 40+ features, 658+ tests, 36+ docs, 12+ AI capabilities**
 
 ---
 
@@ -327,6 +327,62 @@ This document records what was delivered in each sprint of the AiB IAAS POC deve
 
 ---
 
+## Sprint 15 — Quality Assurance & Link Integrity
+
+**Goal**: End-to-end link audit, navigation correctness, and regression prevention.
+
+### Delivered:
+1. Playwright E2E link audit test suite (10 scenarios covering nav, admin, case pages, footer)
+2. basePath correctness validation across all internal links
+3. Undefined-href detection (no links contain "undefined")
+4. Admin back-link path verification
+5. Notification page load verification
+6. My-application case link validation
+
+### Key Metrics:
+- Tests added: 10 (bringing total from 648 to 658+)
+- New test file: `tests/e2e/links-audit.spec.ts`
+- Zero broken links confirmed
+
+---
+
+## Sprint 16 — Documentation Alignment
+
+**Goal**: Ensure all project documentation reflects current state accurately.
+
+### Delivered:
+1. Sprint delivery log updated with Sprints 15-17
+2. Roadmap sprint status table updated
+3. Testing documentation updated with current test counts
+4. README sprint table updated with latest deliverables
+5. Cumulative metrics aligned across all docs
+
+### Key Metrics:
+- Documentation files updated: 4
+- Sprint table rows added: 3
+- Test count aligned: 658+ across 48 files
+
+---
+
+## Sprint 17 — Test Infrastructure Expansion
+
+**Goal**: Expand E2E coverage to catch regressions in navigation and routing.
+
+### Delivered:
+1. Link audit spec covering 10 distinct navigation scenarios
+2. Admin hub feature link count assertion (28+ links)
+3. Case page content verification for multiple case refs
+4. Rules detail page deep-link testing
+5. Footer link presence validation
+6. Cross-page navigation integrity checks
+
+### Key Metrics:
+- E2E test scenarios: 10 new link audit tests
+- Pages covered: 8 distinct routes tested
+- Regression prevention: automated link integrity checks in CI
+
+---
+
 ## Pre-Sprint Work (Initial POC + Copilot Recommendations)
 
 Before the numbered sprints, significant foundational work was delivered:
@@ -356,7 +412,7 @@ Before the numbered sprints, significant foundational work was delivered:
 |--------|-------|
 | Total UI Pages | 50+ |
 | Total Features Documented | 40+ |
-| Total Automated Tests | 648+ |
+| Total Automated Tests | 658+ |
 | Total Documentation Files | 36+ |
 | AI/ML Capabilities | 12+ |
 | Admin Features | 32 |
@@ -364,7 +420,7 @@ Before the numbered sprints, significant foundational work was delivered:
 | Database Tables | 14 |
 | Seed Data Records | 30+ (users, orgs, roles, permissions, applications) |
 | Live API Endpoints | 10 groups |
-| Sprints Completed | 14 |
+| Sprints Completed | 17 |
 | Monthly Running Cost | £0 |
 
 ---

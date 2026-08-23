@@ -19,6 +19,9 @@
 | Sprint 13 | Handover & Scale — ADRs, cost model, team scaling, vendor assessment, go-live checklist, API SDK guide | Complete |
 | Sprint 14 | Stakeholder Value — Creditor portal, adviser workspace, workflow engine, MI reports, secure messages, integration monitor, correspondence scheduler | Complete |
 | Phase 14 | Organisation Service — Shared master data, creditor type-ahead, 54 seeded organisations across 8 types | Complete |
+| Sprint 15 | Quality Assurance & Link Integrity — E2E link audit, basePath validation, navigation regression tests | Complete |
+| Sprint 16 | Documentation Alignment — Sprint logs, roadmap, testing docs, README updated to current state | Complete |
+| Sprint 17 | Test Infrastructure Expansion — 10 new link audit E2E scenarios, 658+ tests across 48 files | Complete |
 
 ---
 

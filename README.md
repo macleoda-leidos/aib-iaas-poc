@@ -36,8 +36,11 @@ The POC implements a complete end-to-end journey: identity verification, multi-s
 | Sprint 13 | Handover & Scale | ADRs, cost model, vendor assessment, go-live checklist | ✅ Complete |
 | Sprint 14 | Stakeholder Value | Creditor portal, adviser workspace, workflow engine, MI reports, 600+ tests | ✅ Complete |
 | Phase 14 | Organisation Service | Shared master data, creditor type-ahead, 54 seeded orgs, 648 tests | ✅ Complete |
+| Sprint 15 | Quality Assurance | E2E link audit, basePath validation, navigation regression tests | ✅ Complete |
+| Sprint 16 | Documentation Alignment | Sprint logs, roadmap, testing docs, README aligned to current state | ✅ Complete |
+| Sprint 17 | Test Infrastructure | 10 new link audit E2E scenarios, 658+ tests across 48 files | ✅ Complete |
 
-**57+ pages | 33 admin features | 648 tests | 14 sprints | £0/month hosting**
+**57+ pages | 33 admin features | 658 tests | 17 sprints | £0/month hosting**
 
 📋 [Full Sprint Delivery Log](docs/sprint-delivery-log.md) | 📖 [Onboarding Guide](docs/onboarding-guide.md)
 
