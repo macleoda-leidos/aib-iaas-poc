@@ -3,27 +3,18 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import Fuse, { FuseResult, FuseResultMatch } from 'fuse.js';
 import { applications as applicationsApi, ApplicationSummary } from '../../lib/apiClient';
+import { seedApplications } from '../../lib/seedData';
 
-// Synthetic search results with cross-system variants simulating how the same debtor
-// appears differently across BASYS, eDEN, DAS etc. due to typos or deliberate evasion
-const SEED_RESULTS = [
-  { ref: 'IAAS-2026-00012', name: 'Alistair Morrison', status: 'submitted', debt: 18400, product: 'DAS', date: '28 Jun 2026', ni: 'AB123456C', source: 'BASYS' },
-  { ref: 'IAAS-2026-00011', name: 'Brenda Campbell', status: 'under_review', debt: 9200, product: 'MAP', date: '27 Jun 2026', ni: 'CD654321B', source: 'BASYS' },
-  { ref: 'IAAS-2026-00010', name: 'Craig Stewart', status: 'additional_info_required', debt: 23100, product: 'PTD', date: '26 Jun 2026', ni: 'EF789012D', source: 'BASYS' },
-  { ref: 'IAAS-2026-00009', name: 'Diana Murray', status: 'submitted', debt: 6800, product: 'Sequestration', date: '25 Jun 2026', ni: 'GH345678A', source: 'DAS' },
-  { ref: 'IAAS-2026-00008', name: 'Eleanor MacPherson', status: 'approved', debt: 14200, product: 'DAS', date: '20 Jun 2026', ni: 'QQ123456C', source: 'BASYS' },
-  { ref: 'IAAS-2026-00007', name: 'Fiona MacDonald', status: 'under_review', debt: 8900, product: 'MAP', date: '18 Jun 2026', ni: 'CD789012E', source: 'eDEN' },
-  { ref: 'IAAS-2026-00006', name: 'Craig Henderson', status: 'approved', debt: 28500, product: 'PTD', date: '15 Jun 2026', ni: 'AB654321D', source: 'BASYS' },
-  { ref: 'IAAS-2026-00005', name: 'Alistair Robertson', status: 'approved', debt: 19800, product: 'DAS', date: '12 Jun 2026', ni: 'EF345678F', source: 'DAS' },
-  { ref: 'IAAS-2026-00004', name: 'Derek Smith', status: 'rejected', debt: 3200, product: 'Signposting', date: '10 Jun 2026', ni: 'GH901234A', source: 'BASYS' },
-  { ref: 'IAAS-2026-00003', name: 'Margaret Wilson', status: 'approved', debt: 11500, product: 'DAS', date: '8 Jun 2026', ni: 'IJ567890B', source: 'eDEN' },
-  // Cross-system variants — same person, different spelling across systems
-  { ref: 'EDEN-2025-04412', name: 'John Smith', status: 'approved', debt: 12300, product: 'DAS', date: '15 Mar 2026', ni: 'KL234567D', source: 'BASYS' },
-  { ref: 'DAS-2025-08831', name: 'Jhon Smith', status: 'submitted', debt: 12300, product: 'DAS', date: '22 Apr 2026', ni: 'KL234567D', source: 'eDEN' },
-  { ref: 'BASYS-2026-00291', name: 'Jon Smith', status: 'under_review', debt: 11800, product: 'MAP', date: '3 May 2026', ni: 'KL234568D', source: 'DAS' },
-  { ref: 'EDEN-2025-07743', name: 'Alister Morison', status: 'approved', debt: 17900, product: 'PTD', date: '1 Feb 2026', ni: 'AB123457C', source: 'eDEN' },
-  { ref: 'DAS-2026-01192', name: 'Brendan Campbel', status: 'submitted', debt: 9100, product: 'DAS', date: '14 May 2026', ni: 'CD654322B', source: 'DAS' },
-];
+const SEED_RESULTS = seedApplications.map(app => ({
+  ref: app.ref,
+  name: `${app.firstName} ${app.lastName}`,
+  status: app.status,
+  debt: app.debt,
+  product: app.product,
+  date: app.date,
+  ni: app.ni,
+  source: app.source,
+}));
 
 const STATUS_BADGE: Record<string, string> = {
   draft: 'bg-gray-200 text-gray-700',
