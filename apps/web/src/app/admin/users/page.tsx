@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import { apiPost, apiGet } from '../../../lib/apiClient';
 
 // ===== SYNTHETIC USER GENERATION (500 users across 12 orgs) =====
 
@@ -79,6 +80,48 @@ export default function UsersPage() {
   const [page, setPage] = useState(1);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showAddModal, setShowAddModal] = useState(false);
+  const [newUser, setNewUser] = useState({ firstName: '', lastName: '', email: '', role: '', orgId: '' });
+  const [createStatus, setCreateStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
+  const [createError, setCreateError] = useState('');
+  const [liveUsers, setLiveUsers] = useState<Array<{ id: string; name: string; email: string; role: string; status: string }>>([]);
+
+  // Fetch real users from API on mount
+  useEffect(() => {
+    apiGet<any>('/api/users').then(res => {
+      if (res.data) {
+        const users = (Array.isArray(res.data) ? res.data : res.data.users || []).map((u: any) => ({
+          id: u.id, name: `${u.firstName} ${u.lastName}`, email: u.email, role: u.role?.displayName || u.roleId || 'User', status: u.status,
+        }));
+        setLiveUsers(users);
+      }
+    }).catch(() => {});
+  }, []);
+
+  const handleCreateUser = async () => {
+    if (!newUser.firstName || !newUser.lastName || !newUser.email) {
+      setCreateError('First name, last name, and email are required');
+      setCreateStatus('error');
+      return;
+    }
+    setCreateStatus('saving');
+    setCreateError('');
+    try {
+      const res = await apiPost<any>('/api/users', {
+        email: newUser.email,
+        firstName: newUser.firstName,
+        lastName: newUser.lastName,
+        roleId: newUser.role || 'role-officer',
+        organisationId: newUser.orgId || 'org-aib',
+      });
+      setLiveUsers(prev => [{ id: res.data?.id || Date.now().toString(), name: `${newUser.firstName} ${newUser.lastName}`, email: newUser.email, role: newUser.role || 'AiB Case Officer', status: 'active' }, ...prev]);
+      setCreateStatus('success');
+      setNewUser({ firstName: '', lastName: '', email: '', role: '', orgId: '' });
+      setTimeout(() => { setShowAddModal(false); setCreateStatus('idle'); }, 1500);
+    } catch (err: any) {
+      setCreateError(err.message || 'Failed to create user');
+      setCreateStatus('error');
+    }
+  };
 
   const filtered = useMemo(() => ALL_USERS.filter(u => {
     if (roleFilter && u.role !== roleFilter) return false;
@@ -236,25 +279,55 @@ export default function UsersPage() {
         </div>
       </div>
 
-      {/* Add User Modal (simplified) */}
+      {/* Live Users from API */}
+      {liveUsers.length > 0 && (
+        <div className="mb-6">
+          <h3 className="text-sm font-bold mb-2 flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-green-500"></span> Live Users (Persisted to Database)
+          </h3>
+          <div className="bg-white dark:bg-gray-800 border border-green-200 dark:border-green-800 rounded-lg overflow-hidden">
+            <table className="w-full text-sm">
+              <thead className="bg-green-50 dark:bg-green-950 border-b">
+                <tr><th className="text-left px-4 py-2">Name</th><th className="text-left px-4 py-2">Email</th><th className="text-left px-4 py-2">Role</th><th className="text-left px-4 py-2">Status</th></tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                {liveUsers.map(u => (
+                  <tr key={u.id}>
+                    <td className="px-4 py-2 font-medium">{u.name}</td>
+                    <td className="px-4 py-2 text-gray-500">{u.email}</td>
+                    <td className="px-4 py-2">{u.role}</td>
+                    <td className="px-4 py-2"><span className="px-2 py-0.5 rounded text-xs font-bold bg-green-100 text-green-800">{u.status}</span></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Add User Modal — wired to API */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md">
             <h2 className="text-lg font-bold mb-4">Add New User</h2>
+            {createStatus === 'success' && <p className="text-green-700 text-sm font-bold mb-3">✓ User created successfully!</p>}
+            {createStatus === 'error' && <p className="text-red-700 text-sm font-bold mb-3">✗ {createError}</p>}
             <div className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
-                <div><label className="block text-sm font-bold mb-1">First Name</label><input className="border p-2 w-full text-sm rounded" /></div>
-                <div><label className="block text-sm font-bold mb-1">Last Name</label><input className="border p-2 w-full text-sm rounded" /></div>
+                <div><label className="block text-sm font-bold mb-1">First Name</label><input value={newUser.firstName} onChange={e => setNewUser(p => ({ ...p, firstName: e.target.value }))} className="border dark:border-gray-600 dark:bg-gray-900 p-2 w-full text-sm rounded" /></div>
+                <div><label className="block text-sm font-bold mb-1">Last Name</label><input value={newUser.lastName} onChange={e => setNewUser(p => ({ ...p, lastName: e.target.value }))} className="border dark:border-gray-600 dark:bg-gray-900 p-2 w-full text-sm rounded" /></div>
               </div>
-              <div><label className="block text-sm font-bold mb-1">Email</label><input type="email" className="border p-2 w-full text-sm rounded" /></div>
+              <div><label className="block text-sm font-bold mb-1">Email</label><input type="email" value={newUser.email} onChange={e => setNewUser(p => ({ ...p, email: e.target.value }))} className="border dark:border-gray-600 dark:bg-gray-900 p-2 w-full text-sm rounded" /></div>
               <div><label className="block text-sm font-bold mb-1">Role</label>
-                <select className="border p-2 w-full text-sm rounded"><option value="">Select role...</option>{ALL_ROLES.map(r => <option key={r}>{r}</option>)}</select></div>
+                <select value={newUser.role} onChange={e => setNewUser(p => ({ ...p, role: e.target.value }))} className="border dark:border-gray-600 dark:bg-gray-900 p-2 w-full text-sm rounded"><option value="">Select role...</option>{ALL_ROLES.map(r => <option key={r}>{r}</option>)}</select></div>
               <div><label className="block text-sm font-bold mb-1">Organisation</label>
-                <select className="border p-2 w-full text-sm rounded"><option value="">Select org...</option>{ALL_ORGS_LIST.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}</select></div>
+                <select value={newUser.orgId} onChange={e => setNewUser(p => ({ ...p, orgId: e.target.value }))} className="border dark:border-gray-600 dark:bg-gray-900 p-2 w-full text-sm rounded"><option value="">Select org...</option>{ALL_ORGS_LIST.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}</select></div>
             </div>
             <div className="flex justify-end gap-2 mt-6">
-              <button onClick={() => setShowAddModal(false)} className="px-4 py-2 text-sm border rounded">Cancel</button>
-              <button onClick={() => setShowAddModal(false)} className="px-4 py-2 text-sm bg-blue-700 text-white rounded">Create User</button>
+              <button onClick={() => { setShowAddModal(false); setCreateStatus('idle'); }} className="px-4 py-2 text-sm border rounded dark:border-gray-600">Cancel</button>
+              <button onClick={handleCreateUser} disabled={createStatus === 'saving'} className="px-4 py-2 text-sm bg-blue-700 text-white rounded disabled:opacity-50">
+                {createStatus === 'saving' ? 'Creating...' : 'Create User'}
+              </button>
             </div>
           </div>
         </div>
