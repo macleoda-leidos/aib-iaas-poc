@@ -84,6 +84,31 @@ try {
     if (seedDatabase) seedDatabase();
     console.log('[Consolidated API] Seed complete');
   }
+  // Ensure we have 100+ applications for demo (existing seed only has 5)
+  const appCount = db.prepare('SELECT COUNT(*) as c FROM applications').get() as any;
+  if (appCount.c < 50) {
+    console.log('[Consolidated API] Seeding 100 Scottish applications...');
+    const firstNames = ['Alistair','Fiona','Craig','Heather','Kenneth','Janet','Graeme','Eleanor','Malcolm','Brenda','Iain','Dorothy','Angus','Morag','Douglas','Sheila','Robert','Catriona','Stuart','Margaret','James','Eileen','Donald','Susan','Gordon','Aileen','William','Lorna','Andrew','Isla','John','Mary','David','Linda','Thomas','Sandra','Michael','Carol','Peter','Maureen','Brian','Jean','Steven','Kathleen','Paul','Agnes','Alan','Alison','Colin','Derek'];
+    const lastNames = ['Morrison','Campbell','Stewart','Murray','MacDonald','Henderson','Robertson','Wilson','Thomson','Anderson','MacLeod','Scott','Fraser','Sinclair','Grant','MacKenzie','Burns','MacIntyre','Bell','Paterson','Cunningham','Kerr','Cameron','Wallace','Mitchell','Douglas','Ramsay','Baxter','Milne','Ferguson','Smith','Brown','Reid','Clark','Ross','Young','Walker','Watson','Hamilton','Graham','Duncan','Hunter','Simpson','Allan','Crawford','Boyd','Taylor','Adams','Black','Kennedy'];
+    const statuses = ['approved','submitted','under_review','draft','additional_info_required','rejected'];
+    const products = ['DAS','MAP','PTD','Sequestration','DPP','Signposting'];
+    const cities = ['Edinburgh','Glasgow','Aberdeen','Dundee','Inverness','Stirling','Perth','Falkirk','Ayr','Paisley'];
+    const insertApp = db.prepare('INSERT OR IGNORE INTO applications (id, reference_number, status, submitted_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)');
+    const insertApplicant = db.prepare('INSERT OR IGNORE INTO applicants (id, application_id, first_name, last_name, email, ni_number, employment) VALUES (?, ?, ?, ?, ?, ?, ?)');
+    for (let i = 1; i <= 100; i++) {
+      const fn = firstNames[i % firstNames.length];
+      const ln = lastNames[i % lastNames.length];
+      const ref = `IAAS-2026-${String(i).padStart(5, '0')}`;
+      const st = statuses[i % statuses.length];
+      const day = ((i - 1) % 28) + 1;
+      const month = i <= 50 ? '06' : '07';
+      const date = `2026-${month}-${String(day).padStart(2, '0')}T10:00:00Z`;
+      const id = `app-seed-${String(i).padStart(4, '0')}`;
+      insertApp.run(id, ref, st, st !== 'draft' ? date : null, date, date);
+      insertApplicant.run(`applicant-seed-${String(i).padStart(4, '0')}`, id, fn, ln, `${fn.toLowerCase()}.${ln.toLowerCase()}@email.co.uk`, `SC${String(100000 + i * 1111).slice(0,6)}${String.fromCharCode(65 + (i % 26))}`, ['employed','self_employed','unemployed','retired'][i % 4]);
+    }
+    console.log('[Consolidated API] 100 applications seeded');
+  }
 } catch (e: any) {
   console.log('[Consolidated API] Seed skipped:', e.message);
 }
