@@ -1,4 +1,4 @@
-import { Section } from '../page';
+import { Section } from '../Section';
 
 const SYSTEMS = [
   { id: 'BASYS', name: 'Bankruptcy Administration', icon: '⚖️', colour: 'border-blue-500', tasks: 12 },

@@ -1,4 +1,4 @@
-import { Section } from '../page';
+import { Section } from '../Section';
 
 /**
  * LoginScreens — Three static screens showing the Keycloak SSO login flow:

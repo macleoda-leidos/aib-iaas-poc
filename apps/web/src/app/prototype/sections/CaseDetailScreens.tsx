@@ -1,4 +1,4 @@
-import { Section } from '../page';
+import { Section } from '../Section';
 
 export function CaseDetailScreens() {
   return (

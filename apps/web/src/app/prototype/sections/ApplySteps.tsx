@@ -1,4 +1,4 @@
-import { Section } from '../page';
+import { Section } from '../Section';
 import { DEMO_FORM_DATA, DEMO_TOTALS } from '../data/demo-form-data';
 
 /** Navigation bar shown at top of each wizard step */

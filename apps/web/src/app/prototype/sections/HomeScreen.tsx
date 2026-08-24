@@ -1,4 +1,4 @@
-import { Section } from '../page';
+import { Section } from '../Section';
 
 /**
  * HomeScreen — Static render of the public-facing home page for the interactive PDF prototype.

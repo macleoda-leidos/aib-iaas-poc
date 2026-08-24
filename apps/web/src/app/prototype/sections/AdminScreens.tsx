@@ -1,4 +1,4 @@
-import { Section } from '../page';
+import { Section } from '../Section';
 
 const STATUS_COLOURS: Record<string, string> = {
   'Submitted': 'bg-blue-100 text-blue-800',

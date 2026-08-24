@@ -25,6 +25,7 @@ import { UserNavItem } from './UserNavItem';
 import ApiStatusBar, { ApiStatusProvider } from './ApiStatus';
 import AiChatbot from './components/AiChatbot';
 import DemoMode from './components/DemoMode';
+import DemoChoreographer from './components/DemoChoreographer';
 import { DemoToolsProvider, DemoToolsToggle } from './DemoTools';
 import { ToastProvider } from './components/Toast';
 import NotificationBell from './components/NotificationBell';
@@ -145,6 +146,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </footer>
       <AiChatbot />
       <DemoMode />
+      <DemoChoreographer />
       <DemoToolsToggle />
       </ApiStatusProvider>
       </ToastProvider>

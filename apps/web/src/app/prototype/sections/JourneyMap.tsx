@@ -1,4 +1,4 @@
-import { Section } from '../page';
+import { Section } from '../Section';
 
 /**
  * JourneyMap — Visual flow diagram showing how screens connect in the interactive prototype.

@@ -575,7 +575,7 @@ function CaseContent() {
 
       {/* Actions */}
       <div className="flex gap-2 mb-6">
-        <button onClick={() => setShowApproveModal(true)} className="bg-green-700 text-white text-sm font-bold px-4 py-2 rounded hover:bg-green-800">✓ Approve</button>
+        <button data-demo="approve-case" onClick={() => setShowApproveModal(true)} className="bg-green-700 text-white text-sm font-bold px-4 py-2 rounded hover:bg-green-800">✓ Approve</button>
         <button onClick={() => setShowRejectModal(true)} className="bg-red-700 text-white text-sm font-bold px-4 py-2 rounded hover:bg-red-800">✗ Reject</button>
         <button onClick={() => setShowInfoModal(true)} className="bg-orange-500 text-white text-sm font-bold px-4 py-2 rounded hover:bg-orange-600">⚠ Request Info</button>
         <Link href="/correspondence" className="bg-gray-200 dark:bg-gray-700 text-sm font-bold px-4 py-2 rounded hover:bg-gray-300 no-underline text-gray-800 dark:text-gray-200">📧 Send Letter</Link>
@@ -598,6 +598,7 @@ function CaseContent() {
                   setShowApproveModal(false);
                   setTimeout(() => setToastMessage(null), 5000);
                 }}
+                data-demo="approve-confirm"
                 className="bg-green-700 text-white text-sm font-bold px-4 py-2 rounded hover:bg-green-800"
               >
                 Confirm Approval

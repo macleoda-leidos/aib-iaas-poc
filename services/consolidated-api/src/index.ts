@@ -62,7 +62,40 @@ const corsOrigins = process.env.CORS_ORIGIN
   ? process.env.CORS_ORIGIN.split(',')
   : ['https://macleoda-leidos.github.io', 'http://localhost:3000', 'http://localhost:3010'];
 app.use(cors({ origin: corsOrigins, methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'], allowedHeaders: ['Content-Type', 'Authorization'], credentials: true }));
-app.use(rateLimit({ windowMs: 15 * 60 * 1000, max: 500 }));
+
+// Render (and any other PaaS) terminates TLS at a proxy and forwards the real
+// client address in X-Forwarded-For. Without this, express-rate-limit keys every
+// request on the proxy's socket address, so ALL visitors share a single bucket
+// and a handful of open dashboard tabs exhausts the limit for everyone.
+// One hop = Render's edge proxy.
+app.set('trust proxy', 1);
+
+app.use(rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 500,
+  // Emit RateLimit-* and Retry-After so clients can back off instead of
+  // guessing. The frontend reads these to show a real countdown.
+  standardHeaders: true,
+  legacyHeaders: false,
+  // Health checks are infrastructure, not user traffic. Render polls
+  // /api/health continuously; letting that consume the shared user budget was
+  // a significant slice of the window on its own.
+  skip: (req) => req.path === '/api/health',
+  // Match the app's error envelope. The default is plain text, which the
+  // frontend's res.json() parse fails on — a 429 then surfaced as an
+  // indistinguishable "UNKNOWN" error and was rendered as "backend offline".
+  handler: (req, res) => {
+    const retryAfterSec = Math.ceil(15 * 60);
+    res.status(429).json({
+      success: false,
+      error: {
+        code: 'RATE_LIMITED',
+        message: 'Too many requests. Please wait before retrying.',
+        retryAfterSeconds: retryAfterSec,
+      },
+    });
+  },
+}));
 app.use(express.json({ limit: '10mb' }));
 
 // Initialize databases
