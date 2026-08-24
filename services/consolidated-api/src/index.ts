@@ -128,6 +128,46 @@ try {
     const cities = ['Edinburgh','Glasgow','Aberdeen','Dundee','Inverness','Stirling','Perth','Falkirk','Ayr','Paisley'];
     const insertApp = db.prepare('INSERT OR IGNORE INTO applications (id, reference_number, status, submitted_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)');
     const insertApplicant = db.prepare('INSERT OR IGNORE INTO applicants (id, application_id, first_name, last_name, email, ni_number, employment) VALUES (?, ?, ?, ?, ?, ?, ?)');
+    // Document and asset catalogues for the per-application evidence bundle below.
+    // Categories match the DocumentReference union in @aib-iaas/shared-types
+    // ('identification' | 'proof_of_address' | 'income_evidence' | 'debt_evidence' | 'other')
+    // so the case-detail document tab renders real labels rather than raw values.
+    const docCatalogue = [
+      { slug: 'passport_scan', name: 'Passport scan.pdf', category: 'identification', mime: 'application/pdf', size: 842_000 },
+      { slug: 'driving_licence', name: 'Driving licence.jpg', category: 'identification', mime: 'image/jpeg', size: 316_000 },
+      { slug: 'council_tax_bill', name: 'Council tax bill 2026-27.pdf', category: 'proof_of_address', mime: 'application/pdf', size: 128_000 },
+      { slug: 'utility_bill', name: 'Scottish Power bill.pdf', category: 'proof_of_address', mime: 'application/pdf', size: 96_000 },
+      { slug: 'bank_statement_1', name: 'Bank statement - month 1.pdf', category: 'income_evidence', mime: 'application/pdf', size: 1_148_000 },
+      { slug: 'bank_statement_2', name: 'Bank statement - month 2.pdf', category: 'income_evidence', mime: 'application/pdf', size: 1_092_000 },
+      { slug: 'wage_slip', name: 'Wage slip.pdf', category: 'income_evidence', mime: 'application/pdf', size: 234_000 },
+      { slug: 'benefits_award', name: 'Universal Credit award letter.pdf', category: 'income_evidence', mime: 'application/pdf', size: 187_000 },
+      { slug: 'creditor_letter', name: 'Creditor letter - arrears notice.pdf', category: 'debt_evidence', mime: 'application/pdf', size: 74_000 },
+      { slug: 'default_notice', name: 'Default notice.pdf', category: 'debt_evidence', mime: 'application/pdf', size: 68_000 },
+      { slug: 'income_expenditure', name: 'Income and expenditure form.xlsx', category: 'other', mime: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', size: 41_000 },
+    ];
+    // Asset templates keyed by "profile". Not every debtor owns something —
+    // profile 0 is deliberately empty (MAP/sequestration candidates), which the
+    // recommendation engine relies on to reach the low-asset branches.
+    const assetProfiles: Array<Array<{ type: string; description: string; value: number; outstanding: number; essential: number }>> = [
+      [],
+      [{ type: 'savings', description: 'Current account balance', value: 180, outstanding: 0, essential: 0 }],
+      [
+        { type: 'vehicle', description: '2016 Vauxhall Corsa 1.2 SE', value: 3400, outstanding: 0, essential: 1 },
+        { type: 'savings', description: 'Credit union savings', value: 640, outstanding: 0, essential: 0 },
+      ],
+      [
+        { type: 'property', description: 'Residential flat (jointly owned)', value: 168_000, outstanding: 142_000, essential: 1 },
+        { type: 'vehicle', description: '2019 Ford Focus 1.0 EcoBoost', value: 8200, outstanding: 4100, essential: 1 },
+      ],
+      [
+        { type: 'property', description: 'Semi-detached house', value: 245_000, outstanding: 118_000, essential: 1 },
+        { type: 'savings', description: 'Cash ISA', value: 6800, outstanding: 0, essential: 0 },
+        { type: 'vehicle', description: '2021 Kia Sportage', value: 17_500, outstanding: 11_200, essential: 0 },
+      ],
+      [{ type: 'vehicle', description: '2014 Honda Jazz 1.4', value: 2100, outstanding: 0, essential: 1 }],
+    ];
+    const insertDoc = db.prepare('INSERT OR IGNORE INTO documents (id, application_id, filename, original_name, mime_type, size, category, storage_path, scan_status, scan_result, uploaded_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+    const insertAsset = db.prepare('INSERT OR IGNORE INTO assets (id, application_id, type, description, value, outstanding, is_essential) VALUES (?, ?, ?, ?, ?, ?, ?)');
     for (let i = 1; i <= 100; i++) {
       const fn = firstNames[i % firstNames.length];
       const ln = lastNames[i % lastNames.length];
@@ -139,8 +179,47 @@ try {
       const id = `app-seed-${String(i).padStart(4, '0')}`;
       insertApp.run(id, ref, st, st !== 'draft' ? date : null, date, date);
       insertApplicant.run(`applicant-seed-${String(i).padStart(4, '0')}`, id, fn, ln, `${fn.toLowerCase()}.${ln.toLowerCase()}@email.co.uk`, `SC${String(100000 + i * 1111).slice(0,6)}${String.fromCharCode(65 + (i % 26))}`, ['employed','self_employed','unemployed','retired'][i % 4]);
+      // 3-5 documents per application. Both the count and the starting offset
+      // are derived from i (no Math.random) so the bundle is identical on every
+      // boot and every test run. Drafts get the smallest bundle — a part-finished
+      // application realistically has less evidence attached.
+      const docCount = st === 'draft' ? 3 : 3 + (i % 3);
+      for (let d = 0; d < docCount; d++) {
+        const tpl = docCatalogue[(i * 3 + d) % docCatalogue.length];
+        // Uploads land 0-2 days before the application date and never after it,
+        // so the document tab's chronology reads correctly against the timeline.
+        // Applications are stamped at 10:00, so a same-day upload is pinned to
+        // the 07:00-09:00 window — otherwise evidence appears to arrive hours
+        // after the case it belongs to was created.
+        const uploadDay = Math.max(1, day - ((d + i) % 3));
+        const uploadHour = uploadDay === day ? 7 + (d % 3) : 9 + (d % 8);
+        const uploadedAt = `2026-${month}-${String(uploadDay).padStart(2, '0')}T${String(uploadHour).padStart(2, '0')}:${String((i * 7 + d * 11) % 60).padStart(2, '0')}:00Z`;
+        insertDoc.run(
+          `doc-seed-${String(i).padStart(4, '0')}-${d}`, id,
+          `${tpl.slug}-${String(i).padStart(4, '0')}${tpl.name.slice(tpl.name.lastIndexOf('.'))}`,
+          tpl.name, tpl.mime,
+          // Nudge the size per application so the file list is not 100 identical
+          // byte counts, while staying in a plausible range for the file type.
+          tpl.size + ((i * 1373 + d * 907) % 40_000),
+          tpl.category,
+          `uploads/${id}/${tpl.slug}${tpl.name.slice(tpl.name.lastIndexOf('.'))}`,
+          'clean',
+          JSON.stringify({ scanner: 'clamav', engineVersion: '0.103.11', signatureDate: '2026-05-28', infected: false, scannedAt: uploadedAt }),
+          uploadedAt
+        );
+      }
+      // Assets: cycle the profiles so roughly 1 in 6 applicants has none.
+      const profile = assetProfiles[i % assetProfiles.length];
+      for (let a = 0; a < profile.length; a++) {
+        const asset = profile[a];
+        // Vary value/outstanding per application so PTD vs sequestration
+        // thresholds are not all crossed at exactly the same number.
+        const value = asset.value + ((i * 311) % Math.max(1, Math.round(asset.value * 0.08)));
+        const outstanding = asset.outstanding === 0 ? 0 : asset.outstanding + ((i * 197) % Math.max(1, Math.round(asset.outstanding * 0.06)));
+        insertAsset.run(`asset-seed-${String(i).padStart(4, '0')}-${a}`, id, asset.type, asset.description, value, outstanding, asset.essential);
+      }
     }
-    console.log('[Consolidated API] 100 applications seeded');
+    console.log('[Consolidated API] 100 applications seeded (with documents and assets)');
   }
 } catch (e: any) {
   console.log('[Consolidated API] Seed skipped:', e.message);

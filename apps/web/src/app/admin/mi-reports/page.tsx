@@ -1,37 +1,238 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
+
+const DATE_RANGES = [
+  { slug: 'week', label: 'This Week' },
+  { slug: 'month', label: 'This Month' },
+  { slug: 'quarter', label: 'This Quarter' },
+  { slug: 'year', label: 'This Year' },
+] as const;
+
+type PeriodSlug = typeof DATE_RANGES[number]['slug'];
+
+// Per-period baselines. Longer periods average out the good and bad weeks, so
+// compliance and satisfaction drift down slightly while volume scales up — the
+// figures are hand-tuned rather than derived so no two metrics move in lockstep.
+const PERIOD_BASELINES: Record<PeriodSlug, {
+  applications: number;
+  decisions: number;
+  slaCompliance: number;
+  staffUtilisation: number;
+  breachCount: number;
+  comparator: string;
+  trends: { applications: string; decisions: string; sla: string; utilisation: string };
+  processingDelta: string;
+  satisfaction: string;
+  priorSla: number;
+}> = {
+  week: {
+    applications: 47, decisions: 38, slaCompliance: 96, staffUtilisation: 79, breachCount: 2,
+    comparator: 'last week',
+    trends: { applications: '+12%', decisions: '+8%', sla: '+3%', utilisation: '+5%' },
+    processingDelta: '-0.4 days', satisfaction: '4.4/5', priorSla: 93,
+  },
+  month: {
+    applications: 188, decisions: 164, slaCompliance: 94, staffUtilisation: 82, breachCount: 3,
+    comparator: 'last month',
+    trends: { applications: '+9%', decisions: '+11%', sla: '+2%', utilisation: '+4%' },
+    processingDelta: '-0.8 days', satisfaction: '4.3/5', priorSla: 92,
+  },
+  quarter: {
+    applications: 564, decisions: 502, slaCompliance: 92, staffUtilisation: 85, breachCount: 4,
+    comparator: 'last quarter',
+    trends: { applications: '+6%', decisions: '+7%', sla: '-1%', utilisation: '+3%' },
+    processingDelta: '-0.3 days', satisfaction: '4.2/5', priorSla: 93,
+  },
+  year: {
+    applications: 2350, decisions: 2148, slaCompliance: 91, staffUtilisation: 88, breachCount: 5,
+    comparator: 'last year',
+    trends: { applications: '+18%', decisions: '+16%', sla: '+4%', utilisation: '+7%' },
+    processingDelta: '-1.6 days', satisfaction: '4.1/5', priorSla: 87,
+  },
+};
+
+// Product mix is stable across periods; cases are apportioned from the period
+// total so the product table always reconciles to Applications Received.
+const PRODUCT_MIX = [
+  { product: 'DAS', share: 0.51, weekAvgDays: 4.2, longRunAvgDays: 4.9, completionRate: 92 },
+  { product: 'MAP', share: 0.26, weekAvgDays: 2.8, longRunAvgDays: 3.1, completionRate: 96 },
+  { product: 'PTD', share: 0.17, weekAvgDays: 6.1, longRunAvgDays: 6.8, completionRate: 88 },
+  { product: 'Sequestration', share: 0.06, weekAvgDays: 8.5, longRunAvgDays: 9.4, completionRate: 97 },
+];
+
+const STAFF_MIX = [
+  { name: 'Karen MacLeod', share: 0.38, avgDays: 3.8, slaCompliance: 99 },
+  { name: 'James Wilson', share: 0.33, avgDays: 4.1, slaCompliance: 94 },
+  { name: 'Sarah Mitchell', share: 0.29, avgDays: 5.2, slaCompliance: 88 },
+];
+
+const BREACH_POOL = [
+  { ref: 'IAAS-2026-00067', daysOver: 2, assignee: 'Sarah Mitchell', product: 'PTD' },
+  { ref: 'IAAS-2026-00072', daysOver: 1, assignee: 'James Wilson', product: 'DAS' },
+  { ref: 'IAAS-2026-00081', daysOver: 3, assignee: 'Sarah Mitchell', product: 'Sequestration' },
+  { ref: 'IAAS-2026-00094', daysOver: 5, assignee: 'James Wilson', product: 'PTD' },
+  { ref: 'IAAS-2026-00108', daysOver: 4, assignee: 'Karen MacLeod', product: 'DAS' },
+];
+
+function buildMiData(period: PeriodSlug) {
+  const base = PERIOD_BASELINES[period];
+
+  // Apportion by share, then push any rounding remainder onto the largest
+  // product so the column still sums to the headline application count.
+  const productPerformance = PRODUCT_MIX.map((p) => ({
+    product: p.product,
+    cases: Math.round(base.applications * p.share),
+    avgDays: period === 'week' ? p.weekAvgDays : p.longRunAvgDays,
+    completionRate: `${p.completionRate}%`,
+  }));
+  const productRemainder = base.applications - productPerformance.reduce((s, p) => s + p.cases, 0);
+  productPerformance[0].cases += productRemainder;
+
+  const staffPerformance = STAFF_MIX.map((s) => ({
+    name: s.name,
+    decisions: Math.round(base.decisions * s.share),
+    avgDays: s.avgDays,
+    slaCompliance: `${s.slaCompliance}%`,
+  }));
+  const staffRemainder = base.decisions - staffPerformance.reduce((s, r) => s + r.decisions, 0);
+  staffPerformance[0].decisions += staffRemainder;
+
+  // Kept as a fixed-1dp string so a whole number still renders as "5.0 days".
+  const avgProcessingDays = (
+    productPerformance.reduce((s, p) => s + p.avgDays * p.cases, 0) / base.applications
+  ).toFixed(1);
+
+  return {
+    kpis: [
+      { label: 'Applications Received', value: base.applications.toLocaleString(), icon: '📥', trend: base.trends.applications },
+      { label: 'Decisions Made', value: base.decisions.toLocaleString(), icon: '✅', trend: base.trends.decisions },
+      { label: 'SLA Compliance', value: `${base.slaCompliance}%`, icon: '⏱️', trend: base.trends.sla },
+      { label: 'Staff Utilisation', value: `${base.staffUtilisation}%`, icon: '👥', trend: base.trends.utilisation },
+    ],
+    productPerformance,
+    staffPerformance,
+    slaBreaches: BREACH_POOL.slice(0, base.breachCount),
+    avgProcessingDays,
+    comparator: base.comparator,
+    trends: base.trends,
+    processingDelta: base.processingDelta,
+    satisfaction: base.satisfaction,
+    slaCompliance: base.slaCompliance,
+    priorSla: base.priorSla,
+  };
+}
 
 export default function MIReportsPage() {
-  const [dateRange, setDateRange] = useState('This Month');
+  const [dateRange, setDateRange] = useState<PeriodSlug>('month');
 
-  const dateRanges = ['This Week', 'This Month', 'This Quarter', 'This Year'];
+  const periodLabel = DATE_RANGES.find((r) => r.slug === dateRange)!.label;
+  const data = useMemo(() => buildMiData(dateRange), [dateRange]);
+  const { kpis, productPerformance, staffPerformance, slaBreaches } = data;
 
-  const kpis = [
-    { label: 'Applications Received', value: '47', icon: '📥', trend: '+12%' },
-    { label: 'Decisions Made', value: '38', icon: '✅', trend: '+8%' },
-    { label: 'SLA Compliance', value: '94%', icon: '⏱️', trend: '+2%' },
-    { label: 'Staff Utilisation', value: '82%', icon: '👥', trend: '+5%' },
-  ];
+  const exportCSV = () => {
+    const lines = [
+      `IAAS Management Information — ${periodLabel}`,
+      `Generated,${new Date().toISOString().slice(0, 10)}`,
+      '',
+      'KPI,Value,Trend',
+      ...kpis.map((k) => `"${k.label}",${k.value},${k.trend}`),
+      '',
+      'Product,Cases,Avg Processing (days),Completion Rate',
+      ...productPerformance.map((p) => `${p.product},${p.cases},${p.avgDays},${p.completionRate}`),
+      '',
+      'Officer,Decisions,Avg Processing (days),SLA Compliance',
+      ...staffPerformance.map((s) => `"${s.name}",${s.decisions},${s.avgDays},${s.slaCompliance}`),
+      '',
+      'Case Ref,Days Over SLA,Assignee,Product',
+      ...slaBreaches.map((b) => `${b.ref},${b.daysOver},"${b.assignee}",${b.product}`),
+    ];
+    const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `iaas-mi-report-${dateRange}-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
-  const productPerformance = [
-    { product: 'DAS', cases: 24, avgDays: 4.2, completionRate: '92%' },
-    { product: 'MAP', cases: 12, avgDays: 2.8, completionRate: '96%' },
-    { product: 'PTD', cases: 8, avgDays: 6.1, completionRate: '88%' },
-    { product: 'Sequestration', cases: 3, avgDays: 8.5, completionRate: '100%' },
-  ];
+  const exportPDF = () => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
 
-  const staffPerformance = [
-    { name: 'Karen MacLeod', decisions: 12, avgDays: 3.8, slaCompliance: '100%' },
-    { name: 'James Wilson', decisions: 9, avgDays: 4.1, slaCompliance: '93%' },
-    { name: 'Sarah Mitchell', decisions: 8, avgDays: 5.2, slaCompliance: '88%' },
-  ];
+    printWindow.document.write(`
+      <html>
+      <head>
+        <title>IAAS Management Information — ${periodLabel}</title>
+        <style>
+          body { font-family: Arial, sans-serif; padding: 40px; max-width: 800px; margin: 0 auto; }
+          .header { border-bottom: 3px solid #d32205; padding-bottom: 20px; margin-bottom: 30px; }
+          .logo { font-size: 24px; font-weight: bold; color: #d32205; }
+          .subtitle { color: #666; font-size: 14px; }
+          h1 { font-size: 22px; margin-top: 30px; }
+          h2 { font-size: 16px; color: #333; border-bottom: 1px solid #ddd; padding-bottom: 8px; }
+          .kpis { display: flex; flex-wrap: wrap; gap: 12px; margin: 20px 0; }
+          .kpi { border: 1px solid #ddd; border-radius: 4px; padding: 12px 16px; min-width: 150px; }
+          .kpi-label { color: #666; font-size: 12px; }
+          .kpi-value { font-size: 24px; font-weight: bold; }
+          .kpi-trend { color: #00703c; font-size: 12px; }
+          .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #ddd; font-size: 11px; color: #666; }
+          table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+          td, th { padding: 8px; border: 1px solid #ddd; text-align: left; font-size: 13px; }
+          th { background: #f5f5f5; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div class="logo">Accountant in Bankruptcy</div>
+          <div class="subtitle">Initial Application Advice Service — Management Information</div>
+        </div>
 
-  const slaBreaches = [
-    { ref: 'IAAS-2026-00067', daysOver: 2, assignee: 'Sarah Mitchell', product: 'PTD' },
-    { ref: 'IAAS-2026-00072', daysOver: 1, assignee: 'James Wilson', product: 'DAS' },
-    { ref: 'IAAS-2026-00081', daysOver: 3, assignee: 'Sarah Mitchell', product: 'Sequestration' },
-  ];
+        <h1>Management Information Report — ${periodLabel}</h1>
+        <p><strong>Reporting period:</strong> ${periodLabel}</p>
+        <p><strong>Generated:</strong> ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+
+        <h2>Key Performance Indicators</h2>
+        <div class="kpis">
+          ${kpis.map((k) => `
+            <div class="kpi">
+              <div class="kpi-label">${k.label}</div>
+              <div class="kpi-value">${k.value}</div>
+              <div class="kpi-trend">${k.trend} vs ${data.comparator}</div>
+            </div>
+          `).join('')}
+        </div>
+
+        <h2>Performance by Product</h2>
+        <table>
+          <tr><th>Product</th><th>Cases</th><th>Avg Processing (days)</th><th>Completion Rate</th></tr>
+          ${productPerformance.map((p) => `<tr><td>${p.product}</td><td>${p.cases}</td><td>${p.avgDays}</td><td>${p.completionRate}</td></tr>`).join('')}
+        </table>
+
+        <h2>Staff Performance</h2>
+        <table>
+          <tr><th>Officer</th><th>Decisions</th><th>Avg Processing (days)</th><th>SLA Compliance</th></tr>
+          ${staffPerformance.map((s) => `<tr><td>${s.name}</td><td>${s.decisions}</td><td>${s.avgDays}</td><td>${s.slaCompliance}</td></tr>`).join('')}
+        </table>
+
+        <h2>SLA Breaches This Period</h2>
+        <table>
+          <tr><th>Case Ref</th><th>Days Over SLA</th><th>Assignee</th><th>Product</th></tr>
+          ${slaBreaches.map((b) => `<tr><td>${b.ref}</td><td>+${b.daysOver} days</td><td>${b.assignee}</td><td>${b.product}</td></tr>`).join('')}
+        </table>
+
+        <div class="footer">
+          <p>Average processing time across all products: ${data.avgProcessingDays} days • SLA compliance ${data.slaCompliance}% (from ${data.priorSla}%) • Customer satisfaction ${data.satisfaction}</p>
+          <p>Generated by IAAS Management Information • Accountant in Bankruptcy • Scottish Government</p>
+          <p>Document ID: MI-${dateRange.toUpperCase()}-${Date.now()}</p>
+        </div>
+      </body>
+      </html>
+    `);
+    printWindow.document.close();
+    // Small delay to ensure content renders before print dialog
+    setTimeout(() => { printWindow.print(); }, 500);
+  };
 
   return (
     <div className="min-h-screen bg-gray-900 text-white">
@@ -42,10 +243,10 @@ export default function MIReportsPage() {
             <p className="text-gray-400 text-sm mt-1">Senior management reporting dashboard</p>
           </div>
           <div className="flex gap-2">
-            <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors">
+            <button data-demo="mi-export-pdf" onClick={exportPDF} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors">
               Export to PDF
             </button>
-            <button className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors">
+            <button data-demo="mi-export-csv" onClick={exportCSV} className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors">
               Export to CSV
             </button>
           </div>
@@ -55,17 +256,18 @@ export default function MIReportsPage() {
       <main className="max-w-7xl mx-auto px-6 py-8 space-y-8">
         {/* Date Range Selector */}
         <div className="flex gap-2">
-          {dateRanges.map((range) => (
+          {DATE_RANGES.map((range) => (
             <button
-              key={range}
-              onClick={() => setDateRange(range)}
+              key={range.slug}
+              data-demo={`mi-period-${range.slug}`}
+              onClick={() => setDateRange(range.slug)}
               className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                dateRange === range
+                dateRange === range.slug
                   ? 'bg-blue-600 text-white'
                   : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
               }`}
             >
-              {range}
+              {range.label}
             </button>
           ))}
         </div>
@@ -185,26 +387,28 @@ export default function MIReportsPage() {
           </div>
         </section>
 
-        {/* Monthly Trend */}
+        {/* Period Trend */}
         <section>
-          <h2 className="text-xl font-semibold mb-4">Monthly Trend</h2>
+          <h2 className="text-xl font-semibold mb-4">Trend vs Previous Period</h2>
           <div className="bg-gray-800 border border-gray-700 rounded-lg p-5">
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-gray-400 text-sm">Applications received</span>
-                <span className="text-green-400 text-sm font-medium">+12% vs last month</span>
+                <span className="text-green-400 text-sm font-medium">{data.trends.applications} vs {data.comparator}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-gray-400 text-sm">Average processing time</span>
-                <span className="text-green-400 text-sm font-medium">-0.8 days vs last month</span>
+                <span className="text-green-400 text-sm font-medium">{data.processingDelta} vs {data.comparator} ({data.avgProcessingDays} days)</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-gray-400 text-sm">SLA compliance</span>
-                <span className="text-green-400 text-sm font-medium">+2% vs last month (94% from 92%)</span>
+                <span className={`text-sm font-medium ${data.slaCompliance >= data.priorSla ? 'text-green-400' : 'text-red-400'}`}>
+                  {data.trends.sla} vs {data.comparator} ({data.slaCompliance}% from {data.priorSla}%)
+                </span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-gray-400 text-sm">Customer satisfaction</span>
-                <span className="text-green-400 text-sm font-medium">+4 points vs last month (4.3/5)</span>
+                <span className="text-green-400 text-sm font-medium">{data.satisfaction} average rating</span>
               </div>
             </div>
           </div>

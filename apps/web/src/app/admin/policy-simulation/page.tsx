@@ -1,6 +1,7 @@
 'use client';
 import { useState, useMemo } from 'react';
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { useToast } from '../../components/Toast';
 
 const CHART_COLORS = ['#1d70b8', '#00703c', '#f47738', '#d4351c', '#4c2c92', '#5694ca', '#28a197'];
 
@@ -21,6 +22,11 @@ const PARAMETERS: SimParam[] = [
   { id: 'map_ceiling', label: 'MAP Debt Ceiling', description: 'Maximum total debt for Minimal Asset Process eligibility', currentValue: 25000, min: 15000, max: 40000, step: 1000, unit: '£', product: 'MAP' },
   { id: 'ptd_assets', label: 'PTD Asset Threshold', description: 'Minimum assets for Protected Trust Deed recommendation', currentValue: 5000, min: 2000, max: 15000, step: 500, unit: '£', product: 'PTD' },
   { id: 'dpp_months', label: 'DPP Repayment Period', description: 'Maximum repayment period for Debt Payment Programme', currentValue: 48, min: 24, max: 72, step: 6, unit: 'months', product: 'DPP' },
+];
+
+const APPROVERS = [
+  { id: 'robert_anderson', name: 'Robert Anderson - Head of Digital' },
+  { id: 'karen_macleod', name: 'Karen MacLeod - Senior Officer' },
 ];
 
 interface HistoricalCase {
@@ -196,13 +202,29 @@ const PRODUCT_COLOR_MAP: Record<string, string> = {
   Signposting: CHART_COLORS[5],
 };
 
+interface SubmittedChange {
+  changes: { label: string; from: string; to: string }[];
+  effectiveDate: string;
+  approver: string;
+  justification: string;
+  submittedAt: string;
+}
+
 export default function PolicySimulationPage() {
+  const { showToast } = useToast();
+
   const [params, setParams] = useState({
     das_disposable: 100,
     map_ceiling: 25000,
     ptd_assets: 5000,
     dpp_months: 48,
   });
+
+  // Approval form state
+  const [justification, setJustification] = useState('Raising DAS disposable income threshold to better align with cost of living increases...');
+  const [effectiveDate, setEffectiveDate] = useState('');
+  const [approver, setApprover] = useState('');
+  const [submitted, setSubmitted] = useState<SubmittedChange | null>(null);
 
   const hasChanges = params.das_disposable !== 100 || params.map_ceiling !== 25000 || params.ptd_assets !== 5000 || params.dpp_months !== 48;
 
@@ -243,6 +265,40 @@ export default function PolicySimulationPage() {
 
   const handleParamChange = (id: string, value: number) => {
     setParams(prev => ({ ...prev, [id]: value }));
+    setSubmitted(null);
+  };
+
+  const formatValue = (p: SimParam, value: number) =>
+    p.unit === '£' ? `£${value.toLocaleString()}` : `${value} ${p.unit}`;
+
+  const handleSubmitForApproval = () => {
+    if (!hasChanges) {
+      showToast('Adjust at least one parameter before submitting', 'warning');
+      return;
+    }
+    if (!justification.trim()) {
+      showToast('Justification is required', 'error');
+      return;
+    }
+    if (!approver) {
+      showToast('Select an approver', 'error');
+      return;
+    }
+
+    const changes = PARAMETERS.filter(p => params[p.id as keyof typeof params] !== p.currentValue).map(p => ({
+      label: p.label,
+      from: formatValue(p, p.currentValue),
+      to: formatValue(p, params[p.id as keyof typeof params]),
+    }));
+
+    setSubmitted({
+      changes,
+      effectiveDate: effectiveDate || 'Not specified',
+      approver: APPROVERS.find(a => a.id === approver)?.name || approver,
+      justification: justification.trim(),
+      submittedAt: new Date().toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' }),
+    });
+    showToast('✓ Policy change submitted for approval');
   };
 
   return (
@@ -448,7 +504,8 @@ export default function PolicySimulationPage() {
               <textarea
                 className="w-full border border-gray-300 rounded-md p-3 text-sm"
                 rows={3}
-                defaultValue="Raising DAS disposable income threshold to better align with cost of living increases..."
+                value={justification}
+                onChange={e => setJustification(e.target.value)}
               />
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -457,23 +514,61 @@ export default function PolicySimulationPage() {
                 <input
                   type="date"
                   className="w-full border border-gray-300 rounded-md p-2 text-sm"
+                  value={effectiveDate}
+                  onChange={e => setEffectiveDate(e.target.value)}
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Approver</label>
-                <select className="w-full border border-gray-300 rounded-md p-2 text-sm">
+                <select
+                  className="w-full border border-gray-300 rounded-md p-2 text-sm"
+                  value={approver}
+                  onChange={e => setApprover(e.target.value)}
+                >
                   <option value="">Select an approver...</option>
-                  <option value="robert_anderson">Robert Anderson - Head of Digital</option>
-                  <option value="karen_macleod">Karen MacLeod - Senior Officer</option>
+                  {APPROVERS.map(a => (
+                    <option key={a.id} value={a.id}>{a.name}</option>
+                  ))}
                 </select>
               </div>
             </div>
             <button
               className="px-6 py-2 bg-green-700 text-white font-medium rounded-md hover:bg-green-800 transition-colors"
-              onClick={() => {}}
+              onClick={handleSubmitForApproval}
             >
               Submit for Approval
             </button>
+
+            {/* Inline confirmation — records the submission client-side, no backend workflow exists yet */}
+            {submitted && (
+              <div className="mt-4 p-4 bg-green-50 border border-green-300 rounded-md">
+                <p className="font-semibold text-green-800 mb-2">✓ Submitted for approval</p>
+                <dl className="text-sm text-green-900 space-y-1">
+                  <div className="flex gap-2">
+                    <dt className="font-medium">Approver:</dt>
+                    <dd>{submitted.approver}</dd>
+                  </div>
+                  <div className="flex gap-2">
+                    <dt className="font-medium">Effective date:</dt>
+                    <dd>{submitted.effectiveDate}</dd>
+                  </div>
+                  <div className="flex gap-2">
+                    <dt className="font-medium">Submitted:</dt>
+                    <dd>{submitted.submittedAt}</dd>
+                  </div>
+                </dl>
+                <p className="text-sm font-medium text-green-900 mt-3 mb-1">Parameters changed ({submitted.changes.length}):</p>
+                <ul className="text-sm text-green-900 space-y-0.5">
+                  {submitted.changes.map(c => (
+                    <li key={c.label}>
+                      {c.label}: <span className="font-mono">{c.from}</span> → <span className="font-mono font-bold">{c.to}</span>
+                    </li>
+                  ))}
+                </ul>
+                <p className="text-sm font-medium text-green-900 mt-3 mb-1">Justification:</p>
+                <p className="text-sm text-green-900 italic">{submitted.justification}</p>
+              </div>
+            )}
             <div className="mt-4 p-3 bg-yellow-50 border border-yellow-300 rounded-md">
               <p className="text-sm text-yellow-800">
                 <strong>POC Notice:</strong> In production, submitted changes would enter an approval workflow with impact assessment, stakeholder sign-off, and scheduled deployment.

@@ -228,7 +228,12 @@ function PortalContent({ userId }: { userId: string }) {
               {filteredQueue.map(item => (
                 <tr key={item.id} className="border-t border-gray-100 hover:bg-gray-50 text-sm">
                   <td className="p-3"><span className="text-xs bg-gray-100 px-2 py-0.5 rounded font-bold">{item.system}</span></td>
-                  <td className="p-3 font-mono text-xs">{item.ref}</td>
+                  <td className="p-3 font-mono text-xs">
+                    {/* Only IAAS references have a case detail page — other systems' refs stay plain text */}
+                    {item.ref.startsWith('IAAS-')
+                      ? <Link href={`/case/${item.ref}`} className="text-blue-700 underline hover:text-blue-900">{item.ref}</Link>
+                      : item.ref}
+                  </td>
                   <td className="p-3 text-sm">{item.task}</td>
                   <td className="p-3"><span className={`text-xs px-1.5 py-0.5 rounded font-bold ${PRIORITY_COLOURS[item.priority]}`}>{item.priority}</span></td>
                   <td className="p-3 text-xs text-gray-600">{item.assignee}</td>

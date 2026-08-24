@@ -1630,7 +1630,7 @@ function StatisticianDashboard({ user }: { user: any }) {
             <ActionButton label="Export Weekly Report (CSV)" icon="📊" onClick={() => window.open('http://localhost:3001/api/reports/export/weekly-report', '_blank')} />
             <ActionButton label="Export Monthly Report (CSV)" icon="📈" onClick={() => window.open('http://localhost:3001/api/reports/export/monthly-report', '_blank')} />
             <ActionButton label="View Full Dashboard" icon="🖥️" onClick={() => navigateTo('/statistics')} />
-            <ActionButton label="View Audit Trail" icon="📋" onClick={() => {}} />
+            <ActionButton label="View Audit Trail" icon="📋" onClick={() => navigateTo('/admin/activity')} />
           </div>
           <p className="text-xs text-gray-500 mt-4">
             Reports generated from live application data. Updated in real-time.
