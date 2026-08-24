@@ -1,5 +1,10 @@
 {
   "extends": "../../tsconfig.json",
-  "compilerOptions": { "outDir": "./dist", "rootDir": "./src", "module": "commonjs", "moduleResolution": "node", "declaration": false, "declarationMap": false },
-  "include": ["src/**/*", "../*/src/**/*"]
+  // This service deliberately imports routers from sibling services, so rootDir
+  // must be the services root rather than ./src — otherwise every sibling file
+  // is "not under rootDir". Emitted layout is dist/<service>/src/*.
+  "compilerOptions": { "outDir": "./dist", "rootDir": "..", "module": "commonjs", "moduleResolution": "node", "declaration": false, "declarationMap": false },
+  "include": ["src/**/*", "../*/src/**/*"],
+  // Tests are run by vitest, not compiled into the deployed output.
+  "exclude": ["../*/src/**/__tests__/**"]
 }

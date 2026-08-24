@@ -97,7 +97,7 @@ export default function PortalPage() {
 
 function PortalWithParams() {
   const searchParams = useSearchParams();
-  const userId = searchParams.get('user') || 'karen';
+  const userId = searchParams?.get('user') || 'karen';
   return <PortalContent userId={userId} />;
 }
 

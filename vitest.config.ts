@@ -1,6 +1,12 @@
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
+  // Prefer TypeScript sources over any stale compiled .js sitting next to them.
+  // Vite's default order resolves .js first, so a leftover build artifact in
+  // src/ would shadow its own source and fail as CJS requiring an ESM package.
+  resolve: {
+    extensions: ['.ts', '.tsx', '.mts', '.mjs', '.js', '.jsx', '.json'],
+  },
   test: {
     include: [
       'packages/*/src/__tests__/**/*.test.ts',

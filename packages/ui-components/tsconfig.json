@@ -3,7 +3,10 @@
   "compilerOptions": {
     "jsx": "react-jsx",
     "outDir": "./dist",
-    "rootDir": "./src"
+    "rootDir": "./src",
+    // Root tsconfig sets lib to ES2022 only (correct for backend services).
+    // This package renders React components and needs the DOM typings.
+    "lib": ["ES2022", "DOM", "DOM.Iterable"]
   },
   "include": ["src/**/*"]
 }

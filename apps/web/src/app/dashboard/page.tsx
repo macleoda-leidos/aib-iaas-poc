@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import { applications as applicationsApi, ApplicationSummary, ApiError, getAuthToken } from '../../lib/apiClient';
 import { seedApplications } from '../../lib/seedData';
@@ -239,25 +239,54 @@ function AibDashboard({ user }: { user: any }) {
     fetchApps();
     // Auto-refresh every 30 seconds
     const interval = setInterval(fetchApps, 30000);
-    // Update "X seconds ago" ticker every 5s
+    return () => {
+      clearInterval(interval);
+      if (demoTimeout) clearTimeout(demoTimeout);
+    };
+    // Runs once on mount. Must NOT depend on lastRefreshed — fetchApps sets it on
+    // success, which would re-run this effect and refetch in an unthrottled loop.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // "X seconds ago" ticker — kept separate from the fetch effect so that
+  // updating it never retriggers a fetch.
+  useEffect(() => {
     const ticker = setInterval(() => {
       const secs = Math.round((Date.now() - lastRefreshed.getTime()) / 1000);
       setRefreshAgo(secs < 5 ? 'just now' : secs < 60 ? `${secs}s ago` : `${Math.floor(secs / 60)}m ago`);
     }, 5000);
-    return () => {
-      clearInterval(interval);
-      clearInterval(ticker);
-      if (demoTimeout) clearTimeout(demoTimeout);
-    };
+    return () => clearInterval(ticker);
   }, [lastRefreshed]);
 
-  // Static seed data (always shown as baseline)
-  const seedApps = [
-    { ref: 'IAAS-2026-00012', name: 'A. Morrison', product: 'DAS', status: 'Submitted', date: '28 Jun', debt: 18400, score: 620, result: 'PASS' },
-    { ref: 'IAAS-2026-00011', name: 'B. Campbell', product: 'MAP', status: 'Under Review', date: '27 Jun', debt: 9200, score: 340, result: 'FAIL' },
-    { ref: 'IAAS-2026-00010', name: 'C. Stewart', product: 'PTD', status: 'Awaiting Info', date: '26 Jun', debt: 23100, score: 510, result: 'PASS' },
-    { ref: 'IAAS-2026-00009', name: 'D. Murray', product: 'Sequestration', status: 'Submitted', date: '25 Jun', debt: 6800, score: 280, result: 'FAIL' },
-  ];
+  // Demo fallback baseline — derived from the same 100-application seed set the
+  // KPI cards use, so a backend outage still shows a fully populated queue
+  // rather than a handful of rows that contradict the counts above.
+  const STATUS_LABELS: Record<string, string> = {
+    submitted: 'Submitted',
+    under_review: 'Under Review',
+    additional_info_required: 'Awaiting Info',
+    approved: 'Approved',
+    rejected: 'Rejected',
+    draft: 'Draft',
+    withdrawn: 'Withdrawn',
+  };
+
+  const seedApps = useMemo(() => seedApplications.map(a => {
+    // Derive a stable pseudo credit score from the reference so the same case
+    // always shows the same figure across reloads.
+    const refDigits = parseInt(a.ref.replace(/\D/g, '').slice(-4), 10) || 0;
+    const score = 280 + (refDigits * 37) % 400;
+    return {
+      ref: a.ref,
+      name: `${a.firstName.charAt(0)}. ${a.lastName}`,
+      product: a.product,
+      status: STATUS_LABELS[a.status] || a.status,
+      date: new Date(a.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }),
+      debt: a.debt,
+      score,
+      result: score >= 500 ? 'PASS' : 'FAIL',
+    };
+  }), []);
 
   // Feature 3: Priority calculation function
   const getPriority = (app: any): { level: string; color: string; sortOrder: number } => {
@@ -285,7 +314,7 @@ function AibDashboard({ user }: { user: any }) {
   const liveRefs = new Set(liveApps.map(a => a.ref));
   const mergedApps = [...liveApps, ...seedApps.filter(a => !liveRefs.has(a.ref))];
   // Sort by priority (urgent first)
-  const apps = mergedApps.sort((a, b) => getPriority(a).sortOrder - getPriority(b).sortOrder);
+  const apps = [...mergedApps].sort((a, b) => getPriority(a).sortOrder - getPriority(b).sortOrder);
 
   const [alertDismissed, setAlertDismissed] = useState(false);
   const [scenarioRunning, setScenarioRunning] = useState<string | null>(null);

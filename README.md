@@ -55,7 +55,7 @@ The POC implements a complete end-to-end journey: identity verification, multi-s
 | Sprint 28 | Production Polish | LoadingSkeleton components, ApiErrorBoundary + retry, OfflineBanner, service worker | ✅ Complete |
 | Sprint 29 | Enterprise Showcase | API Versioning page, Monitoring & Observability (uptime, tracing, alerts) | ✅ Complete |
 
-**65+ pages | 40 admin features | 658+ tests | 29 sprints | Dual backend (Node.js + .NET 9) | £0/month hosting**
+**65+ pages | 40 admin features | 519 unit tests (+213 E2E) | 29 sprints | Dual backend (Node.js + .NET 9) | £0/month hosting**
 
 📋 [Full Sprint Delivery Log](docs/sprint-delivery-log.md) | 📖 [Admin Portal Guide](docs/admin-portal-guide.md) | 📖 [Onboarding Guide](docs/onboarding-guide.md)
 

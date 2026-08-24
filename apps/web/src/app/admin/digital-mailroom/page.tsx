@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, type ReactElement } from 'react';
 import {
   PieChart, Pie, Cell, BarChart, Bar, LineChart, Line,
   XAxis, YAxis, Tooltip, ResponsiveContainer, Legend,
@@ -707,7 +707,7 @@ function HighlightedText({ text, entities }: { text: string; entities: NEREntity
   positions.sort((a, b) => a.start - b.start);
 
   // Build output
-  const parts: JSX.Element[] = [];
+  const parts: ReactElement[] = [];
   let lastEnd = 0;
 
   positions.forEach((pos, i) => {

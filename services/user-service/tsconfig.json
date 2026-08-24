@@ -1,5 +1,7 @@
 {
   "extends": "../../tsconfig.json",
   "compilerOptions": { "outDir": "./dist", "rootDir": "./src", "module": "commonjs", "moduleResolution": "node", "declaration": false, "declarationMap": false },
-  "include": ["src/**/*"]
+  "include": ["src/**/*"],
+  // Tests are run by vitest, not compiled into the deployed output.
+  "exclude": ["src/**/__tests__/**"]
 }

@@ -44,6 +44,15 @@ jobs:
           node-version: 20
           cache: npm
 
+      - name: Install dependencies
+        run: npm ci
+
+      # Compiles every workspace with tsc. Without this the Docker build alone
+      # can stay green while TypeScript errors accumulate, because the Next apps
+      # set ignoreBuildErrors and the container runs sources via tsx.
+      - name: Build all workspaces (typecheck)
+        run: npm run build
+
       - name: Build Docker image
         run: docker build -f infra/azure/Dockerfile.api -t aib-iaas-api:test .
 

@@ -1,11 +1,34 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useNotifications } from '../../lib/useNotifications';
 
 export default function NotificationBell() {
   const { notifications, unreadCount, markRead, markAllRead } = useNotifications();
   const [open, setOpen] = useState(false);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const [coords, setCoords] = useState<{ top: number; right: number } | null>(null);
+
+  // The nav bar that hosts this bell uses overflow-x-auto, which clips absolutely
+  // positioned children regardless of z-index. Render the panel in a portal on
+  // <body> and position it from the button's viewport rect instead.
+  useEffect(() => {
+    if (!open) return;
+
+    const place = () => {
+      const rect = buttonRef.current?.getBoundingClientRect();
+      if (rect) setCoords({ top: rect.bottom + 8, right: window.innerWidth - rect.right });
+    };
+    place();
+
+    window.addEventListener('resize', place);
+    window.addEventListener('scroll', place, true);
+    return () => {
+      window.removeEventListener('resize', place);
+      window.removeEventListener('scroll', place, true);
+    };
+  }, [open]);
 
   const typeIcon: Record<string, string> = {
     application: '📋', system: '⚙️', decision: '✅', sla: '⏰',
@@ -20,7 +43,7 @@ export default function NotificationBell() {
 
   return (
     <div className="relative">
-      <button onClick={() => setOpen(!open)} className="relative p-1 text-white hover:text-yellow-200 transition-colors" aria-label="Notifications">
+      <button ref={buttonRef} onClick={() => setOpen(!open)} className="relative p-1 text-white hover:text-yellow-200 transition-colors" aria-label="Notifications" aria-expanded={open} aria-haspopup="true">
         🔔
         {unreadCount > 0 && (
           <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
@@ -29,10 +52,12 @@ export default function NotificationBell() {
         )}
       </button>
 
-      {open && (
+      {open && coords ? createPortal(
         <>
-          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-8 w-80 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl z-50 overflow-hidden">
+          <div className="fixed inset-0 z-[9998]" onClick={() => setOpen(false)} />
+          <div
+            style={{ top: coords.top, right: coords.right }}
+            className="fixed w-80 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl z-[9999] overflow-hidden">
             <div className="p-3 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
               <span className="font-bold text-sm">Notifications</span>
               {unreadCount > 0 && (
@@ -60,8 +85,9 @@ export default function NotificationBell() {
               )}
             </div>
           </div>
-        </>
-      )}
+        </>,
+        document.body
+      ) : null}
     </div>
   );
 }

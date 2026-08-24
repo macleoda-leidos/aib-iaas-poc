@@ -22,6 +22,18 @@
 | Sprint 15 | Quality Assurance & Link Integrity — E2E link audit, basePath validation, navigation regression tests | Complete |
 | Sprint 16 | Documentation Alignment — Sprint logs, roadmap, testing docs, README updated to current state | Complete |
 | Sprint 17 | Test Infrastructure Expansion — 10 new link audit E2E scenarios, 658+ tests across 48 files | Complete |
+| Sprint 18 | .NET Backend — .NET 9 Web API, MediatR/CQS, 11 endpoint modules, EF Core dual SQLite/PostgreSQL, Swagger, health checks | Complete |
+| Sprint 19 | Enterprise Persistence — Neon PostgreSQL, programmatic 14-table schema, seed scripts, pooled SSL connection, one-command init | Complete |
+| Sprint 20 | Live Deployment — .NET API on Render via Docker, dynamic PORT, Npgsql connection conversion, snake_case EF mapping, soft-delete/concurrency fields | Complete |
+| Sprint 21 | Data Comes Alive — 100 seeded applications (SQLite + Neon), live search, wired case actions, backend toggle (Node/.NET/Mock) | Complete |
+| Sprint 22 | Demo Enhancement — auto-scroll demo orchestration, sequential debts/assets/documents reveals, live recommendation, payment and PDF steps | Complete |
+| Sprint 23 | Admin Functionality — report builder, user creation wired to API, editable data retention policies, dev docs C4 diagram | Complete |
+| Sprint 24 | Interactive Admin — activity heatmap with drill-down, canvas digital signature with audit log, statistics time period filters | Complete |
+| Sprint 25 | Polish & Safety — real logged-in admin user, health-checked backend selector, data export rewrite with search/sort/CSV/PDF | Complete |
+| Sprint 26 | Real-Time & Notifications — toast system, notification bell with unread count, 30s dashboard auto-refresh, notifications polling hook | Complete |
+| Sprint 27 | Casework Workflow — batch select with batch approve/reject, SLA timer column, select-all header | Complete |
+| Sprint 28 | Production Polish — loading skeleton variants, API error boundary with retry, offline banner, service worker caching, useApiCall hook | Complete |
+| Sprint 29 | Enterprise Showcase — API versioning page, monitoring and observability page (uptime monitors, tracing, alert history) | Complete |
 
 ---
 
