@@ -58,7 +58,17 @@ export interface GeneratedApplication {
   expectedProduct: string;
 }
 
-export function generateRandomApplication(): GeneratedApplication {
+/**
+ * @param options.alwaysDeclareAssets Force a populated assets section.
+ *
+ * Product profiles other than PTD leave `noAssets` true, which is realistic but
+ * makes the Assets page of the demo render as an empty "nothing declared" state.
+ * Live demos walk every page, so the choreographed run asks for a persona that
+ * has something to show on all of them.
+ */
+export function generateRandomApplication(
+  options: { alwaysDeclareAssets?: boolean } = {}
+): GeneratedApplication {
   // Randomly select target product (weighted)
   const r = Math.random();
   let targetProduct: string;
@@ -170,9 +180,12 @@ export function generateRandomApplication(): GeneratedApplication {
     income: { wages, benefits, pension, other: rand(0, 200) },
     expenditure: { rent, councilTax, utilities, food, transport, insurance, childcare, other: otherExp },
     assets: {
-      noAssets: !hasAssets,
-      vehicles: hasAssets || Math.random() > 0.5 ? [{ description: pick(['2019 Volkswagen Golf', '2020 Ford Focus', '2018 Vauxhall Corsa', '2021 Nissan Qashqai']), value: rand(3000, 15000) }] : [],
-      savings: Math.random() > 0.6 ? [{ provider: pick(['Nationwide', 'Scottish Widows', 'NS&I']), value: rand(200, 3000) }] : [],
+      // Property ownership stays tied to the product profile — bolting a house
+      // onto a MAP applicant would contradict the eligibility they qualified on
+      // — so the forced case guarantees a vehicle and savings instead.
+      noAssets: !hasAssets && !options.alwaysDeclareAssets,
+      vehicles: hasAssets || options.alwaysDeclareAssets || Math.random() > 0.5 ? [{ description: pick(['2019 Volkswagen Golf', '2020 Ford Focus', '2018 Vauxhall Corsa', '2021 Nissan Qashqai']), value: rand(3000, 15000) }] : [],
+      savings: options.alwaysDeclareAssets || Math.random() > 0.6 ? [{ provider: pick(['Nationwide', 'Scottish Widows', 'NS&I']), value: rand(200, 3000) }] : [],
       properties: hasAssets ? [{ address: `${rand(1,50)} ${pick(['Oak Drive', 'Elm Road', 'Pine Avenue'])}`, value: propertyValue, mortgage: rand(Math.floor(propertyValue * 0.5), Math.floor(propertyValue * 0.85)) }] : [],
     },
     expectedProduct: targetProduct,

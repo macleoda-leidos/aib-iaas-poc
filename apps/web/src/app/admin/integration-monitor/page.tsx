@@ -49,7 +49,7 @@ export default function IntegrationMonitorPage() {
         </div>
 
         {/* System Cards Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div data-demo="integration-cards" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {systems.map((sys) => (
             <div key={sys.name} className="bg-gray-800 border border-gray-700 rounded-lg p-5">
               <div className="flex items-center justify-between mb-4">

@@ -157,7 +157,7 @@ export default function SecurityPage() {
       <div className="max-w-7xl mx-auto px-4 py-6">
 
         {/* ─── Threat Level Banner ────────────────────────────────────── */}
-        <div className="bg-gradient-to-r from-amber-950 to-red-950 border border-amber-700 rounded-lg p-4 mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div data-demo="security-threat-banner" className="bg-gradient-to-r from-amber-950 to-red-950 border border-amber-700 rounded-lg p-4 mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div className="flex items-center gap-4">
             <div className="w-16 h-16 rounded-full bg-amber-600 flex items-center justify-center animate-pulse">
               <span className="text-2xl font-black text-white">⚠</span>

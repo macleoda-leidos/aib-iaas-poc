@@ -110,7 +110,7 @@ export default function DataRetentionPage() {
         )}
 
         {/* Storage Usage */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-6 mb-8">
+        <div data-demo="retention-storage" className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-6 mb-8">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Storage Usage</h2>
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm text-gray-600 dark:text-gray-400">{storageUsed}GB / {storageTotal}GB</span>
@@ -122,7 +122,7 @@ export default function DataRetentionPage() {
         </div>
 
         {/* Policy Table */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 mb-8">
+        <div data-demo="retention-policies" className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 mb-8">
           <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Retention Policies</h2>
             {!hasCreditChecks && (

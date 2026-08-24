@@ -168,7 +168,7 @@ export default function ArchitecturePage() {
       ))}
 
       {/* Enterprise Production Stack */}
-      <div className="mt-8 bg-white border border-gray-200 rounded-lg p-4 md:p-6">
+      <div data-demo="production-stack" className="mt-8 bg-white border border-gray-200 rounded-lg p-4 md:p-6">
         <h2 className="text-lg font-bold mb-2">🏢 Enterprise Production Stack (Target)</h2>
         <p className="text-xs text-gray-500 mb-4">The POC uses a lightweight stack for rapid delivery. Production would use the enterprise stack below, aligned with AiB/Scottish Government standards.</p>
 
@@ -228,7 +228,7 @@ export default function ArchitecturePage() {
         </div>
 
         {/* AWS vs Azure Comparison */}
-        <div className="mt-4 bg-gray-50 border border-gray-200 rounded p-4">
+        <div data-demo="aws-comparison" className="mt-4 bg-gray-50 border border-gray-200 rounded p-4">
           <h3 className="font-bold text-sm mb-3">☁️ Cloud Platform Comparison: AWS (AiB Production) vs Azure</h3>
           <div className="overflow-x-auto">
             <table className="w-full text-xs border border-gray-200">

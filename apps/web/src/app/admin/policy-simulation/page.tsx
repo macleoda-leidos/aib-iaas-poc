@@ -311,7 +311,7 @@ export default function PolicySimulationPage() {
         </div>
 
         {/* Section 1: Parameter Controls */}
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+        <div data-demo="policy-parameters" className="bg-white rounded-lg shadow-sm p-6 mb-6">
           <h2 className="text-xl font-semibold text-gray-900 mb-4">Rule Parameters</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {PARAMETERS.map(param => {
@@ -382,7 +382,7 @@ export default function PolicySimulationPage() {
         </div>
 
         {/* Section 5: Before/After Comparison */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        <div data-demo="policy-distributions" className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
           <div className="bg-white rounded-lg shadow-sm p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4 text-center">Current Distribution</h3>
             <ResponsiveContainer width="100%" height={300}>

@@ -13,13 +13,15 @@ const STATUS_BADGE: Record<string, string> = {
   additional_info_required: 'bg-orange-100 text-orange-800',
 };
 
+// `slug` drives the data-demo hook the demo script clicks; label text is not a
+// stable selector because it contains currency and punctuation.
 const QUICK_REPORTS = [
-  { icon: '📊', label: 'All Applications', product: 'all', status: 'all', debtMin: 0 },
-  { icon: '✅', label: 'Approved Cases', product: 'all', status: 'approved', debtMin: 0 },
-  { icon: '📋', label: 'Pending Review', product: 'all', status: 'under_review', debtMin: 0 },
-  { icon: '🏴', label: 'DAS Applications', product: 'DAS', status: 'all', debtMin: 0 },
-  { icon: '⚠️', label: 'Rejected', product: 'all', status: 'rejected', debtMin: 0 },
-  { icon: '💰', label: 'High Debt (>£20k)', product: 'all', status: 'all', debtMin: 20000 },
+  { icon: '📊', slug: 'all', label: 'All Applications', product: 'all', status: 'all', debtMin: 0 },
+  { icon: '✅', slug: 'approved', label: 'Approved Cases', product: 'all', status: 'approved', debtMin: 0 },
+  { icon: '📋', slug: 'pending', label: 'Pending Review', product: 'all', status: 'under_review', debtMin: 0 },
+  { icon: '🏴', slug: 'das', label: 'DAS Applications', product: 'DAS', status: 'all', debtMin: 0 },
+  { icon: '⚠️', slug: 'rejected', label: 'Rejected', product: 'all', status: 'rejected', debtMin: 0 },
+  { icon: '💰', slug: 'high-debt', label: 'High Debt (>£20k)', product: 'all', status: 'all', debtMin: 20000 },
 ];
 
 export default function ReportsPage() {
@@ -84,7 +86,7 @@ export default function ReportsPage() {
       {/* Quick Report Tiles */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 mb-6">
         {QUICK_REPORTS.map(qr => (
-          <button key={qr.label} onClick={() => applyQuickReport(qr)}
+          <button key={qr.label} data-demo={`report-tile-${qr.slug}`} onClick={() => applyQuickReport(qr)}
             className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3 text-center hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950 transition-all">
             <p className="text-xl mb-1">{qr.icon}</p>
             <p className="text-xs font-bold">{qr.label}</p>
@@ -116,7 +118,7 @@ export default function ReportsPage() {
           <option value="all">All Regions</option>
           {regions.map(r => <option key={r} value={r}>{r}</option>)}
         </select>
-        <button onClick={() => setGenerated(true)} className="bg-blue-700 hover:bg-blue-800 text-white font-bold px-4 py-2 rounded text-sm">
+        <button data-demo="report-generate" onClick={() => setGenerated(true)} className="bg-blue-700 hover:bg-blue-800 text-white font-bold px-4 py-2 rounded text-sm">
           📊 Generate Report ({filtered.length} cases)
         </button>
         {(product !== 'all' || status !== 'all' || region !== 'all' || debtMin > 0) && (
@@ -154,7 +156,7 @@ export default function ReportsPage() {
               <p className="text-xs text-gray-500">Generated {new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })} at {new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })} • {filtered.length} records</p>
             </div>
             <div className="flex gap-2">
-              <button onClick={exportCSV} className="bg-green-700 text-white text-xs font-bold px-3 py-1.5 rounded hover:bg-green-800">📥 CSV</button>
+              <button data-demo="report-export-csv" onClick={exportCSV} className="bg-green-700 text-white text-xs font-bold px-3 py-1.5 rounded hover:bg-green-800">📥 CSV</button>
               <button onClick={() => window.print()} className="bg-gray-700 text-white text-xs font-bold px-3 py-1.5 rounded hover:bg-gray-800">🖨 Print</button>
             </div>
           </div>

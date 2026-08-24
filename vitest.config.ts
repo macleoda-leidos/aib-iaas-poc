@@ -7,14 +7,38 @@ export default defineConfig({
   resolve: {
     extensions: ['.ts', '.tsx', '.mts', '.mjs', '.js', '.jsx', '.json'],
   },
+  // apps/web sets jsx: "preserve" for Next to handle, so esbuild has no JSX
+  // instruction of its own and falls back to the classic runtime — which fails
+  // with "React is not defined" in files that don't import React (the whole
+  // codebase, since Next 15 doesn't need it). Point it at the automatic runtime.
+  esbuild: {
+    jsx: 'automatic',
+  },
   test: {
     include: [
       'packages/*/src/__tests__/**/*.test.ts',
       'services/*/src/__tests__/**/*.test.ts',
       'tests/integration/**/*.test.ts',
+      // Frontend: .tsx as well, and __tests__ may sit at any depth under src/
+      // (colocated next to the component being tested rather than in one
+      // top-level folder, which is the convention Next.js app-router pushes you
+      // towards once routes are nested).
+      'apps/*/src/**/__tests__/**/*.test.{ts,tsx}',
     ],
     exclude: ['node_modules', 'dist', '.next', 'tests/e2e'],
+    // Default stays node so every backend suite is unaffected. Only files
+    // matching the globs below are switched to jsdom — an opt-in list, so a new
+    // backend test can never silently pick up a browser environment (which
+    // would mask a genuine "this code assumed a DOM" bug). vitest 1.6 has no
+    // test.projects (that arrived in v3); environmentMatchGlobs is the
+    // supported mechanism at this version and keeps everything in one config
+    // rather than relying on a per-file docblock that is easy to forget.
     environment: 'node',
+    environmentMatchGlobs: [
+      ['apps/**', 'jsdom'],
+    ],
+    // Guarded internally so it is inert under the node environment.
+    setupFiles: ['apps/web/src/test/setup.ts'],
     globals: true,
     env: {
       DATABASE_PATH: ':memory:',

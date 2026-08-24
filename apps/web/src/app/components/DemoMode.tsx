@@ -22,6 +22,13 @@ function buildDemoSteps(app: GeneratedApplication): DemoStep[] {
   const totalDebt = app.debts.reduce((s, d) => s + d.outstandingAmount, 0);
   const totalIncome = app.income.wages + app.income.benefits + app.income.pension + app.income.other;
   const totalExp = app.expenditure.rent + app.expenditure.councilTax + app.expenditure.utilities + app.expenditure.food + app.expenditure.transport + app.expenditure.insurance + app.expenditure.childcare + app.expenditure.other;
+  // Narration lists only the asset classes this persona actually holds, so the
+  // talk track never promises a property the Assets page won't show.
+  const assetSummary = [
+    app.assets.vehicles.length ? 'vehicle' : null,
+    app.assets.savings.length ? 'savings' : null,
+    app.assets.properties.length ? 'property' : null,
+  ].filter(Boolean).join(', ');
 
   return [
     // Staff demo (steps 0-6)
@@ -117,29 +124,29 @@ function buildDemoSteps(app: GeneratedApplication): DemoStep[] {
       path: '/apply',
       duration: 8,
       title: '\u{1F3E1} Step 5: Assets',
-      narration: app.assets.noAssets
-        ? 'No assets declared. This opens eligibility for MAP.'
-        : `Adding assets: property, vehicle, savings — one by one.`,
-      actions: app.assets.noAssets ? [
-        { delay: 1000, action: { type: 'FILL_ASSETS', data: app.assets } },
-        { delay: 4000, action: { type: 'NEXT_STEP' } },
-      ] : [
-        // Sequential asset entry
-        { delay: 1000, action: { type: 'FILL_ASSETS', data: { ...app.assets, vehicles: [], savings: [] } } },
-        { delay: 3000, action: { type: 'FILL_ASSETS', data: { ...app.assets, savings: [] } } },
+      narration: `Declaring assets one by one: ${assetSummary}.`,
+      actions: [
+        // Sequential asset entry. The demo persona always declares assets (see
+        // startDemo), so vehicle and savings are revealed first and property
+        // last — property only exists on the PTD profile, and revealing it last
+        // means the earlier beats still show a row appearing either way.
+        { delay: 1000, action: { type: 'FILL_ASSETS', data: { ...app.assets, savings: [], properties: [] } } },
+        { delay: 3000, action: { type: 'FILL_ASSETS', data: { ...app.assets, properties: [] } } },
         { delay: 5000, action: { type: 'FILL_ASSETS', data: app.assets } },
         { delay: 6500, action: { type: 'NEXT_STEP' } },
       ],
     },
     {
       path: '/apply',
-      duration: 8,
+      duration: 11,
       title: '\u{1F4C4} Step 6: Documents',
-      narration: 'Uploading Payslip and Bank Statement. ClamAV virus scan: Clean ✓',
+      narration: 'Uploading 4 documents: payslip, bank statement, council tax bill, creditor letter. ClamAV virus scan: Clean ✓',
       actions: [
         { delay: 1000, action: { type: 'UPLOAD_DOCUMENT', data: { filename: 'Payslip-August-2026.pdf', size: 245000 } } },
-        { delay: 3500, action: { type: 'UPLOAD_DOCUMENT', data: { filename: 'BankStatement-Q2-2026.pdf', size: 1120000 } } },
-        { delay: 6500, action: { type: 'NEXT_STEP' } },
+        { delay: 3000, action: { type: 'UPLOAD_DOCUMENT', data: { filename: 'BankStatement-Q2-2026.pdf', size: 1120000 } } },
+        { delay: 5000, action: { type: 'UPLOAD_DOCUMENT', data: { filename: 'CouncilTaxBill-2026-27.pdf', size: 186000 } } },
+        { delay: 7000, action: { type: 'UPLOAD_DOCUMENT', data: { filename: 'CreditorLetter-RBS.pdf', size: 92000 } } },
+        { delay: 9500, action: { type: 'NEXT_STEP' } },
       ],
     },
     {
@@ -182,7 +189,7 @@ function buildDemoSteps(app: GeneratedApplication): DemoStep[] {
       title: '\u{1F4E5} In Staff Queue',
       narration: 'New case appears in dashboard immediately. Priority: High. Assigned to Karen MacLeod.',
       actions: [
-        { delay: 1000, action: { type: 'SCROLL_TO', selector: '.applications-table' } },
+        { delay: 1000, action: { type: 'SCROLL_TO', selector: '[data-demo="applications-table"]' } },
       ],
     },
     {
@@ -217,6 +224,149 @@ function buildDemoSteps(app: GeneratedApplication): DemoStep[] {
       duration: 5,
       title: '\u{1F9E0} AI Explainability',
       narration: 'Visual decision tree. Full transparency — exactly HOW the AI decided.',
+    },
+
+    // Admin deep dive (steps 23-30)
+    {
+      // Five tabs to walk, each with a scroll to the bottom, so this is the
+      // longest step in the script by a wide margin.
+      path: '/admin/digital-mailroom',
+      duration: 34,
+      title: '\u{1F4EC} Digital Mailroom',
+      narration: 'Post, email and scans ingested automatically: OCR, classification, NER extraction, then rules-based routing. Five tabs — dashboard, queue, workflows, stats, outbound.',
+      actions: [
+        { delay: 1000, action: { type: 'CLICK', selector: '[data-demo="mailroom-tab-dashboard"]' } },
+        { delay: 2500, action: { type: 'SLOW_SCROLL', durationMs: 4000 } },
+        { delay: 7500, action: { type: 'CLICK', selector: '[data-demo="mailroom-tab-queue"]' } },
+        { delay: 9000, action: { type: 'SLOW_SCROLL', durationMs: 4000 } },
+        { delay: 14000, action: { type: 'CLICK', selector: '[data-demo="mailroom-tab-workflows"]' } },
+        { delay: 15500, action: { type: 'SLOW_SCROLL', durationMs: 4000 } },
+        { delay: 20500, action: { type: 'CLICK', selector: '[data-demo="mailroom-tab-stats"]' } },
+        { delay: 22000, action: { type: 'SLOW_SCROLL', durationMs: 4000 } },
+        { delay: 27000, action: { type: 'CLICK', selector: '[data-demo="mailroom-tab-outbound"]' } },
+        { delay: 28500, action: { type: 'SLOW_SCROLL', durationMs: 4500 } },
+      ],
+    },
+    {
+      path: '/admin/policy-simulation',
+      duration: 14,
+      title: '\u{1F39A}️ Policy Simulation',
+      narration: 'Four rule thresholds — DAS disposable income, MAP debt ceiling, PTD assets, DPP term. Move one and the before/after product mix is re-run against 100 historical cases.',
+      actions: [
+        { delay: 1000, action: { type: 'HIGHLIGHT', selector: '[data-demo="policy-parameters"]', durationMs: 3500 } },
+        { delay: 5000, action: { type: 'SCROLL_TO', selector: '[data-demo="policy-distributions"]', block: 'start' } },
+        { delay: 7500, action: { type: 'SLOW_SCROLL', durationMs: 5500 } },
+      ],
+    },
+    {
+      path: '/admin/data-retention',
+      duration: 12,
+      title: '\u{1F5C4}️ Data Retention',
+      narration: 'Retention policy per record type — applications 6 years, audit events 7. Auto-archival with a due-for-archival queue. 2.3GB of 10GB in use.',
+      actions: [
+        { delay: 1000, action: { type: 'HIGHLIGHT', selector: '[data-demo="retention-storage"]', durationMs: 3000 } },
+        { delay: 4500, action: { type: 'HIGHLIGHT', selector: '[data-demo="retention-policies"]', durationMs: 3000 } },
+        { delay: 8000, action: { type: 'SLOW_SCROLL', durationMs: 3500 } },
+      ],
+    },
+    {
+      path: '/admin/carbon-tracker',
+      duration: 12,
+      title: '\u{1F331} Carbon Tracker',
+      narration: '1,247 digital applications instead of paper — 6,235 fewer printed pages, 0.74 tonnes of CO2 saved. £4.20 per paper application against £0.08 digital: a 98% reduction.',
+      actions: [
+        { delay: 1000, action: { type: 'SLOW_SCROLL', durationMs: 7000 } },
+        { delay: 8500, action: { type: 'HIGHLIGHT', selector: '[data-demo="carbon-cost-comparison"]', durationMs: 3000 } },
+      ],
+    },
+    {
+      path: '/admin/users',
+      duration: 18,
+      title: '\u{1F465} User Management',
+      narration: '500 users across 14 external organisations. 9 role levels from System Administrator down to Debtor, with an 11-permission RBAC matrix. Add User writes through to the live API.',
+      actions: [
+        { delay: 1000, action: { type: 'HIGHLIGHT', selector: '[data-demo="users-table"]', durationMs: 3000 } },
+        { delay: 4500, action: { type: 'SCROLL_TO', selector: '[data-demo="users-rbac-matrix"]', block: 'start' } },
+        { delay: 7000, action: { type: 'HIGHLIGHT', selector: '[data-demo="users-rbac-matrix"]', durationMs: 3000 } },
+        { delay: 11000, action: { type: 'CLICK', selector: '[data-demo="users-add"]' } },
+        // Close the modal within this step — leaving it open would sit over
+        // every page that follows.
+        { delay: 15000, action: { type: 'CLICK', selector: '[data-demo="users-add-cancel"]' } },
+      ],
+    },
+    {
+      path: '/admin/reports',
+      duration: 16,
+      title: '\u{1F4CA} Report Builder',
+      narration: 'Six one-click report tiles over 100 applications, or filter by product, status, region and debt. Generate renders the table and status breakdown; CSV downloads it.',
+      actions: [
+        { delay: 1000, action: { type: 'CLICK', selector: '[data-demo="report-tile-approved"]' } },
+        { delay: 3500, action: { type: 'CLICK', selector: '[data-demo="report-tile-high-debt"]' } },
+        { delay: 6000, action: { type: 'CLICK', selector: '[data-demo="report-generate"]' } },
+        { delay: 8500, action: { type: 'SLOW_SCROLL', durationMs: 4000 } },
+        { delay: 13000, action: { type: 'CLICK', selector: '[data-demo="report-export-csv"]' } },
+      ],
+    },
+    {
+      // CSV rather than PDF: exportPDF opens a print dialog, which is a modal
+      // the demo player cannot dismiss and would stall an unattended run.
+      path: '/admin/mi-reports',
+      duration: 18,
+      title: '\u{1F4C8} Management Information',
+      narration: 'Senior management MI by period — week through year. Volumes, SLA compliance, per-product and per-officer performance, and the SLA breach list, all re-based per period. Exports to CSV.',
+      actions: [
+        { delay: 1000, action: { type: 'CLICK', selector: '[data-demo="mi-period-week"]' } },
+        { delay: 3500, action: { type: 'CLICK', selector: '[data-demo="mi-period-month"]' } },
+        { delay: 6000, action: { type: 'CLICK', selector: '[data-demo="mi-period-quarter"]' } },
+        { delay: 8500, action: { type: 'CLICK', selector: '[data-demo="mi-period-year"]' } },
+        { delay: 11000, action: { type: 'SLOW_SCROLL', durationMs: 4500 } },
+        { delay: 16000, action: { type: 'CLICK', selector: '[data-demo="mi-export-csv"]' } },
+      ],
+    },
+    {
+      path: '/admin/integration-monitor',
+      duration: 12,
+      title: '\u{1F517} Integration Health',
+      narration: 'All 6 AiB systems connected — BASYS, eDEN, DAS Register, CFT, Moratorium, RoI. 137ms average latency, 0.01% error rate, and the one eDEN timeout auto-retried and resolved.',
+      actions: [
+        { delay: 1000, action: { type: 'HIGHLIGHT', selector: '[data-demo="integration-cards"]', durationMs: 3500 } },
+        { delay: 5000, action: { type: 'SLOW_SCROLL', durationMs: 5500 } },
+      ],
+    },
+
+    // Platform-wide views and the closing architecture beat (steps 31-33)
+    {
+      path: '/statistics',
+      duration: 22,
+      title: '\u{1F4C9} Statistics & Analytics',
+      narration: 'Volume, status and product mix, SLA performance, adviser activity, debt distribution and regional spread — selectable across 7 days to 12 months.',
+      actions: [
+        { delay: 1000, action: { type: 'HIGHLIGHT', selector: '[data-demo="statistics-kpis"]', durationMs: 3000 } },
+        { delay: 4500, action: { type: 'SLOW_SCROLL', durationMs: 16000 } },
+      ],
+    },
+    {
+      path: '/security',
+      duration: 22,
+      title: '\u{1F6E1}️ Security Operations',
+      narration: 'SOC view: 24-hour attack timeline, Sophos endpoint state, Tenable vulnerability summary, active incidents, access anomalies and Sysmon process alerts. 47 attempts blocked today.',
+      actions: [
+        { delay: 1000, action: { type: 'HIGHLIGHT', selector: '[data-demo="security-threat-banner"]', durationMs: 3000 } },
+        { delay: 4500, action: { type: 'SLOW_SCROLL', durationMs: 16000 } },
+      ],
+    },
+    {
+      // Final content beat — the presenter closes on cost and the AWS target.
+      path: '/architecture',
+      duration: 26,
+      title: '\u{1F3D7}️ Architecture & Production Path',
+      narration: 'Everything you have just seen runs for £0/month on free-tier hosting. The table maps all 17 layers from this POC to the production target: .NET 8 on ECS Fargate, RDS, S3 and CloudFront in Scottish Government AWS, eu-west-2. The second table is why AWS over Azure.',
+      actions: [
+        { delay: 1000, action: { type: 'SCROLL_TO', selector: '[data-demo="production-stack"]', block: 'start' } },
+        { delay: 3500, action: { type: 'SLOW_SCROLL', durationMs: 9000 } },
+        { delay: 13500, action: { type: 'SCROLL_TO', selector: '[data-demo="aws-comparison"]', block: 'start' } },
+        { delay: 16500, action: { type: 'SLOW_SCROLL', durationMs: 8000 } },
+      ],
     },
     {
       path: '/',
@@ -277,7 +427,9 @@ export default function DemoMode() {
   }, [router, demoSteps, playing, speed, clearActionTimers, executeStepActions]);
 
   const startDemo = () => {
-    const app = generateRandomApplication();
+    // Force assets so the Assets page has rows to show — the script walks every
+    // page of the form and an empty "no assets declared" panel reads as a gap.
+    const app = generateRandomApplication({ alwaysDeclareAssets: true });
     setDemoApp(app);
     const steps = buildDemoSteps(app);
     setDemoSteps(steps);

@@ -246,7 +246,7 @@ export default function StatisticsPage() {
       </div>
 
       {/* ─── Section A: KPI Cards — update with time range ── */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+      <div data-demo="statistics-kpis" className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
         <KpiCard label={`Applications (${currentKpis.thisLabel})`} value={formatNumber(currentKpis.total + liveOffsets.total)} trend={currentKpis.trend} icon="📊" color="blue" />
         <KpiCard label="Credit Check Success" value={`${currentKpis.creditCheck}%`} trend="above 90% target" icon="🔍" color="green" />
         <KpiCard label="Integration Uptime" value={`${currentKpis.uptime}%`} trend="target: 99%" icon="🔗" color="purple" />

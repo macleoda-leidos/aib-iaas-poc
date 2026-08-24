@@ -503,7 +503,7 @@ function AibDashboard({ user }: { user: any }) {
       </div>
 
       {/* Recent Applications */}
-      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded mb-6">
+      <div data-demo="applications-table" className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded mb-6">
         <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
           <div className="flex items-center gap-3">
             <h2 className="text-lg font-bold">Applications Requiring Action</h2>

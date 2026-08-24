@@ -156,7 +156,7 @@ export default function UsersPage() {
         </div>
         <div className="flex gap-2">
           <button onClick={downloadReport} className="bg-gray-700 text-white px-3 py-2 text-xs rounded hover:bg-gray-800">📊 Weekly Report</button>
-          <button onClick={() => setShowAddModal(true)} className="bg-blue-700 text-white px-3 py-2 text-xs rounded hover:bg-blue-800">+ Add User</button>
+          <button data-demo="users-add" onClick={() => setShowAddModal(true)} className="bg-blue-700 text-white px-3 py-2 text-xs rounded hover:bg-blue-800">+ Add User</button>
         </div>
       </div>
 
@@ -197,7 +197,7 @@ export default function UsersPage() {
       )}
 
       {/* Table */}
-      <div className="bg-white border border-gray-200 rounded overflow-hidden">
+      <div data-demo="users-table" className="bg-white border border-gray-200 rounded overflow-hidden">
         <table className="w-full">
           <thead className="bg-gray-50 border-b text-xs"><tr>
             <th className="p-2 w-8"><input type="checkbox" checked={selectedIds.size === pageUsers.length && pageUsers.length > 0} onChange={toggleSelectAll} /></th>
@@ -245,7 +245,7 @@ export default function UsersPage() {
       </div>
 
       {/* RBAC Matrix */}
-      <div className="mt-8 bg-white border border-gray-200 rounded p-4">
+      <div data-demo="users-rbac-matrix" className="mt-8 bg-white border border-gray-200 rounded p-4">
         <h2 className="font-bold mb-2">Role Hierarchy & Permissions ({ALL_ROLES.length} levels)</h2>
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
@@ -324,7 +324,7 @@ export default function UsersPage() {
                 <select value={newUser.orgId} onChange={e => setNewUser(p => ({ ...p, orgId: e.target.value }))} className="border dark:border-gray-600 dark:bg-gray-900 p-2 w-full text-sm rounded"><option value="">Select org...</option>{ALL_ORGS_LIST.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}</select></div>
             </div>
             <div className="flex justify-end gap-2 mt-6">
-              <button onClick={() => { setShowAddModal(false); setCreateStatus('idle'); }} className="px-4 py-2 text-sm border rounded dark:border-gray-600">Cancel</button>
+              <button data-demo="users-add-cancel" onClick={() => { setShowAddModal(false); setCreateStatus('idle'); }} className="px-4 py-2 text-sm border rounded dark:border-gray-600">Cancel</button>
               <button onClick={handleCreateUser} disabled={createStatus === 'saving'} className="px-4 py-2 text-sm bg-blue-700 text-white rounded disabled:opacity-50">
                 {createStatus === 'saving' ? 'Creating...' : 'Create User'}
               </button>

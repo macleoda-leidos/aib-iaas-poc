@@ -80,7 +80,7 @@ export default function CarbonTrackerPage() {
         </div>
 
         {/* Cost Comparison */}
-        <div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
+        <div data-demo="carbon-cost-comparison" className="bg-gray-800 border border-gray-700 rounded-xl p-6">
           <h2 className="text-lg font-bold mb-4">Cost Comparison</h2>
           <div className="grid md:grid-cols-2 gap-6">
             <div className="bg-red-900/20 border border-red-800 rounded-lg p-4 text-center">
