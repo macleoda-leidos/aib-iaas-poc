@@ -95,6 +95,7 @@ if (process.env.DATABASE_URL?.startsWith('postgresql://')) {
   const { Pool } = require('pg');
   const { initPgSchema } = require('@aib-iaas/database');
   const { seedPgDatabase } = require('@aib-iaas/database');
+  const { seedPgApplications } = require('@aib-iaas/database');
 
   (async () => {
     try {
@@ -106,6 +107,7 @@ if (process.env.DATABASE_URL?.startsWith('postgresql://')) {
       });
       await initPgSchema(pool);
       await seedPgDatabase(pool);
+      await seedPgApplications(pool);
       console.log('[Consolidated API] Neon PostgreSQL initialized as persistent store');
       await pool.end();
     } catch (e: any) {

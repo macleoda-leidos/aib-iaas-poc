@@ -10,6 +10,7 @@
 import { Pool } from 'pg';
 import { initPgSchema } from '../packages/database/src/pg-schema';
 import { seedPgDatabase } from '../packages/database/src/pg-seed';
+import { seedPgApplications } from '../packages/database/src/pg-seed-applications';
 
 async function main() {
   const url = process.env.DATABASE_URL;
@@ -36,6 +37,7 @@ async function main() {
     // Seed data
     console.log('🌱 Seeding data...');
     await seedPgDatabase(pool);
+    await seedPgApplications(pool);
 
     // Verify
     const roles = await pool.query('SELECT COUNT(*) as c FROM roles');

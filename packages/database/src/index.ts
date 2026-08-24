@@ -5,6 +5,7 @@ export { initializeSchema } from './schema';
 export { isPostgresEnabled, getPgPool, closePgPool } from './pg-connection';
 export { initPgSchema } from './pg-schema';
 export { seedPgDatabase } from './pg-seed';
+export { seedPgApplications } from './pg-seed-applications';
 
 // Repositories
 export { ApplicationRepository } from './repositories/applications';
