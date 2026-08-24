@@ -49,10 +49,10 @@ const GITHUB_RAW_BASE = 'https://raw.githubusercontent.com/macleoda-leidos/aib-i
 // Simple markdown to HTML converter
 function renderMarkdown(md: string): string {
   let html = md
-    // Code blocks (before other processing)
+    // Code blocks (before other processing) — mermaid diagrams
     .replace(/```mermaid\s*\n([\s\S]*?)```/g, (_, diagram) => {
       const cleaned = diagram.trim();
-      return `<pre class="mermaid">${cleaned}</pre>`;
+      return `<div class="diagram-wrapper my-4"><pre class="mermaid">${cleaned}</pre></div>`;
     })
     .replace(/```(\w*)\n([\s\S]*?)```/g, '<pre class="bg-gray-100 dark:bg-gray-800 p-4 rounded overflow-x-auto text-xs"><code>$2</code></pre>')
     // Tables
@@ -74,14 +74,14 @@ function renderMarkdown(md: string): string {
     .replace(/\*(.+?)\*/g, '<em>$1</em>')
     // Inline code
     .replace(/`([^`]+)`/g, '<code class="bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded text-xs">$1</code>')
-    // Links — relative .md links → GitHub view (prevents 404s)
+    // Links — relative .md links → GitHub view
     .replace(/\[([^\]]+)\]\(\.?\/?([a-zA-Z0-9_-]+\.md)\)/g, '<a href="https://github.com/macleoda-leidos/aib-iaas-poc/blob/main/docs/$2" class="text-blue-700 dark:text-blue-400 underline" target="_blank">$1 ↗</a>')
     // Links — all other URLs
     .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="text-blue-700 dark:text-blue-400 underline" target="_blank">$1</a>')
     // Lists
     .replace(/^- (.+)$/gm, '<li class="ml-4 list-disc text-sm">$1</li>')
     .replace(/^\d+\. (.+)$/gm, '<li class="ml-4 list-decimal text-sm">$1</li>')
-    // Paragraphs (lines not already wrapped)
+    // Paragraphs
     .replace(/^(?!<[hltpud]|<li|<pre|<div|<table|<thead|<tbody|<tr)(.+)$/gm, '<p class="text-sm mb-2">$1</p>')
     // Horizontal rules
     .replace(/^---$/gm, '<hr class="my-4 border-gray-300 dark:border-gray-600">')
@@ -94,8 +94,10 @@ function renderMarkdown(md: string): string {
 export default function DevDocumentationPage() {
   const [selectedDoc, setSelectedDoc] = useState<string | null>(null);
   const [content, setContent] = useState<string>('');
+  const [rawMd, setRawMd] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [zoomSvg, setZoomSvg] = useState<string | null>(null);
 
   const loadDocument = useCallback(async (filename: string) => {
     if (selectedDoc === filename) {
@@ -108,12 +110,15 @@ export default function DevDocumentationPage() {
       const res = await fetch(`${GITHUB_RAW_BASE}${filename}`);
       if (res.ok) {
         const md = await res.text();
+        setRawMd(md);
         setContent(renderMarkdown(md));
       } else {
         setContent('<p class="text-red-500">Failed to load document. It may not exist on the main branch yet.</p>');
+        setRawMd('');
       }
     } catch {
       setContent('<p class="text-red-500">Network error — unable to fetch document.</p>');
+      setRawMd('');
     }
     setLoading(false);
   }, [selectedDoc]);
@@ -125,21 +130,54 @@ export default function DevDocumentationPage() {
         try {
           const m = (window as any).mermaid;
           if (m) {
-            m.initialize({ startOnLoad: false, theme: 'default', securityLevel: 'loose', suppressErrors: true });
-            // Process each diagram individually so one failure doesn't break all
+            m.initialize({
+              startOnLoad: false,
+              theme: 'default',
+              securityLevel: 'loose',
+              suppressErrors: true,
+              c4: { diagramMarginY: 50, diagramMarginX: 50 },
+            });
             const elements = document.querySelectorAll('.mermaid:not([data-processed])');
             for (const el of elements) {
               try {
                 const { svg } = await m.render(`mermaid-${Math.random().toString(36).slice(2)}`, el.textContent || '');
-                el.innerHTML = svg;
+                // Wrap SVG with view-full button
+                const wrapper = el.closest('.diagram-wrapper');
+                if (wrapper) {
+                  wrapper.innerHTML = `<div class="relative"><button class="diagram-zoom-btn absolute top-1 right-1 z-10 bg-blue-700 text-white text-xs font-bold px-2 py-1 rounded hover:bg-blue-800 opacity-80 hover:opacity-100">🔍 View Full</button><div class="diagram-svg overflow-x-auto">${svg}</div></div>`;
+                } else {
+                  el.innerHTML = svg;
+                }
                 el.setAttribute('data-processed', 'true');
               } catch {
-                // Diagram failed — show as formatted code block instead
-                el.classList.remove('mermaid');
-                el.classList.add('bg-gray-100', 'dark:bg-gray-800', 'p-3', 'rounded', 'text-xs', 'overflow-x-auto');
-                el.setAttribute('data-processed', 'true');
+                // C4 or complex diagram failed — show as styled card with content
+                const diagramText = el.textContent || '';
+                const isC4 = diagramText.startsWith('C4Context') || diagramText.startsWith('C4Container') || diagramText.startsWith('C4Component');
+                const wrapper = el.closest('.diagram-wrapper');
+                const fallbackHtml = `
+                  <div class="border-2 border-dashed border-amber-300 dark:border-amber-700 rounded-lg p-4 bg-amber-50 dark:bg-amber-950">
+                    <div class="flex items-center justify-between mb-2">
+                      <span class="text-sm font-bold text-amber-800 dark:text-amber-300">${isC4 ? '🏗️ C4 Architecture Diagram' : '📊 Complex Diagram'}</span>
+                      <span class="text-xs bg-amber-200 dark:bg-amber-800 text-amber-800 dark:text-amber-200 px-2 py-0.5 rounded">Rendered in documentation PDF</span>
+                    </div>
+                    <pre class="bg-white dark:bg-gray-900 p-3 rounded text-xs overflow-x-auto max-h-[300px] overflow-y-auto border">${diagramText}</pre>
+                  </div>`;
+                if (wrapper) {
+                  wrapper.innerHTML = fallbackHtml;
+                } else {
+                  el.outerHTML = fallbackHtml;
+                }
               }
             }
+
+            // Attach zoom handlers to all view-full buttons
+            document.querySelectorAll('.diagram-zoom-btn').forEach(btn => {
+              btn.addEventListener('click', (e) => {
+                const target = e.currentTarget as HTMLElement;
+                const svgEl = target.parentElement?.querySelector('.diagram-svg');
+                if (svgEl) setZoomSvg(svgEl.innerHTML);
+              });
+            });
           }
         } catch {}
       };
@@ -156,13 +194,24 @@ export default function DevDocumentationPage() {
     }
   }, [content]);
 
+  const downloadMarkdown = () => {
+    if (!rawMd || !selectedDoc) return;
+    const blob = new Blob([rawMd], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = selectedDoc;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const filteredDocs = categoryFilter === 'all' ? DOCS : DOCS.filter(d => d.category === categoryFilter);
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-8">
+    <div className="max-w-6xl mx-auto px-4 py-8">
       <Link href="/admin" className="text-blue-700 dark:text-blue-400 text-sm underline mb-4 inline-block">← Back to Admin</Link>
       <h1 className="text-3xl font-bold mb-2">📖 Project Documentation</h1>
-      <p className="text-gray-600 dark:text-gray-400 mb-4">{DOCS.length} documents • Click to expand and read inline with rendered Markdown + Mermaid diagrams</p>
+      <p className="text-gray-600 dark:text-gray-400 mb-4">{DOCS.length} documents • Click to expand • 🔍 View Full on diagrams • 📥 Download as Markdown</p>
 
       {/* Category filter */}
       <div className="flex flex-wrap gap-2 mb-6">
@@ -193,17 +242,38 @@ export default function DevDocumentationPage() {
             </button>
 
             {selectedDoc === doc.file && (
-              <div className="border-t border-gray-200 dark:border-gray-700 px-6 py-4 bg-white dark:bg-gray-900 max-h-[600px] overflow-y-auto">
-                {loading ? (
-                  <p className="text-sm text-gray-500 animate-pulse">Loading document...</p>
-                ) : (
-                  <div dangerouslySetInnerHTML={{ __html: content }} />
-                )}
+              <div className="border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
+                {/* Document toolbar */}
+                <div className="flex items-center gap-2 px-6 py-2 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+                  <button onClick={downloadMarkdown} className="bg-green-700 hover:bg-green-800 text-white text-xs font-bold px-3 py-1 rounded">📥 Download .md</button>
+                  <button onClick={() => window.print()} className="bg-gray-700 hover:bg-gray-800 text-white text-xs font-bold px-3 py-1 rounded">🖨 Print / PDF</button>
+                </div>
+                {/* Content area — larger max height */}
+                <div className="px-6 py-4 max-h-[800px] overflow-y-auto">
+                  {loading ? (
+                    <p className="text-sm text-gray-500 animate-pulse">Loading document...</p>
+                  ) : (
+                    <div dangerouslySetInnerHTML={{ __html: content }} />
+                  )}
+                </div>
               </div>
             )}
           </div>
         ))}
       </div>
+
+      {/* Full-screen diagram zoom modal */}
+      {zoomSvg && (
+        <div className="fixed inset-0 z-50 bg-white dark:bg-gray-900 flex flex-col" onClick={() => setZoomSvg(null)}>
+          <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+            <h3 className="font-bold text-sm">🔍 Diagram — Full View (click anywhere or press Escape to close)</h3>
+            <button onClick={() => setZoomSvg(null)} className="bg-red-600 text-white text-xs font-bold px-3 py-1.5 rounded hover:bg-red-700">✕ Close</button>
+          </div>
+          <div className="flex-1 overflow-auto p-8 flex items-start justify-center" onClick={e => e.stopPropagation()}>
+            <div className="w-full max-w-[95vw]" dangerouslySetInnerHTML={{ __html: zoomSvg }} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
