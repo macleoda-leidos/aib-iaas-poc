@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, Suspense, useMemo } from 'react';
+import { useState, useEffect, Suspense, useMemo } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import CaseTimeline from './components/CaseTimeline';
@@ -10,6 +10,7 @@ import NotificationPanel from './components/NotificationPanel';
 import EmailLog from './components/EmailLog';
 import { auditRepo } from '../../../lib/persistence';
 import { seedApplications } from '../../../lib/seedData';
+import { applications as applicationsApi, audit as auditApi } from '../../../lib/apiClient';
 
 // ─── Feature 7: Predictive Processing Time ─────────────────────────────────────
 const PROCESSING_TIMES: Record<string, string> = {
@@ -210,13 +211,178 @@ const STAFF_MEMBERS = [
   { id: 'USR-006', name: 'Sarah Mitchell', role: 'AiB Case Officer' },
 ];
 
+// ─── SeedCaseView: API-connected case view for seed applications ─────────────
+function SeedCaseView({ seedApp, caseRef }: { seedApp: any; caseRef: string }) {
+  const [status, setStatus] = useState(seedApp.status);
+  const [actionLoading, setActionLoading] = useState('');
+  const [toast, setToast] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+  const [noteText, setNoteText] = useState('');
+  const [notes, setNotes] = useState<Array<{ text: string; author: string; time: string }>>([]);
+
+  const handleStatusChange = async (newStatus: string) => {
+    setActionLoading(newStatus);
+    try {
+      await applicationsApi.updateStatus(seedApp.id || caseRef, newStatus);
+      setStatus(newStatus);
+      setToast({ text: `Case ${newStatus.replace(/_/g, ' ')}`, type: 'success' });
+    } catch {
+      // API unavailable — update locally anyway for demo purposes
+      setStatus(newStatus);
+      setToast({ text: `Case ${newStatus.replace(/_/g, ' ')} (offline)`, type: 'success' });
+    }
+    setActionLoading('');
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  const handleAddNote = async () => {
+    if (!noteText.trim()) return;
+    const note = { text: noteText, author: 'AiB Staff', time: new Date().toLocaleString('en-GB') };
+    try {
+      await applicationsApi.addNote(seedApp.id || caseRef, noteText, 'general', 'AiB Staff');
+    } catch { /* continue offline */ }
+    setNotes([note, ...notes]);
+    setNoteText('');
+  };
+
+  return (
+    <div className="max-w-5xl mx-auto px-4 py-8">
+      <Link href="/dashboard" className="text-blue-700 dark:text-blue-400 text-sm underline mb-3 inline-block">← Back to Dashboard</Link>
+
+      {/* Toast */}
+      {toast && (
+        <div className={`fixed top-4 right-4 z-50 px-4 py-2 rounded-lg shadow-lg text-sm font-bold animate-pulse ${toast.type === 'success' ? 'bg-green-600 text-white' : 'bg-red-600 text-white'}`}>
+          {toast.text}
+        </div>
+      )}
+
+      <div className="flex flex-wrap justify-between items-start mb-6 gap-4">
+        <div>
+          <h1 className="text-2xl font-bold font-mono">{seedApp.ref}</h1>
+          <p className="text-gray-600 dark:text-gray-400">{seedApp.firstName} {seedApp.lastName} • {seedApp.product} • {seedApp.date}</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className={`px-3 py-1 rounded text-sm font-bold uppercase ${
+            status === 'approved' ? 'bg-green-100 text-green-800' :
+            status === 'rejected' ? 'bg-red-100 text-red-800' :
+            status === 'submitted' ? 'bg-blue-100 text-blue-800' :
+            status === 'under_review' ? 'bg-purple-100 text-purple-800' :
+            'bg-gray-200 text-gray-700'
+          }`}>{status.replace(/_/g, ' ')}</span>
+          <span className="px-3 py-1 rounded text-sm font-bold bg-blue-100 text-blue-800">{seedApp.confidence}% confidence</span>
+        </div>
+      </div>
+
+      {/* Actions — wired to API */}
+      <div className="flex gap-2 mb-6">
+        <button onClick={() => handleStatusChange('approved')} disabled={!!actionLoading || status === 'approved'}
+          className="bg-green-700 text-white text-sm font-bold px-4 py-2 rounded hover:bg-green-800 disabled:opacity-50">
+          {actionLoading === 'approved' ? '...' : '✓ Approve'}
+        </button>
+        <button onClick={() => handleStatusChange('rejected')} disabled={!!actionLoading || status === 'rejected'}
+          className="bg-red-700 text-white text-sm font-bold px-4 py-2 rounded hover:bg-red-800 disabled:opacity-50">
+          {actionLoading === 'rejected' ? '...' : '✗ Reject'}
+        </button>
+        <button onClick={() => handleStatusChange('under_review')} disabled={!!actionLoading}
+          className="bg-purple-600 text-white text-sm font-bold px-4 py-2 rounded hover:bg-purple-700 disabled:opacity-50">
+          {actionLoading === 'under_review' ? '...' : '🔍 Review'}
+        </button>
+        <button onClick={() => handleStatusChange('additional_info_required')} disabled={!!actionLoading}
+          className="bg-orange-500 text-white text-sm font-bold px-4 py-2 rounded hover:bg-orange-600 disabled:opacity-50">
+          {actionLoading === 'additional_info_required' ? '...' : '⚠ Request Info'}
+        </button>
+      </div>
+
+      <div className="space-y-3">
+        {/* Personal Details */}
+        <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+          <div className="p-4 bg-gray-50 dark:bg-gray-800 font-bold text-sm">👤 Personal Details</div>
+          <div className="p-4 grid md:grid-cols-2 gap-x-8 gap-y-2 text-sm">
+            <div className="flex justify-between py-1 border-b border-gray-100 dark:border-gray-700"><span className="text-gray-500">Name</span><span className="font-medium">{seedApp.firstName} {seedApp.lastName}</span></div>
+            <div className="flex justify-between py-1 border-b border-gray-100 dark:border-gray-700"><span className="text-gray-500">NI Number</span><span className="font-medium font-mono">{seedApp.ni}</span></div>
+            <div className="flex justify-between py-1 border-b border-gray-100 dark:border-gray-700"><span className="text-gray-500">Employment</span><span className="font-medium capitalize">{seedApp.employment.replace('_', '-')}</span></div>
+            <div className="flex justify-between py-1 border-b border-gray-100 dark:border-gray-700"><span className="text-gray-500">Email</span><span className="font-medium">{seedApp.email}</span></div>
+            <div className="flex justify-between py-1 border-b border-gray-100 dark:border-gray-700"><span className="text-gray-500">City</span><span className="font-medium">{seedApp.city}</span></div>
+            <div className="flex justify-between py-1 border-b border-gray-100 dark:border-gray-700"><span className="text-gray-500">Postcode</span><span className="font-medium">{seedApp.postcode}</span></div>
+          </div>
+        </div>
+
+        {/* Debts */}
+        <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+          <div className="p-4 bg-gray-50 dark:bg-gray-800 font-bold text-sm">💳 Debts — £{seedApp.debt.toLocaleString()}</div>
+          <div className="p-4 text-sm">
+            <p className="text-gray-600 dark:text-gray-400">Total debt: <strong>£{seedApp.debt.toLocaleString()}</strong></p>
+          </div>
+        </div>
+
+        {/* Recommendation */}
+        <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+          <div className="p-4 bg-gray-50 dark:bg-gray-800 font-bold text-sm">✅ Recommendation</div>
+          <div className="p-4">
+            <div className="bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded p-4">
+              <p className="font-bold text-green-800 dark:text-green-300 text-lg">{seedApp.product}</p>
+              <p className="text-sm text-green-700 dark:text-green-400">Confidence: {seedApp.confidence}%</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Staff Notes — persisted via API */}
+        <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+          <div className="p-4 bg-gray-50 dark:bg-gray-800 font-bold text-sm">📝 Staff Notes</div>
+          <div className="p-4">
+            <div className="flex gap-2 mb-3">
+              <input value={noteText} onChange={e => setNoteText(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleAddNote()}
+                placeholder="Add a note..." className="flex-1 border border-gray-300 dark:border-gray-600 rounded px-3 py-2 text-sm dark:bg-gray-800" />
+              <button onClick={handleAddNote} className="bg-blue-700 text-white text-sm font-bold px-4 py-2 rounded hover:bg-blue-800">Add</button>
+            </div>
+            {notes.length > 0 ? (
+              <div className="space-y-2">
+                {notes.map((n, i) => (
+                  <div key={i} className="bg-yellow-50 dark:bg-yellow-950 border border-yellow-200 dark:border-yellow-800 rounded p-2 text-sm">
+                    <p>{n.text}</p>
+                    <p className="text-xs text-gray-500 mt-1">{n.author} • {n.time}</p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-400">No notes yet</p>
+            )}
+          </div>
+        </div>
+
+        {/* Assignment */}
+        <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+          <div className="p-4 bg-gray-50 dark:bg-gray-800 font-bold text-sm">👤 Assignment</div>
+          <div className="p-4 text-sm">
+            <p>Assigned to: <strong>{seedApp.assignedTo}</strong></p>
+            <p className="text-gray-500">Source system: {seedApp.source}</p>
+          </div>
+        </div>
+
+        {/* Timeline */}
+        <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+          <div className="p-4 bg-gray-50 dark:bg-gray-800 font-bold text-sm">📋 Activity Timeline</div>
+          <div className="p-4 space-y-3 text-sm">
+            <div className="flex gap-3 items-start"><div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">📋</div><div><p className="font-medium">Application submitted</p><p className="text-xs text-gray-500">{seedApp.firstName} {seedApp.lastName} • {seedApp.date}</p></div></div>
+            <div className="flex gap-3 items-start"><div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">✓</div><div><p className="font-medium">Credit check completed</p><p className="text-xs text-gray-500">System • {seedApp.date}</p></div></div>
+            <div className="flex gap-3 items-start"><div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">🔍</div><div><p className="font-medium">Cross-system checks — all clear</p><p className="text-xs text-gray-500">System • {seedApp.date}</p></div></div>
+            <div className="flex gap-3 items-start"><div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">✅</div><div><p className="font-medium">Recommendation: {seedApp.product} ({seedApp.confidence}%)</p><p className="text-xs text-gray-500">Rules Engine • {seedApp.date}</p></div></div>
+            {seedApp.assignedTo !== 'Unassigned' && <div className="flex gap-3 items-start"><div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center">👤</div><div><p className="font-medium">Assigned to {seedApp.assignedTo}</p><p className="text-xs text-gray-500">Karen MacLeod • {seedApp.date}</p></div></div>}
+            {status === 'approved' && <div className="flex gap-3 items-start"><div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">✅</div><div><p className="font-medium">Application approved</p><p className="text-xs text-gray-500">AiB Staff • Just now</p></div></div>}
+            {status === 'rejected' && <div className="flex gap-3 items-start"><div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center">✗</div><div><p className="font-medium">Application rejected</p><p className="text-xs text-gray-500">AiB Staff • Just now</p></div></div>}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function CaseDetail() {
   return <Suspense fallback={<div className="p-8">Loading case...</div>}><CaseContent /></Suspense>;
 }
 
 function CaseContent() {
-  const params = useParams();
-  const ref = params.ref as string;
+  const params = useParams() || {};
+  const ref = (params.ref as string) || '';
   const c = CASES[ref];
   const [assignee, setAssignee] = useState<string>(c?.assignedTo || 'Unassigned');
   const [selectedStaff, setSelectedStaff] = useState('');
@@ -247,91 +413,7 @@ function CaseContent() {
     }
 
     // Generate a case view from seed data
-    return (
-      <div className="max-w-5xl mx-auto px-4 py-8">
-        <Link href="/dashboard" className="text-blue-700 dark:text-blue-400 text-sm underline mb-3 inline-block">← Back to Dashboard</Link>
-        <div className="flex flex-wrap justify-between items-start mb-6 gap-4">
-          <div>
-            <h1 className="text-2xl font-bold font-mono">{seedApp.ref}</h1>
-            <p className="text-gray-600 dark:text-gray-400">{seedApp.firstName} {seedApp.lastName} • {seedApp.product} • {seedApp.date}</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className={`px-3 py-1 rounded text-sm font-bold uppercase ${
-              seedApp.status === 'approved' ? 'bg-green-100 text-green-800' :
-              seedApp.status === 'rejected' ? 'bg-red-100 text-red-800' :
-              seedApp.status === 'submitted' ? 'bg-blue-100 text-blue-800' :
-              seedApp.status === 'under_review' ? 'bg-purple-100 text-purple-800' :
-              'bg-gray-200 text-gray-700'
-            }`}>{seedApp.status.replace(/_/g, ' ')}</span>
-            <span className="px-3 py-1 rounded text-sm font-bold bg-blue-100 text-blue-800">{seedApp.confidence}% confidence</span>
-          </div>
-        </div>
-
-        {/* Actions */}
-        <div className="flex gap-2 mb-6">
-          <button className="bg-green-700 text-white text-sm font-bold px-4 py-2 rounded hover:bg-green-800">✓ Approve</button>
-          <button className="bg-red-700 text-white text-sm font-bold px-4 py-2 rounded hover:bg-red-800">✗ Reject</button>
-          <button className="bg-orange-500 text-white text-sm font-bold px-4 py-2 rounded hover:bg-orange-600">⚠ Request Info</button>
-        </div>
-
-        <div className="space-y-3">
-          {/* Personal Details */}
-          <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
-            <div className="p-4 bg-gray-50 dark:bg-gray-800 font-bold text-sm">👤 Personal Details</div>
-            <div className="p-4 grid md:grid-cols-2 gap-x-8 gap-y-2 text-sm">
-              <div className="flex justify-between py-1 border-b border-gray-100 dark:border-gray-700"><span className="text-gray-500">Name</span><span className="font-medium">{seedApp.firstName} {seedApp.lastName}</span></div>
-              <div className="flex justify-between py-1 border-b border-gray-100 dark:border-gray-700"><span className="text-gray-500">NI Number</span><span className="font-medium font-mono">{seedApp.ni}</span></div>
-              <div className="flex justify-between py-1 border-b border-gray-100 dark:border-gray-700"><span className="text-gray-500">Employment</span><span className="font-medium capitalize">{seedApp.employment.replace('_', '-')}</span></div>
-              <div className="flex justify-between py-1 border-b border-gray-100 dark:border-gray-700"><span className="text-gray-500">Email</span><span className="font-medium">{seedApp.email}</span></div>
-              <div className="flex justify-between py-1 border-b border-gray-100 dark:border-gray-700"><span className="text-gray-500">City</span><span className="font-medium">{seedApp.city}</span></div>
-              <div className="flex justify-between py-1 border-b border-gray-100 dark:border-gray-700"><span className="text-gray-500">Postcode</span><span className="font-medium">{seedApp.postcode}</span></div>
-            </div>
-          </div>
-
-          {/* Debts */}
-          <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
-            <div className="p-4 bg-gray-50 dark:bg-gray-800 font-bold text-sm">💳 Debts — £{seedApp.debt.toLocaleString()}</div>
-            <div className="p-4 text-sm">
-              <p className="text-gray-600 dark:text-gray-400">Total debt: <strong>£{seedApp.debt.toLocaleString()}</strong></p>
-            </div>
-          </div>
-
-          {/* Recommendation */}
-          <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
-            <div className="p-4 bg-gray-50 dark:bg-gray-800 font-bold text-sm">✅ Recommendation</div>
-            <div className="p-4">
-              <div className="bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded p-4">
-                <p className="font-bold text-green-800 dark:text-green-300 text-lg">{seedApp.product}</p>
-                <p className="text-sm text-green-700 dark:text-green-400">Confidence: {seedApp.confidence}%</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Assignment */}
-          <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
-            <div className="p-4 bg-gray-50 dark:bg-gray-800 font-bold text-sm">👤 Assignment</div>
-            <div className="p-4 text-sm">
-              <p>Assigned to: <strong>{seedApp.assignedTo}</strong></p>
-              <p className="text-gray-500">Source system: {seedApp.source}</p>
-            </div>
-          </div>
-
-          {/* Timeline */}
-          <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
-            <div className="p-4 bg-gray-50 dark:bg-gray-800 font-bold text-sm">📋 Activity Timeline</div>
-            <div className="p-4 space-y-3 text-sm">
-              <div className="flex gap-3 items-start"><div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">📋</div><div><p className="font-medium">Application submitted</p><p className="text-xs text-gray-500">{seedApp.firstName} {seedApp.lastName} • {seedApp.date}</p></div></div>
-              <div className="flex gap-3 items-start"><div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">✓</div><div><p className="font-medium">Credit check completed</p><p className="text-xs text-gray-500">System • {seedApp.date}</p></div></div>
-              <div className="flex gap-3 items-start"><div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">🔍</div><div><p className="font-medium">Cross-system checks — all clear</p><p className="text-xs text-gray-500">System • {seedApp.date}</p></div></div>
-              <div className="flex gap-3 items-start"><div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">✅</div><div><p className="font-medium">Recommendation: {seedApp.product} ({seedApp.confidence}%)</p><p className="text-xs text-gray-500">Rules Engine • {seedApp.date}</p></div></div>
-              {seedApp.assignedTo !== 'Unassigned' && <div className="flex gap-3 items-start"><div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center">👤</div><div><p className="font-medium">Assigned to {seedApp.assignedTo}</p><p className="text-xs text-gray-500">Karen MacLeod • {seedApp.date}</p></div></div>}
-              {seedApp.status === 'approved' && <div className="flex gap-3 items-start"><div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">✅</div><div><p className="font-medium">Application approved</p><p className="text-xs text-gray-500">{seedApp.assignedTo} • {seedApp.date}</p></div></div>}
-              {seedApp.status === 'rejected' && <div className="flex gap-3 items-start"><div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center">✗</div><div><p className="font-medium">Application rejected</p><p className="text-xs text-gray-500">{seedApp.assignedTo} • {seedApp.date}</p></div></div>}
-            </div>
-          </div>
-        </div>
-      </div>
-    );
+    return <SeedCaseView seedApp={seedApp} caseRef={ref} />;
   }
 
   const totalDebt = c.debts.reduce((s: number, d: any) => s + d.amount, 0);
