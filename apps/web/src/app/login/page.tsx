@@ -11,6 +11,9 @@ const DEMO_ACCOUNTS = [
   { email: 'admin@aib-poc.example.com', role: 'System Admin', description: 'Full system access' },
   { email: 'demo@example.com', role: 'Case Officer', description: 'Case management & review' },
   { email: 'adviser@cas.example.org', role: 'Money Adviser', description: 'Client applications & advice' },
+  // Seeded as user-creditor-01 / role-creditor in packages/database/src/seed-data/users.json —
+  // without an entry here the creditor journey could not be reached through the UI at all.
+  { email: 'debt.recovery@rbs.co.uk', role: 'Creditor', description: 'Case visibility & claims' },
   { email: 'john.testerton@example.com', role: 'Debtor', description: 'Applicant self-service' },
 ];
 

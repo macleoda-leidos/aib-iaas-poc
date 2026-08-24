@@ -1323,7 +1323,7 @@ IApplicationRepository + IAuditRepository backed by LocalStorage. Initializes wi
 
 | Attribute | Detail |
 |-----------|--------|
-| Purpose | Browse all 36+ project docs inline with rendered Markdown |
+| Purpose | Browse all 60 project docs inline with rendered Markdown |
 | Business Value | Self-service documentation for team members and stakeholders |
 | Users | Developers, Architects, PMs |
 | Status | Implemented |
@@ -1331,6 +1331,47 @@ IApplicationRepository + IAuditRepository backed by LocalStorage. Initializes wi
 
 ### Description
 Fetches raw markdown from GitHub, renders with headings, tables, code blocks, and Mermaid diagrams. Category filters (Strategic, Functional, Technical, Operations, Delivery, Compliance).
+
+## F-66: Creditor Portal
+
+| Attribute | Detail |
+|-----------|--------|
+| Purpose | Show the intended creditor-facing view of cases, dividends and proposals |
+| Business Value | Demonstrates ecosystem awareness beyond the debtor journey |
+| Users | Creditors |
+| Status | Interface demonstration (static mock) |
+| Pages | /creditor-portal |
+
+### Description
+Single client-side page rendering hardcoded synthetic data: four KPI cards, a six-row case table with dividend rates, two proposals and a quarterly dividend schedule. Reachable from the footer "Services" links. Delivered in Sprint 14.
+
+### Known Limitations (POC)
+- No `fetch()` calls — every figure is a literal in the component; nothing is read from or written to the API.
+- Claim submission is a placeholder form (self-labelled in the page); it has no submit handler and no persistence.
+- Proposal voting Accept/Reject controls are rendered disabled — there is no vote endpoint.
+- No `AuthGuard`, so the page is not role-restricted; the `creditor` demo account exists at `/login` but the page does not depend on it.
+- 🎯 **TARGET** — **Not implemented.** No `claims` resource or `claims.*` permission exists in `packages/database/src/seed-data/permissions.json`, so the `creditor` role's "submit claims" purpose has no permission backing it. See `docs/architecture.md` §8.2.
+
+## F-67: Money Adviser Workspace
+
+| Attribute | Detail |
+|-----------|--------|
+| Purpose | Show the intended money adviser caseload and appointment view |
+| Business Value | Demonstrates the intermediary channel used by CAS and CAB advisers |
+| Users | Money Advisers |
+| Status | Interface demonstration (static mock) |
+| Pages | /adviser-workspace |
+
+### Description
+Single client-side page rendering hardcoded synthetic data: four KPI cards derived from the data arrays, an eight-row client caseload with client-side search filtering, three upcoming appointments and five recent activity entries. Reachable from the footer "Services" links. Delivered in Sprint 14.
+
+### Known Limitations (POC)
+- No `fetch()` calls — the caseload, appointments and activity are literals in the component.
+- "New Client" is rendered disabled; there is no client-creation flow.
+- "Submit on Behalf" is a plain link to `/apply`, the standard citizen wizard. It carries no client identity, no adviser-as-submitter distinction and no declaration of authority.
+- "Success Rate 89%" is an illustrative figure, not a computed metric.
+- No `AuthGuard`, so the page is not role-restricted.
+- 🎯 **TARGET** — **Not implemented.** The full on-behalf-of flow (authority declaration and date, 6-month expiry warning, take-over-draft, bulk submission, expedited 5-day SLA) is specified in UC-09 (`docs/use-cases.md`) and US-011 (`docs/user-stories.md`); no code implements it.
 
 ---
 
@@ -1341,7 +1382,8 @@ Fetches raw markdown from GitHub, renders with headings, tables, code blocks, an
 | Implemented | 35 | F-01 through F-18, F-24 through F-35, F-61 through F-65 |
 | Implemented (Sandbox) | 3 | F-06, F-09, F-07 |
 | Design (Simulated) | 2 | F-02, F-03 |
-| Total | 40 | All features documented |
+| Interface demonstration (static mock) | 2 | F-66, F-67 |
+| Total | 42 | All features documented |
 
 ---
 

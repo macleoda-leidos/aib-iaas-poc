@@ -403,6 +403,14 @@
 
 ## UC-09: Money Adviser Submits on Behalf of Client
 
+> 🎯 **TARGET — specification only.** **Not implemented.** No code implements any step of this use
+> case. `/adviser-workspace` is a static interface demonstration: its "Submit on Behalf" control is
+> a plain link to the standard citizen wizard at `/apply`, which carries no client identity, no
+> adviser-as-submitter distinction and no authority declaration. There is no authority-declaration
+> field on the application record, no date-of-authority, no 6-month expiry check, no take-over-draft
+> path, no bulk submission and no expedited SLA. Read the flows below as the specification to build
+> against, not as delivered behaviour.
+
 | Field | Value |
 |-------|-------|
 | Primary Actor | Money Adviser |

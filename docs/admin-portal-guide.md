@@ -76,7 +76,7 @@ All features accessible from the Admin hub page (`/admin`) as tiles. Each tile s
 35. **AI Governance** (`/admin/ai-governance`) — AI model oversight, bias monitoring, policies.
 36. **AI Explainability** (`/admin/ai-explainability`) — Visual decision trees, factor weighting.
 37. **Policy Simulation** (`/admin/policy-simulation`) — What-if scenarios for policy threshold changes.
-38. **Dev Documentation** (`/admin/dev`) — 38 project documents with Mermaid diagrams, zoom modal, download.
+38. **Dev Documentation** (`/admin/dev`) — 60 project documents with Mermaid diagrams, zoom modal, download.
 
 ## Access Control
 

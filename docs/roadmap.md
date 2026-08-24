@@ -17,7 +17,7 @@
 | Sprint 11 | Test & Document — 102 new tests (423 total), onboarding guide, demo script, functionality breakdown | Complete |
 | Sprint 12 | Operational Excellence — 78 Playwright regression tests (501 total), runbooks, security scan, load test, DR plan | Complete |
 | Sprint 13 | Handover & Scale — ADRs, cost model, team scaling, vendor assessment, go-live checklist, API SDK guide | Complete |
-| Sprint 14 | Stakeholder Value — Creditor portal, adviser workspace, workflow engine, MI reports, secure messages, integration monitor, correspondence scheduler | Complete |
+| Sprint 14 | Stakeholder Value — Workflow engine, MI reports, secure messages, integration monitor, correspondence scheduler. Creditor portal and adviser workspace delivered as **interface demonstrations only** (synthetic data, no API calls, several controls disabled) — the working capability remains a Medium Term item below | Complete |
 | Phase 14 | Organisation Service — Shared master data, creditor type-ahead, 54 seeded organisations across 8 types | Complete |
 | Sprint 15 | Quality Assurance & Link Integrity — E2E link audit, basePath validation, navigation regression tests | Complete |
 | Sprint 16 | Documentation Alignment — Sprint logs, roadmap, testing docs, README updated to current state | Complete |
@@ -34,6 +34,7 @@
 | Sprint 27 | Casework Workflow — batch select with batch approve/reject, SLA timer column, select-all header | Complete |
 | Sprint 28 | Production Polish — loading skeleton variants, API error boundary with retry, offline banner, service worker caching, useApiCall hook | Complete |
 | Sprint 29 | Enterprise Showcase — API versioning page, monitoring and observability page (uptime monitors, tracing, alert history) | Complete |
+| Sprint 30 | Security Remediation — close the 10 findings in `docs/security-known-gaps.md` (3 Critical, 4 High, 2 Medium, 1 Low) | **Planned — next sprint** |
 
 ---
 
@@ -43,13 +44,60 @@ This roadmap outlines the evolution of IAAS from Proof of Concept through to a f
 
 ---
 
+## Sprint 30 (Next Sprint) — Security Remediation
+
+**Focus**: Close the gap between the POC implementation and the documented security case.
+
+An internal static code review on 24 August 2026 identified 10 security findings in the POC
+codebase — 3 Critical, 4 High, 2 Medium, 1 Low — recorded in full with file-and-line evidence
+in [Security Known Gaps](./security-known-gaps.md). Nine of the ten block production.
+
+**No real data is at risk today.** The POC operates exclusively on synthetic seed data, so the
+confidentiality impact of every finding is currently theoretical. The findings are the distance
+between a demonstration build and a service that could be trusted with OFFICIAL-SENSITIVE
+information. **Every "Blocks production: Yes" finding must be closed before any environment
+holds real debtor data.**
+
+The sequencing below follows the dependency order in the register — fixing these in the wrong
+order produces a false sense of progress, because authorisation cannot be trusted until
+identity is.
+
+| Stage | Ref | Capability | Severity | Priority |
+|-------|-----|-----------|----------|----------|
+| 1 | GAP-001 | Replace unsigned base64 tokens with signed JWTs (RS256/EdDSA), verified on every request | Critical | Must |
+| 1 | GAP-003 | Verify passwords with Argon2id/bcrypt (cost ≥ 12); reject when no hash is stored | Critical | Must |
+| 1 | GAP-007 | Integrate a real identity provider and enforce MFA as IdP policy | High | Must |
+| 2 | GAP-002 | Apply `authenticate` + `requirePermission` to every deployed route; default-deny | Critical | Must |
+| 3 | GAP-005 | Add resource ownership checks on all application routes, including approve/reject | High | Must |
+| 3 | GAP-006 | Derive audit actor from the verified token, not the request body; make ingestion internal | High | Must |
+| 4 | GAP-008 | Per-account login rate limit, lockout with backoff, CAPTCHA friction | Medium | Must |
+| 4 | GAP-010 | Server-side session validation on every request; short access-token lifetime | Low | Should |
+| 5 | GAP-004 | Deploy real malware scanning; fail closed on `scanned: false` | High | Must |
+| 5 | GAP-009 | Wire `packages/validation` Zod schemas into the request path as middleware | Medium | Must |
+
+**Exit criteria**
+
+| Criterion | Target |
+|-----------|--------|
+| Regression tests | One negative test per finding (tampered token rejected, wrong password rejected, 401 on every route unauthenticated, user A cannot read user B's application, token rejected after logout) |
+| CI enforcement | Route-coverage assertion fails the build if a mounted router has no auth middleware, or a handler reads `req.body` without a validator |
+| Re-review | Static re-review against source after stages 1–3, before any environment is loaded with real debtor data |
+| Documentation | Security case documents reconciled to the delivered state; register updated to `Closed` per finding with the commit that closed it |
+
+**Dependencies**: Identity provider agreement for GAP-007 (shared with the Near Term
+"Production Identity Integration" item below — that item is the production-grade version of
+this fix, and this sprint should adopt its target design rather than build a throwaway).
+
+---
+
 ## Near Term (0–6 Months) — Alpha / Private Beta
 
 **Focus**: Stabilise core platform, connect real integrations, onboard pilot users.
 
 | Capability | Description | Dependencies | Priority |
 |-----------|-------------|--------------|----------|
-| Production Identity Integration | Connect Keycloak to real ScotAccount + GOV.UK Login | Identity Provider agreements | Must |
+| Security Findings Closure | All 10 findings in [security-known-gaps.md](./security-known-gaps.md) closed and re-reviewed. **Hard gate: no environment may hold real debtor data until the nine production-blocking findings are closed.** | Sprint 30 | Must |
+| Production Identity Integration | Connect Keycloak to real ScotAccount + GOV.UK Login. Supersedes the POC's local password path entirely (closes GAP-001, GAP-003, GAP-007 at production grade) | Identity Provider agreements | Must |
 | Real Credit Bureau Integration | Replace mock with Experian/Equifax sandbox then live | Data sharing agreement | Must |
 | PostgreSQL Migration | Replace SQLite with managed PostgreSQL (AWS RDS) | Infrastructure provisioning | Must |
 | BASYS Live Integration | Connect to real BASYS API for bankruptcy register lookups | AiB API gateway access | Must |
@@ -57,7 +105,7 @@ This roadmap outlines the evolution of IAAS from Proof of Concept through to a f
 | Document Storage (S3) | Replace local filesystem with AWS S3 + lifecycle policies | AWS account setup | Must |
 | ClamAV Production Deployment | Deploy dedicated ClamAV cluster for virus scanning | Infrastructure | Should |
 | Accessibility Audit | Full WCAG 2.1 AA audit with remediation | Accessibility specialist | Must |
-| Penetration Testing | ITHC/pen test against production-candidate build | Security clearance | Must |
+| Penetration Testing | Fresh ITHC/pen test against production-candidate build, scoped against the **deployed** topology. The August 2026 engagement tested a staging topology that differed from what deploys, which is why it missed the Critical findings — scope must be verified against `render.yaml` | Security clearance; Sprint 30 complete | Must |
 | Performance Testing | Load testing at 2x expected peak (500 concurrent users) | Test environment | Should |
 | UAT with AiB Staff | Pilot with 5-10 case officers using real workflows | Training materials | Must |
 | GOV.UK Notify Integration | Replace mock email with GOV.UK Notify for correspondence | GDS account | Should |
@@ -79,8 +127,8 @@ This roadmap outlines the evolution of IAAS from Proof of Concept through to a f
 | Case Management Workflow | Full case lifecycle management (assign, review, escalate, close) | Business process design | Must |
 | Notification Service | Multi-channel alerts (email, SMS, in-app) via GOV.UK Notify | Notification preferences | Should |
 | Reporting & Business Intelligence | Power BI / Grafana dashboards with real operational data | Data warehouse | Should |
-| Creditor Portal | Self-service portal for creditors to submit/track claims | Creditor onboarding | Could |
-| Money Adviser Portal | Dedicated workspace for authorised money advisers | Adviser registration | Should |
+| Creditor Portal — working build-out | Replace the POC interface demonstration with real capability: claim submission wired to the API, proposal voting, dividend data from the case record, and record-level scoping so a creditor sees only its own cases. Needs a `claims` resource and `claims.*` permissions, neither of which exists today | Creditor onboarding, GAP-005 closed | Should |
+| Money Adviser Portal — working build-out | Replace the POC interface demonstration with real capability: client caseload from the API, create-client, and submit-on-behalf carrying client context plus a declaration of authority (see UC-09) | Adviser registration, GAP-002/GAP-005 closed | Should |
 | Audit & Compliance Module | Full audit trail with tamper-proof logging, retention policies | Compliance review | Must |
 | Disaster Recovery | Multi-AZ deployment, automated failover, RTO < 4h | AWS multi-AZ | Must |
 | Service Level Management | SLA monitoring, automated alerting, escalation | Operations team | Should |
@@ -180,3 +228,5 @@ gantt
 - [Options Analysis](./options-analysis.md)
 - [Architecture](./architecture.md)
 - [Business Requirements](./business-requirements.md)
+- [Security Known Gaps](./security-known-gaps.md) — findings register driving Sprint 30
+- [Go-Live Checklist](./go-live-checklist.md) — security items reconciled against the register

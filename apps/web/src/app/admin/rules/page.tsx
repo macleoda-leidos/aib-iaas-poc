@@ -63,7 +63,7 @@ export default function RulesPage() {
         </div>
 
         {/* KPI Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <div data-demo="rules-kpis" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           <div className="bg-white rounded-lg shadow-sm p-5 border-l-4 border-green-600">
             <p className="text-sm font-medium text-gray-500">Active Rules</p>
             <p className="text-3xl font-bold text-gray-900 mt-1">{activeCount}</p>
@@ -110,7 +110,7 @@ export default function RulesPage() {
         </div>
 
         {/* Rules Table */}
-        <div className="bg-white rounded-lg shadow-sm overflow-hidden mb-8">
+        <div data-demo="rules-table" className="bg-white rounded-lg shadow-sm overflow-hidden mb-8">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -165,7 +165,7 @@ export default function RulesPage() {
         </div>
 
         {/* POC Notice */}
-        <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-r-lg">
+        <div data-demo="rules-poc-notice" className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-r-lg">
           <div className="flex">
             <div className="ml-3">
               <p className="text-sm text-yellow-800">

@@ -187,7 +187,7 @@ export default function RuleDetail({ rule }: { rule: RuleDefinition }) {
       </div>
 
       {/* Conditions Panel */}
-      <div className="bg-gray-800 rounded-lg shadow-sm p-6 mb-6 border-l-4 border-blue-500 border border-gray-700">
+      <div data-demo="rule-conditions" className="bg-gray-800 rounded-lg shadow-sm p-6 mb-6 border-l-4 border-blue-500 border border-gray-700">
         <h2 className="text-lg font-semibold text-white mb-4">Rule Conditions (IF)</h2>
         <div className="space-y-3">
           {rule.conditions.map((condition, index) => (
@@ -211,7 +211,7 @@ export default function RuleDetail({ rule }: { rule: RuleDefinition }) {
       </div>
 
       {/* Actions Panel */}
-      <div className="bg-gray-800 rounded-lg shadow-sm p-6 mb-6 border-l-4 border-green-500 border border-gray-700">
+      <div data-demo="rule-actions" className="bg-gray-800 rounded-lg shadow-sm p-6 mb-6 border-l-4 border-green-500 border border-gray-700">
         <h2 className="text-lg font-semibold text-white mb-4">Actions (THEN)</h2>
         <div className="space-y-3">
           {rule.actions.map((action, index) => (
@@ -226,7 +226,7 @@ export default function RuleDetail({ rule }: { rule: RuleDefinition }) {
       </div>
 
       {/* Interactive Rule Tester */}
-      <div className="bg-gray-800 rounded-lg shadow-sm p-6 mb-6 border border-gray-700">
+      <div data-demo="rule-tester" className="bg-gray-800 rounded-lg shadow-sm p-6 mb-6 border border-gray-700">
         <h2 className="text-lg font-semibold text-white mb-2">Test This Rule</h2>
         <p className="text-sm text-gray-400 mb-4">Enter sample applicant data to see if this rule would trigger.</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
@@ -293,6 +293,7 @@ export default function RuleDetail({ rule }: { rule: RuleDefinition }) {
         </div>
 
         <button
+          data-demo="rule-test-run"
           onClick={handleTest}
           className="bg-green-700 hover:bg-green-800 text-white font-medium px-6 py-2 rounded text-sm transition-colors"
         >
@@ -300,7 +301,7 @@ export default function RuleDetail({ rule }: { rule: RuleDefinition }) {
         </button>
 
         {testResult && (
-          <div className="mt-6">
+          <div data-demo="rule-test-result" className="mt-6">
             {testResult.matches ? (
               <div className="bg-green-900/30 border border-green-600 rounded p-4 mb-4">
                 <p className="text-green-300 font-semibold">✓ RULE MATCHES — Would recommend: {rule.product}</p>
@@ -327,7 +328,7 @@ export default function RuleDetail({ rule }: { rule: RuleDefinition }) {
       </div>
 
       {/* Version History */}
-      <div className="bg-gray-800 rounded-lg shadow-sm p-6 border border-gray-700">
+      <div data-demo="rule-history" className="bg-gray-800 rounded-lg shadow-sm p-6 border border-gray-700">
         <h2 className="text-lg font-semibold text-white mb-4">Version History</h2>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">

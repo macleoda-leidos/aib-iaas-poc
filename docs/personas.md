@@ -97,7 +97,7 @@ Fiona is a senior money adviser at Citizens Advice Scotland's Glasgow bureau. Sh
 - Monitor a dashboard of all active client cases and respond to information requests
 
 ### System Interactions
-- Adviser portal: client management, application submission, bulk operations
+- Adviser portal: client caseload view (interface demonstration on synthetic data; client management and bulk operations are 🎯 **TARGET** — **not implemented**)
 - Recommendation engine: review and accept/override suggestions
 - Document upload: attach evidence on behalf of clients
 - Notification service: email alerts for case status changes and deadlines

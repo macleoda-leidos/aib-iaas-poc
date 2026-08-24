@@ -1,13 +1,16 @@
 /**
  * AiB IAAS - Consolidated API
  *
- * This is a deployment consolidation layer that mounts all 11 backend
- * services into a single Express application. This allows deployment
- * as a single container on Azure Container Apps free tier.
+ * This is a deployment consolidation layer that mounts all 12 backend
+ * services into a single Express application, so the whole API deploys as
+ * one container on a free-tier plan (currently Render — see render.yaml).
+ * Twelve separate free services would mean twelve independent cold starts
+ * after the 15-minute idle spin-down; one container means one.
  *
  * The individual services remain independently runnable for local
  * development (npm run dev:services). This file is ONLY used for
- * cloud deployment.
+ * cloud deployment, and holds no business logic — which is why it is
+ * excluded from coverage in the root vitest.config.ts.
  */
 
 import express from 'express';
@@ -363,7 +366,7 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
 
 app.listen(PORT, () => {
   console.log(`[Consolidated API] Running on port ${PORT}`);
-  console.log(`[Consolidated API] All 11 services mounted on single instance`);
+  console.log(`[Consolidated API] All 12 services mounted on single instance`);
 });
 
 export { app };

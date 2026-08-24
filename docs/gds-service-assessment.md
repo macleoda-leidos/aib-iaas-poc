@@ -253,36 +253,58 @@
 
 ### Standard 9: Create a secure service
 
-**Evidence:**
-- IT Health Check (ITHC) penetration test completed by CHECK-accredited provider — 0 critical findings, 0 high findings (docs/ithc-penetration-test-report.md)
-- Comprehensive security architecture document (docs/security.md) covering threat model, RBAC, OWASP Top 10 mitigations
-- Keycloak identity provider with MFA (TOTP, SMS, WebAuthn), brute force protection, and account lockout
-- ClamAV virus scanning on all document uploads with quarantine workflow
-- Rate limiting (100 requests per 15 minutes per IP) with progressive backoff
-- Helmet.js security headers (X-Frame-Options, X-Content-Type-Options, Strict-Transport-Security)
-- Input validation via Zod schemas on all API endpoints (packages/validation/)
-- 9-role RBAC with least privilege enforcement at API Gateway layer
-- Complete audit trail for all data access and modifications (audit-service)
-- Encryption in transit enforced (TLS 1.3, HSTS preload)
-- Parameterised database queries (no string concatenation in SQL)
-- Dependency vulnerability scanning via Dependabot and npm audit
-- Secure session management (HttpOnly cookies, SameSite=Strict, short-lived JWTs)
+> ⚠️ **Verdict revised from Met to NOT MET on 24 August 2026.** The original assessment relied
+> on control claims that are not supported by the codebase. An internal static code review
+> identified three Critical and four High findings — see `docs/security-known-gaps.md`.
+
+**Evidence — verified as genuinely implemented:**
+- **Parameterised database queries throughout — no SQL injection vector exists.** Verified by source review: every query uses `?` placeholders with user values bound as parameters; dynamic `WHERE` fragments are assembled only from hardcoded literals in code-controlled branches. This is a genuine and complete control.
+- Comprehensive security architecture document (docs/security.md) covering threat model, RBAC design, and OWASP Top 10 analysis — a substantive design asset, now annotated to distinguish implemented from target-state controls
+- Dependency vulnerability scanning via Dependabot and npm audit in CI, with committed lockfile
+- CI/CD pipeline integrity: workflows trigger on `pull_request` (not `pull_request_target`), no script-injection sinks, Azure authentication via OIDC federation rather than stored credentials
+- No committed secrets: `.env.example` holds placeholders only; `DATABASE_URL` injected via `sync: false`
+- CORS restricted to a fixed origin allowlist on the deployed service (no wildcard)
+- File upload restrictions enforced: 10MB size limit and extension allowlist; stored filenames regenerated as UUIDs
+- Encryption in transit: HTTPS enforced on frontend and API (HSTS not yet set)
+- Helmet.js security headers (X-Frame-Options, X-Content-Type-Options)
+- Correct NI number validation including the genuine invalid-prefix list
+- 9-role RBAC model and permission matrix **defined**, with enforcing middleware written and unit-tested
+
+**Evidence originally claimed — corrected:**
+
+| Original claim | Correction |
+|---------------|-----------|
+| "ITHC completed by CHECK-accredited provider — 0 critical, 0 high findings" | The referenced report is a **simulated** document (as its own Appendix C states), not an accredited external test, and its conclusion is **superseded**: 3 Critical and 4 High findings are now recorded. No independent ITHC has been conducted. |
+| "Keycloak identity provider with MFA (TOTP, SMS, WebAuthn), brute force protection, account lockout" | **None of this exists.** No Keycloak deployment or integration, no MFA of any kind, no lockout, no brute-force protection (GAP-007, GAP-008). |
+| "ClamAV virus scanning with quarantine workflow" | **Not implemented.** No ClamAV in the deployment; the placeholder scanner infers infection from the **filename** without reading contents, and ClamAV errors resolve to `clean` (GAP-004). |
+| "Input validation via Zod schemas on all API endpoints" | **Dead code.** `packages/validation` has zero importers outside its own tests (GAP-009). |
+| "9-role RBAC with least privilege enforcement at API Gateway layer" | Model and middleware exist but are **not applied to the deployed service** — all 13 routers mount without auth middleware (GAP-002); no resource ownership checks (GAP-005). |
+| "Complete audit trail for all data access and modifications" | Events are recorded, but ingestion is unauthenticated and the actor is taken from the request body, so entries are **forgeable** and cannot support non-repudiation (GAP-006). |
+| "Secure session management (HttpOnly cookies, SameSite=Strict, short-lived JWTs)" | Tokens are **unsigned base64 JSON**, not JWTs, held for 8 hours with no refresh and no server-side revocation check (GAP-001, GAP-010). |
+| "Rate limiting (100 requests per 15 minutes)" | The actual limit is **500** per 15 minutes, applied globally including to login. |
 
 **What's working well:**
-- Defence in depth approach — no single point of security failure
-- Industry-standard identity management (Keycloak) with federation capability
-- Automated virus scanning with quarantine prevents malicious file distribution
-- Comprehensive audit logging enables forensic investigation and anomaly detection
-- Clean ITHC result demonstrates effective secure development practices
+- SQL injection is comprehensively prevented — the strongest verified control in the codebase
+- Supply-chain and CI/CD hygiene is sound, including OIDC-federated cloud credentials and no committed secrets
+- The security architecture, threat model, role model, and permission matrix are thoroughly designed; the enforcement code for RBAC exists and is unit-tested, so remediation is wiring work rather than redesign
+- No real personal data is held at any point — the POC uses synthetic data exclusively, which bounds the impact of all findings
 
-**What could be improved:**
-- Content-Security-Policy header not yet configured (planned for next sprint)
-- SIEM integration designed but not yet operational
-- Data-at-rest encryption for SQLite development database not configured (PostgreSQL production will use RDS encryption)
-- Formal Data Protection Impact Assessment (DPIA) not yet completed (in progress)
-- Security regression testing not yet automated in CI pipeline
+**What must be improved (blocks this standard):**
+- **Authentication is absent on the deployed service** — no route requires a credential (GAP-002)
+- **Tokens are forgeable** — unsigned base64 JSON, trusted verbatim; anyone can mint a `system_admin` token (GAP-001)
+- **Login accepts any password** — the submitted password is never compared against a stored hash (GAP-003)
+- **No MFA and no identity-provider integration** (GAP-007)
+- **Malware scanning fails open and is filename-based** (GAP-004)
+- **No resource ownership checks** — including on the route that approves and rejects cases (GAP-005)
+- **Audit records are forgeable** (GAP-006)
+- No brute-force lockout (GAP-008); schema validation not wired in (GAP-009); no server-side session revocation (GAP-010)
+- Content-Security-Policy explicitly disabled; HSTS not set
+- No data-at-rest encryption; no SIEM; DPIA not completed; no automated security regression testing in CI
 
-**Verdict:** Met
+**Verdict:** **Not Met** — remediation of the Critical and High findings in
+`docs/security-known-gaps.md`, followed by an independent ITHC scoped to the deployed
+artefact, is required before this standard can be reassessed. The design work underpinning
+this standard is substantially complete; the implementation is not.
 
 ---
 

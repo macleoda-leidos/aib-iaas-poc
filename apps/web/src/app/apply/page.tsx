@@ -15,7 +15,8 @@ import {
   CreditCheckResult,
 } from '../../lib/apiClient';
 import { searchOrganisations, Organisation } from '../../lib/organisations';
-import { onDemoAction, DemoAction } from '../../lib/demoEvents';
+import { onDemoAction, waitForElement, DemoAction } from '../../lib/demoEvents';
+import { scrollToElement } from '../../lib/demoScroll';
 import { useDemoTools } from '../DemoTools';
 import { generateRandomApplication } from '../../lib/applicationGenerator';
 
@@ -31,6 +32,11 @@ const SECTIONS = [
   { id: 'recommendation', label: 'Recommendation', icon: '✅' },
   { id: 'payment', label: 'Payment & Submit', icon: '💳' },
 ];
+
+// Asset categories in the order the form renders them. Each has a matching
+// `data-demo="asset-category-<id>"` hook in AssetsSection.
+const ASSET_CATEGORIES = ['properties', 'vehicles', 'savings', 'other'] as const;
+type AssetCategory = (typeof ASSET_CATEGORIES)[number];
 
 type SectionStatus = 'not_started' | 'invalid' | 'in_progress' | 'complete';
 
@@ -414,23 +420,67 @@ export default function ApplyPage() {
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const applicationCreated = useRef(false);
 
-  // Demo mode event listener — responds to DemoMode dispatched actions
-  // Smart scroll: scrolls to the last modified field area instead of fixed offset
-  const demoScrollTo = (selector?: string) => {
-    setTimeout(() => {
-      const el = selector
-        ? document.querySelector(selector)
-        : document.querySelector('[data-demo-target]') || document.querySelector('.apply-form-active');
-      if (el) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      } else {
-        // Fallback: scroll to show current form section
-        const section = document.querySelector(`[data-section="${currentSection}"]`);
-        if (section) section.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        else window.scrollTo({ top: 300, behavior: 'smooth' });
-      }
-    }, 350);
+  // What the demo has revealed so far per asset category, so a FILL_ASSETS
+  // action can work out which category it just grew. Held in a ref rather than
+  // read back from formData because the event handler closes over a stale copy.
+  const demoAssetCounts = useRef<Record<AssetCategory, number>>({
+    properties: 0,
+    vehicles: 0,
+    savings: 0,
+    other: 0,
+  });
+
+  // Demo mode event listener — responds to DemoMode dispatched actions.
+  //
+  // Scrolls to the field the demo just populated, so the audience is looking at
+  // it as it fills. Two things this deliberately does NOT do any more:
+  //
+  //  - It does not poll on a fixed delay. It waits for the element via
+  //    MutationObserver, because a fill and the re-render that shows it are not
+  //    the same tick, and a flat timeout is simultaneously too slow on a fast
+  //    machine and too fast on a slow one.
+  //  - It does not call scrollIntoView directly. The narration banner covers the
+  //    bottom of the viewport, so scrollToElement offsets for it — otherwise the
+  //    field lands under the banner and the audience sees nothing happen.
+  //
+  // Selectors use the same `data-demo` namespace as every other page. A previous
+  // version used a private `data-field`/`data-debt-row` namespace whose
+  // attributes were never added to the markup, so every scroll silently fell
+  // through to a hardcoded 300px offset. Keep these in the one namespace so a
+  // single grep — and the demoSelectors test — can prove they all resolve.
+  const demoScrollTo = (selector: string, block: ScrollLogicalPosition = 'center') => {
+    waitForElement(selector).then(el => {
+      if (el) scrollToElement(el, block);
+    });
   };
+
+  // Debts and assets are revealed one item at a time across successive actions,
+  // so the interesting element is the newest one, not the first. waitForElement
+  // resolves as soon as *any* match exists — re-query for the full set once it
+  // has, and take the last.
+  const demoScrollToLast = (selector: string) => {
+    waitForElement(selector).then(el => {
+      if (!el) return;
+      const all = document.querySelectorAll(selector);
+      scrollToElement(all[all.length - 1] ?? el, 'center');
+    });
+  };
+
+  // Press a real control. Where a section keeps its own state (checks,
+  // recommendation) the demo drives it through the UI instead of writing to
+  // formData, so the audience sees the genuine spinner, progressive results and
+  // API response rather than a placeholder. Scroll first, then click, so it is
+  // clear *what* was pressed.
+  const demoTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const demoClick = (selector: string) => {
+    waitForElement(selector).then(el => {
+      if (!el) return;
+      scrollToElement(el, 'center');
+      demoTimers.current.push(setTimeout(() => (el as HTMLElement).click?.(), 400));
+    });
+  };
+
+  useEffect(() => () => demoTimers.current.forEach(clearTimeout), []);
 
   useEffect(() => {
     const cleanup = onDemoAction((action: DemoAction) => {
@@ -451,7 +501,7 @@ export default function ApplyPage() {
               dependants: d.dependants,
             },
           }));
-          demoScrollTo('[data-field="nationalInsuranceNumber"]');
+          demoScrollTo('[data-demo="field-ni"]');
           break;
         }
         case 'FILL_ADDRESS': {
@@ -468,7 +518,7 @@ export default function ApplyPage() {
               phone: '07' + String(Math.floor(Math.random() * 900000000) + 100000000),
             },
           }));
-          demoScrollTo('[data-field="postcode"]');
+          demoScrollTo('[data-demo="field-postcode"]');
           break;
         }
         case 'FILL_DEBTS': {
@@ -477,13 +527,7 @@ export default function ApplyPage() {
             ...prev,
             debts: { items: debts },
           }));
-          // Scroll to last debt entry
-          setTimeout(() => {
-            const rows = document.querySelectorAll('[data-debt-row]');
-            const last = rows[rows.length - 1];
-            if (last) last.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            else demoScrollTo();
-          }, 350);
+          demoScrollToLast('[data-demo="debt-row"]');
           break;
         }
         case 'FILL_INCOME': {
@@ -497,7 +541,7 @@ export default function ApplyPage() {
               other: d.other || 0,
             },
           }));
-          demoScrollTo('[data-field="income-other"]');
+          demoScrollTo('[data-demo="field-income-other"]');
           break;
         }
         case 'FILL_EXPENDITURE': {
@@ -515,28 +559,29 @@ export default function ApplyPage() {
               other: d.other || 0,
             },
           }));
-          demoScrollTo('[data-field="expenditure-other"]');
+          demoScrollTo('[data-demo="field-expenditure-other"]');
           break;
         }
         case 'FILL_ASSETS': {
           const d = action.data;
-          setFormData(prev => ({
-            ...prev,
-            assets: {
-              noAssets: d.noAssets,
-              properties: d.properties || [],
-              vehicles: d.vehicles || [],
-              savings: d.savings || [],
-              other: d.other || [],
-            },
-          }));
-          // Scroll to last asset card
-          setTimeout(() => {
-            const cards = document.querySelectorAll('[data-asset-card]');
-            const last = cards[cards.length - 1];
-            if (last) last.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            else demoScrollTo();
-          }, 350);
+          const next = {
+            noAssets: d.noAssets,
+            properties: d.properties || [],
+            vehicles: d.vehicles || [],
+            savings: d.savings || [],
+            other: d.other || [],
+          };
+          setFormData(prev => ({ ...prev, assets: next }));
+
+          // Scroll to the category this action actually added to, not simply the
+          // last one in the DOM. The demo reveals vehicles, then savings, then
+          // properties — but the form renders properties first, so "last match"
+          // would leave the audience looking at the wrong box on every beat.
+          const grown = ASSET_CATEGORIES.find(
+            c => next[c].length > demoAssetCounts.current[c]
+          );
+          ASSET_CATEGORIES.forEach(c => (demoAssetCounts.current[c] = next[c].length));
+          if (grown) demoScrollTo(`[data-demo="asset-category-${grown}"]`);
           break;
         }
         case 'UPLOAD_DOCUMENT': {
@@ -546,31 +591,32 @@ export default function ApplyPage() {
             documents: {
               ...prev.documents,
               uploaded: (prev.documents?.uploaded || 0) + 1,
-              files: [...(prev.documents?.files || []), { name: d.filename, size: d.size, status: 'clean', progress: 100 }],
+              // Only name and size — DocumentsSection owns the upload → scan →
+              // clean progression, so injecting a finished status here would
+              // skip the progress bar the narration is describing.
+              files: [...(prev.documents?.files || []), { name: d.filename, size: d.size }],
             },
           }));
-          demoScrollTo('[data-document-list]');
+          demoScrollTo('[data-demo="documents-list"]');
           break;
         }
         case 'CLICK_RECOMMEND': {
-          // Simulate clicking the Get Recommendation button — set loading then result
-          setFormData(prev => ({
-            ...prev,
-            recommendation: { ...prev.recommendation, loading: true, received: false },
-          }));
-          // After 2.5s, show the result
-          setTimeout(() => {
-            setFormData(prev => ({
-              ...prev,
-              recommendation: { ...prev.recommendation, loading: false, received: true },
-            }));
-            demoScrollTo('[data-recommendation-result]');
-          }, 2500);
-          demoScrollTo('[data-recommend-button]');
+          // Press the real button. Setting recommendation.received directly did
+          // flip to the result panel, but RecommendationSection keeps the result
+          // itself in local state — so the audience got the hardcoded "Debt
+          // Arrangement Scheme / Confidence: High" placeholder with no reasoning
+          // and no decision factors, and no spinner in between. Clicking runs
+          // the real rules-engine call and renders what it returns.
+          demoClick('[data-demo="recommend-button"]');
+          demoScrollTo('[data-demo="recommendation-result"]');
           break;
         }
         case 'DOWNLOAD_PDF': {
-          // Trigger print dialog to simulate PDF download
+          // Trigger print dialog to simulate PDF download.
+          //
+          // Not used by the scripted tour: the print dialog is modal, so it
+          // stops the player dead until someone dismisses it. Kept because a
+          // manually driven demo may still want it.
           try { window.print(); } catch { /* ignore in static export */ }
           break;
         }
@@ -580,24 +626,26 @@ export default function ApplyPage() {
             ...prev,
             payment: { ...prev.payment, method },
           }));
-          demoScrollTo('[data-payment-method]');
+          demoScrollTo('[data-demo="payment-methods"]');
           break;
         }
         case 'CONFIRM_PAYMENT': {
-          setFormData(prev => ({
-            ...prev,
-            payment: { ...prev.payment, confirmed: true },
-          }));
-          demoScrollTo('[data-payment-confirm]');
+          // Press the real confirm-and-submit button. The old handler set a
+          // `payment.confirmed` flag that nothing renders, so this beat was
+          // invisible. handleSubmit always ends with a reference — from the API,
+          // from the offline fallback, or from the localStorage retry queue — so
+          // the confirmation screen appears either way.
+          demoClick('[data-demo="payment-confirm"]');
           break;
         }
         case 'RUN_CHECKS': {
-          // Mark checks as completed with synthetic results
-          setFormData(prev => ({
-            ...prev,
-            checks: { started: true, completed: true },
-          }));
-          demoScrollTo('[data-checks-results]');
+          // Press the real button rather than setting checks.completed. That
+          // flag skipped straight to the offline fallback list — six "Clear"
+          // rows appearing in a single frame — while the narration described six
+          // systems being queried in parallel. The real handler shows each
+          // system resolving in turn, plus the credit check.
+          demoClick('[data-demo="run-checks"]');
+          demoScrollTo('[data-demo="checks-results"]');
           break;
         }
         case 'NEXT_STEP': {
@@ -608,6 +656,10 @@ export default function ApplyPage() {
           break;
         }
         case 'SUBMIT': {
+          // Synthetic short-cut past the real submit. Not used by the scripted
+          // tour any more — CONFIRM_PAYMENT clicks the real button, which
+          // produces a real reference. Kept for manually driven demos.
+          //
           // Mark payment as completed with synthetic reference
           setFormData(prev => ({
             ...prev,
@@ -1068,7 +1120,7 @@ function PersonalSection({ formData, updateField, errors }: { formData: any; upd
         <Input label="Last name *" value={d.lastName} onChange={v => updateField('personal', 'lastName', v)} error={errors.lastName} />
       </div>
       <Input label="Date of birth *" type="date" value={d.dateOfBirth} onChange={v => updateField('personal', 'dateOfBirth', v)} hint="YYYY-MM-DD format" error={errors.dateOfBirth} />
-      <Input label="National Insurance number *" value={d.nationalInsuranceNumber} onChange={v => updateField('personal', 'nationalInsuranceNumber', v)} hint="e.g. QQ 12 34 56 C" error={errors.nationalInsuranceNumber} />
+      <Input label="National Insurance number *" value={d.nationalInsuranceNumber} onChange={v => updateField('personal', 'nationalInsuranceNumber', v)} hint="e.g. QQ 12 34 56 C" error={errors.nationalInsuranceNumber} demo="field-ni" />
       <div className="grid md:grid-cols-2 gap-4">
         <div>
           <label className="block font-bold mb-1 text-sm">Marital status *</label>
@@ -1146,7 +1198,7 @@ function AddressSection({ formData, updateField, errors }: { formData: any; upda
       <h3 className="font-bold">Current Address</h3>
       <div className="flex gap-2 items-end">
         <div className="flex-1">
-          <Input label="Postcode *" value={a.postcode} onChange={v => updateField('address', 'postcode', v)} hint="Enter postcode to look up" error={errors['address.postcode']} />
+          <Input label="Postcode *" value={a.postcode} onChange={v => updateField('address', 'postcode', v)} hint="Enter postcode to look up" error={errors['address.postcode']} demo="field-postcode" />
         </div>
         <button onClick={lookupPostcode} type="button" className="bg-blue-700 text-white py-2 px-4 mb-4 text-sm hover:bg-blue-800">Find address</button>
       </div>
@@ -1246,7 +1298,8 @@ function DebtsSection({ formData, updateField, errors }: { formData: any; update
         </div>
       )}
       {debts.map((debt: any, i: number) => (
-        <div key={i} className="border border-gray-300 dark:border-gray-700 p-4 rounded relative">
+        // data-demo hook: the demo reveals debts one at a time and scrolls to the newest.
+        <div key={i} data-demo="debt-row" className="border border-gray-300 dark:border-gray-700 p-4 rounded relative">
           <button onClick={() => removeDebt(i)} className="absolute top-2 right-2 text-red-600 text-xs hover:underline">Remove</button>
           <p className="font-bold text-sm mb-2">Debt {i + 1}</p>
           <div className="grid md:grid-cols-2 gap-3">
@@ -1304,7 +1357,7 @@ function IncomeSection({ formData, updateField, errors }: { formData: any; updat
         <Input label="Wages/Salary (£)" type="number" value={inc.wages} onChange={v => updateField('income', 'wages', v)} error={errors['income.wages']} />
         <Input label="Benefits (£)" type="number" value={inc.benefits} onChange={v => updateField('income', 'benefits', v)} error={errors['income.benefits']} />
         <Input label="Pension (£)" type="number" value={inc.pension} onChange={v => updateField('income', 'pension', v)} error={errors['income.pension']} />
-        <Input label="Other income (£)" type="number" value={inc.other} onChange={v => updateField('income', 'other', v)} error={errors['income.other']} />
+        <Input label="Other income (£)" type="number" value={inc.other} onChange={v => updateField('income', 'other', v)} error={errors['income.other']} demo="field-income-other" />
       </div>
       <div className="bg-blue-50 dark:bg-blue-950 p-3 rounded"><strong>Total income: £{totalIncome.toLocaleString()}/month</strong></div>
 
@@ -1317,7 +1370,7 @@ function IncomeSection({ formData, updateField, errors }: { formData: any; updat
         <Input label="Transport (£)" type="number" value={exp.transport} onChange={v => updateField('expenditure', 'transport', v)} error={errors['expenditure.transport']} />
         <Input label="Insurance (£)" type="number" value={exp.insurance} onChange={v => updateField('expenditure', 'insurance', v)} error={errors['expenditure.insurance']} />
         <Input label="Childcare (£)" type="number" value={exp.childcare} onChange={v => updateField('expenditure', 'childcare', v)} error={errors['expenditure.childcare']} />
-        <Input label="Other (£)" type="number" value={exp.other} onChange={v => updateField('expenditure', 'other', v)} error={errors['expenditure.other']} />
+        <Input label="Other (£)" type="number" value={exp.other} onChange={v => updateField('expenditure', 'other', v)} error={errors['expenditure.other']} demo="field-expenditure-other" />
       </div>
       <div className="bg-blue-50 dark:bg-blue-950 p-3 rounded">
         <p><strong>Total expenditure: £{totalExp.toLocaleString()}/month</strong></p>
@@ -1379,7 +1432,7 @@ function AssetsSection({ formData, updateField, errors }: { formData: any; updat
           )}
 
           {/* Property */}
-          <div className="border border-gray-200 dark:border-gray-700 rounded p-4">
+          <div data-demo="asset-category-properties" className="border border-gray-200 dark:border-gray-700 rounded p-4">
             <h4 className="font-bold text-sm mb-2">🏠 Property</h4>
             {properties.map((p: any, i: number) => (
               <div key={i} className="grid md:grid-cols-2 gap-3 mb-3 pb-3 border-b border-gray-100 dark:border-gray-700">
@@ -1398,7 +1451,7 @@ function AssetsSection({ formData, updateField, errors }: { formData: any; updat
           </div>
 
           {/* Vehicles */}
-          <div className="border border-gray-200 dark:border-gray-700 rounded p-4">
+          <div data-demo="asset-category-vehicles" className="border border-gray-200 dark:border-gray-700 rounded p-4">
             <h4 className="font-bold text-sm mb-2">🚗 Vehicles</h4>
             {vehicles.map((v: any, i: number) => (
               <div key={i} className="grid md:grid-cols-2 gap-3 mb-3 pb-3 border-b border-gray-100 dark:border-gray-700">
@@ -1417,7 +1470,7 @@ function AssetsSection({ formData, updateField, errors }: { formData: any; updat
           </div>
 
           {/* Savings & Investments */}
-          <div className="border border-gray-200 dark:border-gray-700 rounded p-4">
+          <div data-demo="asset-category-savings" className="border border-gray-200 dark:border-gray-700 rounded p-4">
             <h4 className="font-bold text-sm mb-2">💰 Savings & Investments</h4>
             {savings.map((s: any, i: number) => (
               <div key={i} className="grid md:grid-cols-3 gap-3 mb-2">
@@ -1437,7 +1490,7 @@ function AssetsSection({ formData, updateField, errors }: { formData: any; updat
           </div>
 
           {/* Other Assets */}
-          <div className="border border-gray-200 dark:border-gray-700 rounded p-4">
+          <div data-demo="asset-category-other" className="border border-gray-200 dark:border-gray-700 rounded p-4">
             <h4 className="font-bold text-sm mb-2">📦 Other Assets</h4>
             <p className="text-xs text-gray-500 mb-2">Include valuables, collections, equipment, business assets, etc.</p>
             {otherAssets.map((o: any, i: number) => (
@@ -1475,6 +1528,79 @@ function DocumentsSection({ formData, updateField }: { formData: any; updateFiel
 
   const [files, setFiles] = useState<UploadedFile[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const intervals = useRef<ReturnType<typeof setInterval>[]>([]);
+  const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  // Names already given a row, so a re-render of the same injected file list
+  // does not add it twice.
+  const seenNames = useRef<Set<string>>(new Set());
+
+  useEffect(() => () => {
+    intervals.current.forEach(clearInterval);
+    timers.current.forEach(clearTimeout);
+  }, []);
+
+  /**
+   * Drive one row through uploading → scanning → complete.
+   *
+   * Shared by real file selection and by demo mode, so both show the same
+   * progress bar and the same "Uploaded ✓ · Clean ✓" badge. Rows are matched by
+   * name because that is the only identifier an injected demo file has.
+   */
+  const runUploadSimulation = useCallback((name: string, onComplete?: () => void) => {
+    let progress = 0;
+    const uploadInterval = setInterval(() => {
+      progress += 10;
+      setFiles(prev => prev.map(f =>
+        f.name === name && f.status === 'uploading'
+          ? { ...f, progress: Math.min(progress, 100) }
+          : f
+      ));
+      if (progress >= 100) {
+        clearInterval(uploadInterval);
+        // Move to scanning status
+        setFiles(prev => prev.map(f =>
+          f.name === name && f.status === 'uploading'
+            ? { ...f, status: 'scanning' as const, progress: 100 }
+            : f
+        ));
+        // After 1-second virus scan delay, mark complete
+        const scanTimer = setTimeout(() => {
+          setFiles(prev => prev.map(f =>
+            f.name === name && f.status === 'scanning'
+              ? { ...f, status: 'complete' as const }
+              : f
+          ));
+          onComplete?.();
+        }, 1000);
+        timers.current.push(scanTimer);
+      }
+    }, 200);
+    intervals.current.push(uploadInterval);
+  }, []);
+
+  // Demo mode injects files into formData rather than through the file input, so
+  // mirror anything it adds into local state and run it through the same
+  // progression. Without this the audience watches an empty drop zone while the
+  // narration describes documents being uploaded and virus-scanned.
+  const injectedFiles = formData.documents?.files;
+  useEffect(() => {
+    const fresh = (injectedFiles || []).filter(
+      (f: { name?: string }) => f?.name && !seenNames.current.has(f.name)
+    );
+    if (!fresh.length) return;
+
+    fresh.forEach((f: { name: string }) => seenNames.current.add(f.name));
+    setFiles(prev => [
+      ...prev,
+      ...fresh.map((f: { name: string; size?: number }) => ({
+        name: f.name,
+        size: f.size ?? 0,
+        status: 'uploading' as const,
+        progress: 0,
+      })),
+    ]);
+    fresh.forEach((f: { name: string }) => runUploadSimulation(f.name));
+  }, [injectedFiles, runUploadSimulation]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files) return;
@@ -1488,37 +1614,12 @@ function DocumentsSection({ formData, updateField }: { formData: any; updateFiel
         progress: 0,
       };
 
+      seenNames.current.add(file.name);
       setFiles(prev => [...prev, newFile]);
-      const fileIndex = files.length + selectedFiles.indexOf(file);
 
-      // Simulate upload progress over 2 seconds
-      let progress = 0;
-      const uploadInterval = setInterval(() => {
-        progress += 10;
-        setFiles(prev => prev.map((f, i) =>
-          f.name === file.name && f.status === 'uploading'
-            ? { ...f, progress: Math.min(progress, 100) }
-            : f
-        ));
-        if (progress >= 100) {
-          clearInterval(uploadInterval);
-          // Move to scanning status
-          setFiles(prev => prev.map(f =>
-            f.name === file.name && f.status === 'uploading'
-              ? { ...f, status: 'scanning' as const, progress: 100 }
-              : f
-          ));
-          // After 1-second virus scan delay, mark complete
-          setTimeout(() => {
-            setFiles(prev => prev.map(f =>
-              f.name === file.name && f.status === 'scanning'
-                ? { ...f, status: 'complete' as const }
-                : f
-            ));
-            updateField('documents', 'uploaded', (formData.documents?.uploaded || 0) + 1);
-          }, 1000);
-        }
-      }, 200);
+      runUploadSimulation(file.name, () =>
+        updateField('documents', 'uploaded', (formData.documents?.uploaded || 0) + 1)
+      );
 
       // Attempt real upload to API (non-blocking)
       const formDataUpload = new FormData();
@@ -1570,7 +1671,7 @@ function DocumentsSection({ formData, updateField }: { formData: any; updateFiel
       </div>
 
       {files.length > 0 && (
-        <div className="space-y-3">
+        <div data-demo="documents-list" className="space-y-3">
           {files.map((file, i) => (
             <div key={i} className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
               <div className="flex items-center justify-between mb-2">
@@ -1736,7 +1837,7 @@ function ChecksSection({ formData, updateField }: { formData: any; updateField: 
 
       {!checks.completed ? (
         <div>
-          <button onClick={runChecks} disabled={runningChecks} className="bg-blue-700 text-white font-bold py-3 px-6 hover:bg-blue-800 disabled:opacity-50">
+          <button data-demo="run-checks" onClick={runChecks} disabled={runningChecks} className="bg-blue-700 text-white font-bold py-3 px-6 hover:bg-blue-800 disabled:opacity-50">
             {runningChecks ? '⏳ Running checks...' : '🔍 Run system checks'}
           </button>
 
@@ -1764,7 +1865,7 @@ function ChecksSection({ formData, updateField }: { formData: any; updateField: 
           )}
         </div>
       ) : (
-        <div className="space-y-2">
+        <div data-demo="checks-results" className="space-y-2">
           {checkResults.length > 0 ? checkResults.map((result, i) => (
             <div key={i} className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700">
               <div>
@@ -1896,7 +1997,7 @@ function RecommendationSection({ formData, updateField }: { formData: any; updat
       {!rec.received ? (
         <>
           <p className="text-sm text-gray-600 dark:text-gray-400">Based on your information, our rules engine will recommend the most suitable debt solution.</p>
-          <button onClick={getRecommendation} disabled={loading} className="bg-green-700 text-white font-bold py-3 px-6 hover:bg-green-800 disabled:opacity-50">
+          <button data-demo="recommend-button" onClick={getRecommendation} disabled={loading} className="bg-green-700 text-white font-bold py-3 px-6 hover:bg-green-800 disabled:opacity-50">
             {loading ? '⏳ Analysing...' : 'Get my recommendation'}
           </button>
           {loading && (
@@ -1918,7 +2019,7 @@ function RecommendationSection({ formData, updateField }: { formData: any; updat
         </>
       ) : (
         <>
-          <div className="bg-green-700 text-white p-6 rounded text-center animate-[fadeIn_0.5s_ease-in]">
+          <div data-demo="recommendation-result" className="bg-green-700 text-white p-6 rounded text-center animate-[fadeIn_0.5s_ease-in]">
             <h3 className="text-xl font-bold text-white">Recommended: {result ? PRODUCT_LABELS[result.product] || result.product : 'Debt Arrangement Scheme (DAS)'}</h3>
             <p className="text-green-100 mt-1">Confidence: {result?.confidence || 'High'}</p>
           </div>
@@ -2157,7 +2258,7 @@ function PaymentSection({ formData, updateField, applicationId }: { formData: an
       <p className="text-sm">Application fee: <strong>£90.00</strong></p>
       <div className="bg-yellow-50 dark:bg-yellow-950 border-l-4 border-yellow-600 p-3 text-sm"><strong>Sandbox:</strong> No real payment processed.</div>
       <h3 className="font-bold">Choose payment method</h3>
-      <div className="grid grid-cols-3 gap-3">
+      <div data-demo="payment-methods" className="grid grid-cols-3 gap-3">
         {[['apple_pay','🍎 Apple Pay'],['google_pay','G Pay'],['card','💳 Card']].map(([id, label]) => (
           <button key={id} onClick={() => updateField('payment', 'method', id)}
             className={`p-4 border-2 rounded text-center font-bold text-sm ${payment.method === id ? 'border-blue-600 bg-blue-50 dark:bg-blue-950' : 'border-gray-300 dark:border-gray-700 hover:border-gray-500'}`}>
@@ -2166,7 +2267,7 @@ function PaymentSection({ formData, updateField, applicationId }: { formData: an
         ))}
       </div>
       {payment.method && (
-        <button onClick={handleSubmit} disabled={submitting}
+        <button data-demo="payment-confirm" onClick={handleSubmit} disabled={submitting}
           className="bg-green-700 text-white font-bold py-3 px-8 hover:bg-green-800 w-full text-center disabled:opacity-50">
           {submitting ? '⏳ Processing...' : 'Complete Payment & Submit (Sandbox) — £90.00'}
         </button>
@@ -2177,11 +2278,14 @@ function PaymentSection({ formData, updateField, applicationId }: { formData: an
 
 // ============ SHARED INPUT COMPONENT ============
 
-function Input({ label, type = 'text', value, onChange, hint, error }: {
-  label: string; type?: string; value?: any; onChange: (v: string) => void; hint?: string; error?: string;
+// `demo` puts a data-demo hook on the wrapper so demo mode can scroll to this
+// field. It sits on the wrapper rather than the <input> because the label and
+// hint are the part the audience needs to read.
+function Input({ label, type = 'text', value, onChange, hint, error, demo }: {
+  label: string; type?: string; value?: any; onChange: (v: string) => void; hint?: string; error?: string; demo?: string;
 }) {
   return (
-    <div className="mb-1">
+    <div className="mb-1" data-demo={demo}>
       <label className="block font-bold mb-1 text-sm">{label}</label>
       {hint && <p className="text-xs text-gray-500 mb-1">{hint}</p>}
       {error && <p className="text-xs text-red-600 font-bold mb-1">⚠ {error}</p>}

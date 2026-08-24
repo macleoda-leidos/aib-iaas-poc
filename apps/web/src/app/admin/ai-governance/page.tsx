@@ -137,7 +137,7 @@ export default function AIGovernancePage() {
       </div>
 
       {/* Section 1: Active Alerts */}
-      <div className="space-y-3">
+      <div data-demo="governance-alerts" className="space-y-3">
         <div className="bg-white rounded-lg shadow-sm p-4 border-l-4 border-red-600">
           <div className="flex items-start gap-3">
             <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-red-100 text-red-800">
@@ -161,7 +161,7 @@ export default function AIGovernancePage() {
       </div>
 
       {/* Section 2: KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div data-demo="governance-kpis" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white rounded-lg shadow-sm p-6 border-l-4 border-blue-600">
           <p className="text-sm text-gray-600">Recommendations Generated</p>
           <p className="text-3xl font-bold text-gray-900 mt-1">1,247</p>
@@ -229,7 +229,7 @@ export default function AIGovernancePage() {
       </div>
 
       {/* Section 5: Bias / Fairness Metrics */}
-      <div className="bg-white rounded-lg shadow-sm p-6">
+      <div data-demo="governance-bias-metrics" className="bg-white rounded-lg shadow-sm p-6">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Bias / Fairness Metrics</h2>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -293,7 +293,7 @@ export default function AIGovernancePage() {
       </div>
 
       {/* Section 7: Model Registry */}
-      <div className="bg-white rounded-lg shadow-sm p-6">
+      <div data-demo="governance-registry" className="bg-white rounded-lg shadow-sm p-6">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Model Registry</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <div>

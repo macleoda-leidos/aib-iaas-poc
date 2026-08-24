@@ -127,6 +127,12 @@
 ---
 
 ### US-011: Adviser Creates Application on Behalf of Client
+
+> 🎯 **TARGET — specification only.** **Not implemented.** `/adviser-workspace` is a static
+> interface demonstration; "Submit on Behalf" links to the standard citizen wizard with no client
+> details prompt, no declaration of authority and no submitter/applicant distinction on the
+> resulting record. Neither acceptance criterion below is met. See UC-09 in `docs/use-cases.md`.
+
 **As a** Money Adviser **I want** to create and progress an application on behalf of my client **so that** I can assist citizens who cannot use the digital service themselves.
 
 **Acceptance Criteria:**

@@ -3,29 +3,68 @@
 This checklist covers all items that must be completed, verified, or signed-off before the IAAS platform can accept live users. Items are grouped by category with ownership and status tracking.
 
 **Target Go-Live Date**: TBD (estimated 18 months from POC completion)
-**Last Updated**: August 2026
+**Last Updated**: 24 August 2026
+
+> ## ⚠️ STATUS: POC ON SYNTHETIC DATA — SECURITY ITEMS ARE MOSTLY OPEN
+>
+> **The platform this checklist governs is a proof of concept operating exclusively on
+> synthetic data.** An internal static code review on 24 August 2026 identified **three
+> Critical and four High** security findings in the deployed source. Nine blocking security
+> items (S16-S24) have been added below to track them, and one item previously marked Done
+> (S9) is corrected to Not Started.
+>
+> See **`docs/security-known-gaps.md`** for the findings register. No real personal data is
+> exposed today because the POC holds none; these items are blockers for any environment
+> holding real debtor data.
 
 ---
 
-## Security (15 items)
+## Security (24 items)
+
+### Foundational Security Findings (added 24 August 2026 — all block go-live)
+
+These derive from `docs/security-known-gaps.md`. S16-S18 address Critical findings.
 
 | # | Item | Description | Owner | Status |
 |---|------|-------------|-------|--------|
-| S1 | ITHC Passed | Independent IT Health Check completed with no Critical/High findings unresolved | Security Engineer | Pending |
-| S2 | CSP Configured | Content Security Policy headers block inline scripts, restrict sources | DevOps Engineer | Pending |
+| S16 | **Token Integrity** | Replace unsigned base64 JSON tokens with signed tokens (RS256/EdDSA) verified on every request; reject on any verification failure. Tokens are currently forgeable — anyone can mint a `system_admin` token (GAP-001). | Backend Developer | **Not Started** |
+| S17 | **API Authentication Enforced** | Apply authentication and permission middleware to every non-public route on the **deployed** service (`services/consolidated-api`), default-deny. All 13 mounted routers are currently unauthenticated (GAP-002). | Backend Developer | **Not Started** |
+| S18 | **Password Verification** | Verify submitted passwords against a memory-hard KDF hash (Argon2id, or bcrypt cost ≥12). Any password is currently accepted (GAP-003). | Backend Developer | **Not Started** |
+| S19 | **Malware Scanning Fail-Closed** | Deploy a real scanning engine; treat `scanned: false` as failure, never as a pass; withhold documents pending a successful scan. The deployed scanner currently infers infection from the filename (GAP-004). | DevOps Engineer | **Not Started** |
+| S20 | **Resource Ownership Checks** | Enforce ownership/assignment constraints on all record-level routes; gate `PATCH /:id/status` behind an explicit decision permission (GAP-005). | Backend Developer | **Not Started** |
+| S21 | **Audit Attribution** | Authenticate audit ingestion; derive actor identity from the verified token, never from the request body (GAP-006). | Backend Developer | **Not Started** |
+| S22 | **Brute-Force Protection** | Per-account and per-IP login limits separate from the global limiter; temporary lockout with backoff; alert on lockout (GAP-008). | Backend Developer | **Not Started** |
+| S23 | **Validation Wired In** | Apply the existing schemas as middleware on every route accepting input; add a CI check preventing handlers reading `req.body` unvalidated (GAP-009). | Backend Developer | **Not Started** |
+| S24 | **Session Revocation** | Validate requests against server-side session state or a revocation list; shorten token lifetime with refresh rotation (GAP-010). | Backend Developer | **Not Started** |
+
+### Original Security Items
+
+| # | Item | Description | Owner | Status |
+|---|------|-------------|-------|--------|
+| S1 | ITHC Passed | Independent IT Health Check completed with no Critical/High findings unresolved. **Must be scoped to the deployed artefact rather than a staging topology, and conducted after S16-S24.** The existing `docs/ithc-penetration-test-report.md` is a simulated document whose "no critical or high" conclusion is superseded. | Security Engineer | Pending |
+| S2 | CSP Configured | Content Security Policy headers block inline scripts, restrict sources. Currently explicitly disabled (`contentSecurityPolicy: false`). | DevOps Engineer | Pending |
 | S3 | HSTS Enabled | HTTP Strict Transport Security with min 1-year max-age, includeSubDomains | DevOps Engineer | Pending |
-| S4 | Secrets Rotated | All API keys, database passwords, JWT secrets rotated from development values | DevOps Engineer | Pending |
+| S4 | Secrets Rotated | All API keys, database passwords, and token signing keys rotated from development values. No token signing key exists yet — depends on S16. Verified positive: no secrets are committed to the repository today. | DevOps Engineer | Pending |
 | S5 | Pen Test Remediated | All penetration test findings at Medium+ severity remediated and retested | Security Engineer | Pending |
-| S6 | WAF Configured | Web Application Firewall rules active (OWASP Core Rule Set, rate limiting) | DevOps Engineer | Pending |
-| S7 | MFA Enforced | Multi-factor authentication mandatory for all staff/admin accounts | Security Engineer | Pending |
-| S8 | Session Management | Session timeout configured (15min idle, 8hr absolute), secure cookie flags | Backend Developer | Pending |
-| S9 | Input Validation | All user inputs validated server-side (Zod schemas) with appropriate error messages | Backend Developer | Done |
-| S10 | SQL Injection Prevention | Parameterised queries verified across all database operations | Backend Developer | Done |
-| S11 | XSS Prevention | Output encoding verified, React default escaping confirmed, dangerouslySetInnerHTML audited | Frontend Developer | Done |
-| S12 | Dependency Audit | No known Critical/High vulnerabilities in production dependencies (npm audit) | DevOps Engineer | Pending |
-| S13 | Encryption at Rest | Database encryption enabled (AWS RDS encryption), S3 bucket encryption (SSE-S3) | DevOps Engineer | Pending |
-| S14 | Encryption in Transit | TLS 1.2+ enforced on all connections (API, database, inter-service) | DevOps Engineer | Pending |
-| S15 | Security Headers | X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy configured | Backend Developer | Done |
+| S6 | WAF Configured | Web Application Firewall rules active (OWASP Core Rule Set, rate limiting). Sequence after S16-S18 — a WAF in front of a service that authenticates no requests adds little. | DevOps Engineer | Pending |
+| S7 | MFA Enforced | Multi-factor authentication mandatory for all staff/admin accounts. No MFA is implemented and no IdP integration exists to enforce it (GAP-007). | Security Engineer | Pending |
+| S8 | Session Management | Session timeout configured (15min idle, 8hr absolute), secure cookie flags. Currently a single 8-hour token with no refresh, no idle timeout, and no server-side validity check. | Backend Developer | Pending |
+| S9 | Input Validation | All user inputs validated server-side with appropriate error messages | Backend Developer | **Not Started** — *corrected from "Done" on 24 Aug 2026: the Zod schema package has zero importers outside its own tests and is dead code. Tracked as S23 (GAP-009).* |
+| S10 | SQL Injection Prevention | Parameterised queries verified across all database operations | Backend Developer | **Done** — *verified genuine. All queries use `?` placeholders with user values bound; dynamic `WHERE` fragments are built only from hardcoded literals. No injection vector identified.* |
+| S11 | XSS Prevention | Output encoding verified, React default escaping confirmed, dangerouslySetInnerHTML audited | Frontend Developer | Done — React auto-escaping confirmed. CSP is disabled (S2), so the defence-in-depth layer is absent. |
+| S12 | Dependency Audit | No known Critical/High vulnerabilities in production dependencies (npm audit) | DevOps Engineer | Pending — Dependabot and `npm audit` in CI are configured |
+| S13 | Encryption at Rest | Database encryption enabled (AWS RDS encryption), S3 bucket encryption (SSE-S3) | DevOps Engineer | Pending — POC uses unencrypted SQLite |
+| S14 | Encryption in Transit | TLS 1.2+ enforced on all connections (API, database, inter-service) | DevOps Engineer | Pending — HTTPS enforced at the edge today |
+| S15 | Security Headers | X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy configured | Backend Developer | Done — via Helmet; CSP and HSTS tracked separately (S2, S3) |
+
+### Additional Verified-Positive Controls
+
+Recorded so that remediation does not disturb what already works: CORS is a fixed origin
+allowlist on the deployed service; file upload size limit (10MB) and extension allowlist are
+enforced; no secrets are committed (`sync: false` for `DATABASE_URL`); CI/CD workflows use
+`pull_request` rather than `pull_request_target`, contain no script-injection sinks, and
+authenticate to Azure via OIDC; NI number validation is correct including the real
+invalid-prefix list.
 
 ---
 
@@ -120,18 +159,26 @@ This checklist covers all items that must be completed, verified, or signed-off 
 
 | Category | Total Items | Done | Pending | N/A |
 |----------|-------------|------|---------|-----|
-| Security | 15 | 4 | 11 | 0 |
+| Security | 24 | 3 | 21 | 0 |
 | Accessibility | 8 | 5 | 3 | 0 |
 | Performance | 8 | 1 | 7 | 0 |
 | Data | 8 | 0 | 8 | 0 |
 | Operations | 10 | 2 | 8 | 0 |
 | Compliance | 6 | 1 | 5 | 0 |
 | Launch | 5 | 0 | 5 | 0 |
-| **TOTAL** | **60** | **13** | **47** | **0** |
+| **TOTAL** | **69** | **12** | **57** | **0** |
+
+Security count revised 24 August 2026: 15 → 24 items (S16-S24 added); Done 4 → 3 (S9 corrected
+from Done to Not Started). Of the 21 open security items, **9 address Critical or High findings
+in `docs/security-known-gaps.md` and block any use of real data.**
 
 ---
 
 ## Sign-Off
+
+> ⚠️ **Not for signature.** Nine security items addressing Critical and High findings (S16-S24)
+> are open. Sign-off should not be sought until those are closed and an independent ITHC (S1)
+> has been completed against the remediated build.
 
 | Role | Name | Date | Signature |
 |------|------|------|-----------|
@@ -146,6 +193,9 @@ This checklist covers all items that must be completed, verified, or signed-off 
 
 ## Related Documents
 
+- [**Security Known Gaps — Findings Register**](./security-known-gaps.md) — authoritative on current security state; source of items S16-S24
+- [Authority to Operate](./authority-to-operate.md)
+- [ITHC Penetration Test Report](./ithc-penetration-test-report.md) — conclusion superseded
 - [Vendor Assessment](./vendor-assessment.md)
 - [Architecture Decisions](./architecture-decisions.md)
 - [Team Scaling Guide](./team-scaling-guide.md)

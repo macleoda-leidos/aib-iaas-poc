@@ -164,7 +164,7 @@
 | "Is the AI real ML or just rules?" | "The recommendation engine is rules-based — auditable and deterministic. The chatbot uses pattern matching. Both are designed to evolve into ML models once training data is available. The AI Governance framework is already in place for that transition." |
 | "How accessible is it?" | "WCAG 2.1 AA targeted. GOV.UK Design System patterns. Semantic HTML, ARIA labels, keyboard navigation, focus management. A formal audit is planned for Alpha." |
 | "What about data protection?" | "All POC data is synthetic. The architecture is GDPR-by-design: data minimisation, purpose limitation, encryption at rest and in transit, immutable audit trail." |
-| "Can we see the code?" | "The full repository is available on GitHub. Monorepo structure, TypeScript throughout, comprehensive documentation suite of 27+ documents." |
+| "Can we see the code?" | "The full repository is available on GitHub. Monorepo structure, TypeScript throughout, comprehensive documentation suite of 60 documents." |
 | "What is the integration approach?" | "Adapter pattern. Mock integrations mirror the real API contracts for BASYS, eDEN, DAS, CFT, Moratorium, and RoI. Switching from mock to real is a configuration change, not a rewrite." |
 
 ---

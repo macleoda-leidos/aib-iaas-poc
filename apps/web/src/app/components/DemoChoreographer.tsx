@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import { onDemoAction, waitForElement, DemoAction } from '../../lib/demoEvents';
+import { BANNER_HEIGHT, easeInOut, scrollToElement } from '../../lib/demoScroll';
 
 /**
  * Handles the generic DOM half of demo mode.
@@ -14,16 +15,9 @@ import { onDemoAction, waitForElement, DemoAction } from '../../lib/demoEvents';
  * Mounted once in the root layout beside <DemoMode />.
  */
 
-// The narration panel is fixed to the bottom of the viewport, so the bottom
-// ~96px of the window is not really visible. Every scroll target is offset by
-// this much, otherwise "scroll to the field being filled" lands the field
-// underneath the banner and the audience sees nothing happen.
-const BANNER_HEIGHT = 96;
-
-/** Ease-in-out so a long scroll starts and ends gently rather than jerking. */
-function easeInOut(t: number): number {
-  return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
-}
+// BANNER_HEIGHT, easeInOut and scrollToElement live in lib/demoScroll so that
+// /apply — which owns its own form state and therefore scrolls itself — lands
+// targets with exactly the same geometry as the choreographed pages.
 
 export default function DemoChoreographer() {
   // A slow scroll runs for seconds, so a new action (or leaving the page) has to
@@ -38,21 +32,6 @@ export default function DemoChoreographer() {
         cancelAnimationFrame(scrollRaf.current);
         scrollRaf.current = null;
       }
-    };
-
-    /** Scroll an element into view, keeping it clear of the narration banner. */
-    const scrollToElement = (el: Element, block: ScrollLogicalPosition) => {
-      const rect = el.getBoundingClientRect();
-      const visibleHeight = window.innerHeight - BANNER_HEIGHT;
-
-      // 'center' centres within the *visible* area rather than the whole window.
-      const targetOffset =
-        block === 'start' ? 24 : Math.max(24, (visibleHeight - rect.height) / 2);
-
-      window.scrollTo({
-        top: Math.max(0, window.scrollY + rect.top - targetOffset),
-        behavior: 'smooth',
-      });
     };
 
     /**

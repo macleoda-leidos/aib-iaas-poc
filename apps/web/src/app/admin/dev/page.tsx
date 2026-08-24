@@ -10,6 +10,7 @@ const DOCS = [
   { file: 'options-analysis.md', title: 'Options Analysis', category: 'Strategic' },
   { file: 'roadmap.md', title: 'Platform Roadmap', category: 'Strategic' },
   { file: 'BETA_READINESS.md', title: 'Beta Readiness Assessment', category: 'Strategic' },
+  { file: 'context-and-assumptions.md', title: 'Context and Assumptions', category: 'Strategic' },
   { file: 'personas.md', title: 'User Personas', category: 'Functional' },
   { file: 'user-stories.md', title: 'User Stories', category: 'Functional' },
   { file: 'use-cases.md', title: 'Use Cases', category: 'Functional' },
@@ -23,12 +24,22 @@ const DOCS = [
   { file: 'recommendation-engine.md', title: 'Recommendation Engine', category: 'Technical' },
   { file: 'identity-architecture.md', title: 'Identity Architecture', category: 'Technical' },
   { file: 'api-sdk-guide.md', title: 'API SDK Guide', category: 'Technical' },
+  { file: 'api-first-design.md', title: 'API-First Design', category: 'Technical' },
+  { file: 'data-model.md', title: 'Data Model', category: 'Technical' },
+  { file: 'integration-design.md', title: 'Integration Design', category: 'Technical' },
+  { file: 'integration-readiness.md', title: 'Integration Readiness', category: 'Technical' },
+  { file: 'backend-switching.md', title: 'Backend Switching Guide', category: 'Technical' },
+  { file: 'dotnet-migration-plan.md', title: '.NET Migration Plan', category: 'Technical' },
   { file: 'testing.md', title: 'Test Documentation', category: 'Operations' },
   { file: 'administration-guide.md', title: 'Administration Guide', category: 'Operations' },
   { file: 'runbook-render.md', title: 'Render Runbook', category: 'Operations' },
   { file: 'disaster-recovery.md', title: 'Disaster Recovery', category: 'Operations' },
   { file: 'code-quality-report.md', title: 'Code Quality Report', category: 'Operations' },
   { file: 'security-scan-report.md', title: 'Security Scan Report', category: 'Operations' },
+  { file: 'runbook.md', title: 'Operational Runbook', category: 'Operations' },
+  { file: 'security-hardening-log.md', title: 'Security Hardening Log', category: 'Operations' },
+  { file: 'pilot-incident-response.md', title: 'Pilot Incident Response Plan', category: 'Operations' },
+  { file: 'pilot-test-scenarios.md', title: 'Pilot Test Scenarios', category: 'Operations' },
   { file: 'sprint-delivery-log.md', title: 'Sprint Delivery Log', category: 'Delivery' },
   { file: 'demo-script.md', title: 'Demo Script', category: 'Delivery' },
   { file: 'onboarding-guide.md', title: 'Onboarding Guide', category: 'Delivery' },
@@ -36,10 +47,20 @@ const DOCS = [
   { file: 'team-scaling-guide.md', title: 'Team Scaling Guide', category: 'Delivery' },
   { file: 'vendor-assessment.md', title: 'Vendor Assessment', category: 'Delivery' },
   { file: 'go-live-checklist.md', title: 'Go-Live Checklist', category: 'Delivery' },
+  { file: 'pilot-success-criteria.md', title: 'Pilot Success Criteria', category: 'Delivery' },
+  { file: 'pilot-training-guide.md', title: 'Pilot Training Guide', category: 'Delivery' },
+  { file: 'sow-delivery-notes.md', title: 'SOW Delivery Notes', category: 'Delivery' },
+  { file: 'sow-response/01-statement-of-work.md', title: 'SOW Response — Statement of Work', category: 'Delivery' },
+  { file: 'sow-response/02-resource-plan.md', title: 'SOW Response — Resource Plan', category: 'Delivery' },
+  { file: 'sow-response/03-project-plan.md', title: 'SOW Response — Project Plan', category: 'Delivery' },
+  { file: 'sow-response/04-payment-plan.md', title: 'SOW Response — Payment Plan', category: 'Delivery' },
   { file: 'ithc-penetration-test-report.md', title: 'ITHC Pen Test Report', category: 'Compliance' },
   { file: 'wcag-accessibility-audit.md', title: 'WCAG Accessibility Audit', category: 'Compliance' },
   { file: 'gds-service-assessment.md', title: 'GDS Service Assessment', category: 'Compliance' },
   { file: 'authority-to-operate.md', title: 'Authority to Operate', category: 'Compliance' },
+  { file: 'security-known-gaps.md', title: 'Security Known Gaps (Findings Register)', category: 'Compliance' },
+  { file: 'gds-evidence-pack.md', title: 'GDS Evidence Pack', category: 'Compliance' },
+  { file: 'ithc-scope.md', title: 'ITHC Scope', category: 'Compliance' },
   { file: 'IAAS_DOCUMENTATION_REVIEW.md', title: 'Documentation Review & Gap Analysis', category: 'Compliance' },
   { file: 'admin-portal-guide.md', title: 'Admin Portal Guide (38 Features)', category: 'Functional' },
   { file: 'release-notes.md', title: 'Release Notes (v0.1–v0.25)', category: 'Delivery' },
@@ -77,8 +98,11 @@ function renderMarkdown(md: string): string {
     .replace(/\*(.+?)\*/g, '<em>$1</em>')
     // Inline code
     .replace(/`([^`]+)`/g, '<code class="bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded text-xs">$1</code>')
-    // Links — relative .md links → GitHub view
-    .replace(/\[([^\]]+)\]\(\.?\/?([a-zA-Z0-9_-]+\.md)\)/g, '<a href="https://github.com/macleoda-leidos/aib-iaas-poc/blob/main/docs/$2" class="text-blue-700 dark:text-blue-400 underline" target="_blank">$1 ↗</a>')
+    // Links — relative .md links → GitHub view. Path segments may be separated by
+    // slashes because some docs live in subdirectories (e.g. sow-response/01-statement-of-work.md);
+    // the first segment stays dot-free so that `../up-a-level.md` falls through to the generic URL rule
+    // rather than resolving to a wrong docs/ path.
+    .replace(/\[([^\]]+)\]\(\.?\/?([a-zA-Z0-9_-]+(?:\/[a-zA-Z0-9_.-]+)*\.md)\)/g, '<a href="https://github.com/macleoda-leidos/aib-iaas-poc/blob/main/docs/$2" class="text-blue-700 dark:text-blue-400 underline" target="_blank">$1 ↗</a>')
     // Links — all other URLs
     .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="text-blue-700 dark:text-blue-400 underline" target="_blank">$1</a>')
     // Lists
@@ -203,7 +227,9 @@ export default function DevDocumentationPage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = selectedDoc;
+    // Subdirectory docs would otherwise download as a mangled "sow-response_01-..." name,
+    // since browsers refuse path separators in the download attribute.
+    a.download = selectedDoc.split('/').pop() || selectedDoc;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -214,7 +240,8 @@ export default function DevDocumentationPage() {
     <div className="max-w-6xl mx-auto px-4 py-8">
       <Link href="/admin" className="text-blue-700 dark:text-blue-400 text-sm underline mb-4 inline-block">← Back to Admin</Link>
       <h1 className="text-3xl font-bold mb-2">📖 Project Documentation</h1>
-      <p className="text-gray-600 dark:text-gray-400 mb-4">{DOCS.length} documents • Click to expand • 🔍 View Full on diagrams • 📥 Download as Markdown</p>
+      <p className="text-gray-600 dark:text-gray-400 mb-2">{DOCS.length} documents • Click to expand • 🔍 View Full on diagrams • 📥 Download as Markdown</p>
+      <p className="text-xs text-gray-500 dark:text-gray-500 mb-4">Documents are fetched live from the <code className="bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded">main</code> branch, so local edits that have not been pushed are not reflected here.</p>
 
       {/* Category filter */}
       <div className="flex flex-wrap gap-2 mb-6">

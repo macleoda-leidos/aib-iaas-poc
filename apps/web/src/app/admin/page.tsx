@@ -265,7 +265,7 @@ const ADMIN_FEATURES = [
     href: '/admin/dev',
     icon: '📖',
     name: 'Documentation',
-    description: 'Browse all 36+ project documents inline with rendered Markdown and Mermaid diagrams.',
+    description: 'Browse all 60 project documents inline with rendered Markdown and Mermaid diagrams.',
     status: 'Live',
     statusColour: 'bg-green-100 text-green-800',
   },

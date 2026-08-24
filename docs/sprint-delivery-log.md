@@ -36,7 +36,7 @@ This document records what was delivered in each sprint of the AiB IAAS POC deve
 | 28 | Production Polish | ✅ Complete | — | — |
 | 29 | Enterprise Showcase | ✅ Complete | +2 | — |
 
-**Totals: 65+ pages, 50+ features, 658+ tests, 36+ docs, 12+ AI capabilities**
+**Totals: 65+ pages, 50+ features, 658+ tests, 60 docs, 12+ AI capabilities**
 
 ---
 
@@ -314,8 +314,8 @@ This document records what was delivered in each sprint of the AiB IAAS POC deve
 **Goal**: Demonstrate full ecosystem awareness — not just debtors, but creditors, advisers, and management.
 
 ### Delivered:
-1. Creditor Portal — claim submission, dividends, voting on proposals
-2. Money Adviser Workspace — 42 clients, calendar, submit on behalf
+1. Creditor Portal — interface demonstration on synthetic data: case list, dividend schedule and proposal list. Claim submission is a placeholder form; proposal voting is not implemented.
+2. Money Adviser Workspace — interface demonstration on synthetic data: 8-client caseload, appointment list and recent activity. "Submit on Behalf" links to the standard citizen wizard; submitting against a named client with a declaration of authority is not implemented (see UC-09).
 3. Visual Workflow Engine — CSS state machine with transition rules and SLA timers
 4. MI Reports — management KPIs, staff performance, SLA breaches, export
 5. Debtor Secure Messages — encrypted thread with AiB officers

@@ -2,7 +2,7 @@
 # Deploy with: Dashboard → New Blueprint → Connect this repo
 
 services:
-  # Node.js consolidated API (all 11 microservices)
+  # Node.js consolidated API (all 12 microservices in one container)
   - type: web
     name: iaas-api
     runtime: docker

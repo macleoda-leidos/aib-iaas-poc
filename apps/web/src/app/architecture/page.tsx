@@ -57,14 +57,67 @@ const CATEGORIES = [
   { id: 'shared', label: '⚙️ Shared Platform Services & Packages', tiles: ['recommendation', 'notifications', 'audit', 'organisation', 'users', 'database', 'integrationContracts'] },
 ];
 
+// C4 levels — mirrors docs/architecture.md §2 (Context), §3 (Container), §4 (Component).
+// Presented as expandable tiles rather than rendered Mermaid so the page stays a
+// static export with no diagram runtime, and so the presenter can open exactly
+// one level at a time instead of scrolling past three large SVGs.
+const C4_LEVELS: { id: string; level: string; icon: string; title: string; scope: string; docRef: string; summary: string; groups: { heading: string; items: string[] }[] }[] = [
+  {
+    id: 'c4-context',
+    level: 'Level 1',
+    icon: '🌍',
+    title: 'System Context',
+    scope: '4 actor types · 11 external systems',
+    docRef: 'docs/architecture.md §2',
+    summary: 'IAAS as a single box, and everyone it talks to. This is the diagram for the "who uses it and what does it depend on" conversation — no internal detail at all.',
+    groups: [
+      { heading: 'Actors (People)', items: ['Citizens / Debtors — apply for statutory debt solutions', 'Money Advisers — approved professionals applying on a debtor\'s behalf', 'AiB Staff — review, process and approve applications', 'Creditors / Trustees — receive notifications and dividend information'] },
+      { heading: 'AiB Systems (REST / mTLS)', items: ['BASYS — sequestration case records', 'ASTRA — internal case management, receives submitted applications', 'eDEN / DASH — DAS electronic system + payment distribution', 'DAS Register — Debt Arrangement Scheme programmes', 'CFT — creditor, trustee and provider registry', 'RoI — public Register of Insolvencies', 'Moratorium Register — 6-week breathing space registrations'] },
+      { heading: 'Third-Party Systems', items: ['ScotAccount — Scottish Government SSO (SAML 2.0)', 'GOV.UK One Login — identity verification (OpenID Connect)', 'Experian / Equifax — credit reference agencies (REST, API key + mTLS)', 'Payment Provider — card / Apple Pay / Google Pay (PCI-DSS REST)'] },
+    ],
+  },
+  {
+    id: 'c4-container',
+    level: 'Level 2',
+    icon: '📦',
+    title: 'Containers',
+    scope: '2 frontends · 12 services · 3 databases · 1 object store',
+    docRef: 'docs/architecture.md §3',
+    summary: 'The logical decomposition — every independently deployable unit and the port it owns. Note this is the LOGICAL view; see "Logical vs Physical" below for what actually runs in the POC.',
+    groups: [
+      { heading: 'Frontend Containers (Next.js 15, React 19, Tailwind)', items: ['Web Portal — port 3000 — public multi-step application journey', 'Admin Portal — port 3010 — AiB staff case review, decisions, reporting'] },
+      { heading: 'BFF Layer', items: ['API Gateway — port 3001 — auth, RBAC, rate limiting, routing, response aggregation'] },
+      { heading: 'Domain Services (Express.js / TypeScript)', items: ['Recommendation Service — 3002 — rules engine with confidence scoring', 'Document Service — 3003 — upload, ClamAV scanning, storage lifecycle', 'Integration Orchestrator — 3004 — parallel fan-out via Promise.allSettled', 'Mock Integrations — 3005 — simulates all 6 AiB systems, configurable latency/failure', 'Payment Service — 3006 — initiation, status, refunds', 'Audit Service — 3007 — immutable append-only event log', 'Credit Check Service — 3008 — CRA interface + consent management', 'Organisation Service — 3009 — hierarchy, parent-child, provider registration', 'User Service — 3011 — auth, sessions, 9-role RBAC / 23 permissions', 'Notification Service — 3012 — email, SMS, in-app delivery', 'Identity Service — 3013 — ScotAccount / GOV.UK federation, MFA enforcement'] },
+      { heading: 'Data Containers', items: ['Application DB — SQLite (POC) / PostgreSQL 15 (prod) — applications, debtors, financials', 'Audit DB — SQLite / PostgreSQL 15 — immutable append-only event log', 'User DB — SQLite / PostgreSQL 15 — users, roles, permissions, sessions, orgs', 'Document Storage — local filesystem (POC) / S3 SSE-KMS (prod)'] },
+    ],
+  },
+  {
+    id: 'c4-component',
+    level: 'Level 3',
+    icon: '🔧',
+    title: 'Components — API Gateway',
+    scope: 'Middleware pipeline · authz layer · route handlers',
+    docRef: 'docs/architecture.md §4',
+    summary: 'Inside the most architecturally significant container. The middleware order is deliberate and load-bearing: security headers before anything parses a body, request ID before anything logs.',
+    groups: [
+      { heading: 'Security Middleware Pipeline (ordered)', items: ['1. Helmet — CSP, HSTS, X-Frame-Options, X-Content-Type-Options', '2. CORS — configurable origin allowlist; GET/POST/PUT/DELETE/PATCH', '3. Rate Limiter — per-IP, 15-minute window, RATE_LIMITED error code', '4. Body Parser — JSON, 10MB limit, rejects oversized payloads', '5. Request ID — X-Request-Id, UUID v4 if absent, propagated downstream'] },
+      { heading: 'Authentication & Authorisation', items: ['authenticate() — Bearer token, base64 decode (POC) / JWT signature (prod), expiry check', 'requirePermission(...codes) — AND logic, all codes required', 'requireAnyPermission(...codes) — OR logic, at least one code', 'requireRoleLevel(min) — numeric hierarchy, L10 Debtor → L100 System Admin', 'optionalAuth() — attaches user if present, continues if not'] },
+      { heading: 'Route Handlers', items: ['/api/auth — login, /me, logout, check-permission', '/api/applications — create, get, update, submit, staff status change', '/api/reports — authenticate + reports.view; summary KPIs, filtered list', '/api/reports/export — CSV and PDF export', '/api/postcode — address lookup (OS Places in production)', '/api/health — status, service, timestamp'] },
+      { heading: 'Error Handling', items: ['errorHandler() — centralised; generic message in production, full detail in development', 'Standard shape: { success, error: { code, message } }'] },
+    ],
+  },
+];
+
 export default function ArchitecturePage() {
   const [selected, setSelected] = useState<string | null>(null);
+  const [c4Level, setC4Level] = useState<string | null>(null);
   const tile = selected ? TILES[selected] : null;
+  const c4 = c4Level ? C4_LEVELS.find(l => l.id === c4Level) : null;
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold mb-2">Interactive Architecture</h1>
-      <p className="text-gray-600 mb-2">AiB Applications Gateway — Click any component to drill down</p>
+      <p className="text-gray-600 mb-2">AiB Applications Gateway — 12 logical services, deployed as 1 container for £0/month. Click any component to drill down.</p>
       <p className="text-xs text-gray-400 mb-4">🟢 Live | 🟡 Sandbox | 🟣 Design | ⚫ Mock</p>
 
       {/* Live API Links */}
@@ -83,6 +136,97 @@ export default function ArchitecturePage() {
         >
           <span>📖</span> API Documentation &rarr;
         </Link>
+      </div>
+
+      {/* C4 Model Levels — click a level to expand it */}
+      <div data-demo="c4-levels" className="mb-6 bg-white border border-gray-200 rounded-lg p-4">
+        <h2 className="text-lg font-bold mb-1">🗺️ C4 Model — Zoom Levels</h2>
+        <p className="text-xs text-gray-500 mb-3">Three levels of the same architecture at increasing detail. Click a level to expand. Full Mermaid source in <span className="font-mono">docs/architecture.md</span> §2&ndash;§4.</p>
+
+        <div className="grid gap-2 grid-cols-1 md:grid-cols-3">
+          {C4_LEVELS.map(l => (
+            <button key={l.id} onClick={() => setC4Level(c4Level === l.id ? null : l.id)}
+              className={`p-3 rounded border-2 text-left transition-all ${c4Level === l.id ? 'border-purple-600 bg-purple-50 ring-2 ring-purple-300' : 'border-gray-200 bg-white hover:border-purple-400 hover:shadow-sm'}`}>
+              <div className="flex items-start justify-between">
+                <span className="text-xl">{l.icon}</span>
+                <span className="text-xs font-bold text-purple-700 bg-purple-100 px-1.5 py-0.5 rounded">{l.level}</span>
+              </div>
+              <p className="font-bold text-sm mt-1">{l.title}</p>
+              <p className="text-xs text-gray-500 leading-tight">{l.scope}</p>
+            </button>
+          ))}
+        </div>
+
+        {c4 && (
+          <div className="mt-3 bg-white border-2 border-purple-600 rounded-lg shadow-lg p-4 md:p-6">
+            <div className="flex justify-between items-start mb-3">
+              <div>
+                <h3 className="text-lg font-bold flex items-center gap-2">{c4.icon} C4 {c4.level} — {c4.title}</h3>
+                <p className="text-xs text-gray-400 font-mono mt-0.5">{c4.docRef}</p>
+              </div>
+              <button onClick={() => setC4Level(null)} className="bg-gray-100 hover:bg-gray-200 rounded-full w-8 h-8 flex items-center justify-center text-gray-600 hover:text-gray-900">✕</button>
+            </div>
+
+            <p className="text-sm text-gray-700 mb-4">{c4.summary}</p>
+
+            <div className="grid md:grid-cols-2 gap-4">
+              {c4.groups.map(g => (
+                <div key={g.heading}>
+                  <h4 className="text-xs font-bold text-gray-500 uppercase mb-1">{g.heading}</h4>
+                  <ul className="text-xs space-y-0.5 bg-gray-50 p-2 rounded">{g.items.map((it, i) => <li key={i}>• {it}</li>)}</ul>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Logical vs Physical — the "why is it one container?" answer */}
+      <div data-demo="logical-vs-physical" className="mb-6 bg-white border border-gray-200 rounded-lg p-4">
+        <h2 className="text-lg font-bold mb-1">🧩 Logical Services vs Physical Deployment</h2>
+        <p className="text-xs text-gray-500 mb-3">The microservice decomposition and the deployment topology are deliberately different things. Both numbers below are correct — they count different things.</p>
+
+        <div className="grid md:grid-cols-2 gap-3">
+          <div className="p-3 bg-blue-50 border border-blue-200 rounded">
+            <h3 className="font-bold text-sm mb-1">📐 Logical: 12 services</h3>
+            <p className="text-xs text-gray-700 mb-2">Twelve bounded contexts, each with its own Express app, own port, own tests, own <span className="font-mono">package.json</span>. Run them all independently with <span className="font-mono">npm run dev:services</span> — that script starts exactly these twelve.</p>
+            <ul className="text-xs space-y-0.5 text-gray-700">
+              <li>• api-gateway (3001) · recommendation-service (3002)</li>
+              <li>• document-service (3003) · integration-orchestrator (3004)</li>
+              <li>• mock-integrations (3005) · payment-service (3006)</li>
+              <li>• audit-service (3007) · credit-check-service (3008)</li>
+              <li>• organisation-service (3009) · user-service (3011)</li>
+              <li>• notification-service (3012) · identity-service (3013)</li>
+            </ul>
+          </div>
+          <div className="p-3 bg-amber-50 border border-amber-200 rounded">
+            <h3 className="font-bold text-sm mb-1">📦 Physical: 1 container (POC)</h3>
+            <p className="text-xs text-gray-700 mb-2">The deployed POC runs <strong>one</strong> Render web service, <span className="font-mono">iaas-api</span>. <span className="font-mono">services/consolidated-api</span> imports the route modules from all twelve services and mounts them into a single Express app on port 3001. No business logic lives there — it is deployment wiring only, which is why it is excluded from coverage in <span className="font-mono">vitest.config.ts</span>.</p>
+            <ul className="text-xs space-y-0.5 text-gray-700">
+              <li>• <span className="font-mono">iaas-api</span> — Node, Docker, free plan, Frankfurt</li>
+              <li>• 1GB persistent disk mounted at <span className="font-mono">/data</span></li>
+              <li>• Health check: <span className="font-mono">/api/health</span></li>
+              <li>• 14 directories in <span className="font-mono">services/</span> = 12 logical + consolidated-api + dotnet-api</li>
+            </ul>
+          </div>
+        </div>
+
+        <div className="mt-3 grid md:grid-cols-3 gap-3">
+          <div className="p-3 bg-gray-50 border border-gray-200 rounded">
+            <h3 className="font-bold text-sm mb-1">❓ Why consolidate for the POC?</h3>
+            <p className="text-xs text-gray-700">Render&apos;s free plan gives one 512MB instance per service and spins it down after 15 minutes idle. Twelve separate free services would mean twelve independent cold starts — a demo where the first click on each feature stalls for ~50 seconds. One container = one cold start, and £0 instead of 12 &times; £7/mo for always-on.</p>
+          </div>
+          <div className="p-3 bg-green-50 border border-green-200 rounded">
+            <h3 className="font-bold text-sm mb-1">✅ Why it is not a rewrite</h3>
+            <p className="text-xs text-gray-700">Each service exports its routers; <span className="font-mono">consolidated-api</span> only calls <span className="font-mono">app.use()</span> on them. Splitting back out is deleting that one file and pointing the gateway at service URLs instead of local mounts. The service boundaries, RBAC, orchestration and audit trail are all real and independently tested.</p>
+          </div>
+          <div className="p-3 bg-orange-50 border border-orange-200 rounded">
+            <h3 className="font-bold text-sm mb-1">☁️ What production does instead</h3>
+            <p className="text-xs text-gray-700">One ECS Fargate service per logical service — 2&times; tasks each (3&times; for the API Gateway), 512MB&ndash;1GB per task, across two availability zones behind an ALB. Independent scaling and independent blast radius, which is the whole point of the decomposition.</p>
+          </div>
+        </div>
+
+        <p className="text-xs text-gray-500 mt-3"><strong>Also in <span className="font-mono">services/</span>:</strong> <span className="font-mono">dotnet-api</span> is an alternative implementation of the same API surface in .NET 9 (MediatR + CQS, full endpoint parity), deployed alongside as <span className="font-mono">iaas-dotnet-api</span>. It exists to de-risk the migration to AiB&apos;s primary backend stack — the same frontend can point at either backend by changing <span className="font-mono">NEXT_PUBLIC_API_URL</span>. It is not a 13th logical service.</p>
       </div>
 
       {/* Tile Grid by Category */}
@@ -167,10 +311,86 @@ export default function ArchitecturePage() {
         </div>
       ))}
 
+      {/* £0/month cost story — the honest version, limitations included */}
+      <div data-demo="cost-story" className="mt-8 bg-white border border-gray-200 rounded-lg p-4 md:p-6">
+        <h2 className="text-lg font-bold mb-1">💰 How This Runs for £0/month</h2>
+        <p className="text-xs text-gray-500 mb-4">Everything demonstrated today runs on free tiers. The limitations are real and stated below — this is a demonstration and user-research platform, not a production deployment. Figures from <span className="font-mono">docs/cost-model.md</span>.</p>
+
+        <div className="grid md:grid-cols-3 gap-3 mb-4">
+          <div className="p-3 bg-green-50 border border-green-200 rounded">
+            <h3 className="font-bold text-sm mb-1">🌐 Frontend — GitHub Pages (£0)</h3>
+            <p className="text-xs text-gray-700">Next.js static export (<span className="font-mono">NEXT_OUTPUT=export</span>) built by GitHub Actions and published to the <span className="font-mono">gh-pages</span> branch. Unlimited bandwidth, global CDN, free TLS.</p>
+            <p className="text-xs text-gray-600 mt-1"><strong>Limitation:</strong> static only — no SSR, no server-side secrets. Every dynamic feature calls the API from the browser.</p>
+          </div>
+          <div className="p-3 bg-amber-50 border border-amber-200 rounded">
+            <h3 className="font-bold text-sm mb-1">⚙️ Backend — Render free tier (£0)</h3>
+            <p className="text-xs text-gray-700">One Docker web service, <span className="font-mono">iaas-api</span>, 512MB RAM, Frankfurt, with a 1GB persistent disk at <span className="font-mono">/data</span> for the SQLite database.</p>
+            <p className="text-xs text-gray-600 mt-1"><strong>Limitation — and you may see it live:</strong> the instance spins down after 15 minutes idle and cold-starts on the next request. The status bar at the top of this page shows &ldquo;backend waking up&hellip;&rdquo; while that happens, then flips to Connected with a real response time.</p>
+          </div>
+          <div className="p-3 bg-blue-50 border border-blue-200 rounded">
+            <h3 className="font-bold text-sm mb-1">🗄️ Database — SQLite / Neon free (£0)</h3>
+            <p className="text-xs text-gray-700">SQLite on the Render persistent disk today. The next tier up is Neon&apos;s managed PostgreSQL free tier (0.5GB, autoscaling compute) — a connection-string change, because the repository pattern in <span className="font-mono">@aib-iaas/database</span> abstracts both.</p>
+            <p className="text-xs text-gray-600 mt-1"><strong>Limitation:</strong> single writer, no replication, no point-in-time recovery.</p>
+          </div>
+        </div>
+
+        <p className="text-xs text-gray-600 mb-3">Also free at this scale: <strong>GitHub Actions</strong> CI/CD (2,000 minutes/month), <strong>GOV.UK Notify</strong> (free for all government services at every volume — a genuine public-sector cost advantage), and <strong>Keycloak</strong> in local Docker Compose.</p>
+
+        <h3 className="font-bold text-sm mb-2">Indicative production cost at scale</h3>
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs border border-gray-200">
+            <thead className="bg-gray-50"><tr>
+              <th className="text-left p-2 border-b">Component</th>
+              <th className="text-left p-2 border-b">POC (today)</th>
+              <th className="text-left p-2 border-b">100 users</th>
+              <th className="text-left p-2 border-b">1,000 users</th>
+              <th className="text-left p-2 border-b">10,000 users</th>
+            </tr></thead>
+            <tbody>
+              {[
+                ['Frontend hosting', '£0 — GitHub Pages', '£0 — GitHub Pages', '£20/mo — Vercel Pro', '£50/mo — CloudFront'],
+                ['Backend API', '£0 — Render Free', '£7/mo — Render Starter', '£25/mo — Render Standard', '£100/mo — AWS ECS Fargate'],
+                ['Database', '£0 — SQLite', '£0 — Neon Free', '£19/mo — Neon Launch', '£69/mo — AWS RDS (db.t3.medium, Multi-AZ)'],
+                ['Identity (Keycloak)', '£0 — Docker local', '£0 — Phase Two Free', '£25/mo — Phase Two', '£100/mo — self-hosted HA'],
+                ['Document storage', '£0 — local FS', '£0 — Cloudflare R2 Free', '£5/mo — R2', '£20/mo — AWS S3'],
+                ['Monitoring', '£0 — manual', '£0 — UptimeRobot Free', '£30/mo — Datadog', '£100/mo — Datadog full suite'],
+                ['Email/SMS (GOV.UK Notify)', '£0 — mock', '£0 — free tier', '£0 — free tier', '£0 — free tier'],
+              ].map(([component, poc, u100, u1k, u10k]) => (
+                <tr key={component} className="border-b border-gray-100 hover:bg-gray-50">
+                  <td className="p-2 font-bold">{component}</td>
+                  <td className="p-2 bg-green-50">{poc}</td>
+                  <td className="p-2">{u100}</td>
+                  <td className="p-2">{u1k}</td>
+                  <td className="p-2">{u10k}</td>
+                </tr>
+              ))}
+              <tr className="bg-gray-100 font-bold">
+                <td className="p-2">TOTAL</td>
+                <td className="p-2 text-green-700">£0/mo</td>
+                <td className="p-2">£7/mo</td>
+                <td className="p-2">£124/mo</td>
+                <td className="p-2">£439/mo</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div className="mt-3 grid md:grid-cols-2 gap-3">
+          <div className="p-3 bg-gray-50 border border-gray-200 rounded">
+            <h3 className="font-bold text-sm mb-1">📉 With commitment discounts</h3>
+            <p className="text-xs text-gray-700">AWS Reserved Instances (1yr) save 30&ndash;40% on RDS and ECS; Savings Plans (3yr) save 50&ndash;60% on Fargate compute. Applied at the 10,000-user tier this takes £439/mo down to roughly <strong>£310/mo</strong> &mdash; about <strong>£0.53 per user per year</strong> before discounts.</p>
+          </div>
+          <div className="p-3 bg-gray-50 border border-gray-200 rounded">
+            <h3 className="font-bold text-sm mb-1">⚖️ Versus commercial platforms (1,000 users)</h3>
+            <p className="text-xs text-gray-700">IAAS custom build <strong>£124/mo</strong> vs Microsoft Dynamics 365 £3,000+/mo, Salesforce Government Cloud £5,000+/mo, ServiceNow £8,000+/mo &mdash; all per-seat licensed. A 25&ndash;65&times; difference, with full control of the user experience.</p>
+          </div>
+        </div>
+      </div>
+
       {/* Enterprise Production Stack */}
       <div data-demo="production-stack" className="mt-8 bg-white border border-gray-200 rounded-lg p-4 md:p-6">
         <h2 className="text-lg font-bold mb-2">🏢 Enterprise Production Stack (Target)</h2>
-        <p className="text-xs text-gray-500 mb-4">The POC uses a lightweight stack for rapid delivery. Production would use the enterprise stack below, aligned with AiB/Scottish Government standards.</p>
+        <p className="text-xs text-gray-500 mb-4">The POC uses a lightweight stack for rapid delivery. Production would use the enterprise stack below, aligned with AiB/Scottish Government standards. AiB operates within the Scottish Government AWS environment, region <span className="font-mono">eu-west-2</span> (London) &mdash; all citizen data stays in UK jurisdiction.</p>
 
         <div className="overflow-x-auto">
           <table className="w-full text-sm border border-gray-200">
@@ -185,21 +405,24 @@ export default function ArchitecturePage() {
             <tbody>
               {[
                 ['Frontend', 'Next.js 15 / React 19', 'React 18 SPA\n(TypeScript, Vite or Next.js)', 'React SPA with TypeScript. Component library for consistency. Mobile-first responsive.'],
-                ['Backend API', 'Node.js / Express / TypeScript', '.NET 8 Minimal APIs\n(C# / ASP.NET Core)', '.NET is AiB\'s primary backend stack. Minimal APIs for microservices. REST + OpenAPI.'],
+                ['Backend API', 'Node.js / Express / TypeScript\n(12 services, 1 container)', '.NET 8 Minimal APIs\n(C# / ASP.NET Core)', '.NET is AiB\'s primary backend stack. Minimal APIs for microservices. REST + OpenAPI. services/dotnet-api already proves endpoint parity on .NET 9.'],
+                ['Compute topology', '1 Render web service\n(consolidated-api)', 'ECS Fargate: 1 service per\nlogical service, 2x tasks each\n(API Gateway 3x), 512MB–1GB', 'Per-service scaling and independent blast radius. Tasks spread across 2 AZs (10.0.10.0/24, 10.0.11.0/24) behind an ALB with TLS 1.3.'],
                 ['API Gateway', 'Express middleware (custom)', 'AWS API Gateway\n+ .NET Ocelot (internal)', 'AWS API Gateway for public endpoints, rate limiting, WAF. Ocelot for service mesh routing.'],
-                ['Database', 'PostgreSQL (Docker) / SQLite (local)\nvia @aib-iaas/database', 'AWS RDS (PostgreSQL/SQL Server)\nor Aurora Serverless', 'Enterprise HA, automated backups, encryption at rest, Multi-AZ failover. POC uses repository pattern for seamless migration.'],
-                ['Identity', 'Keycloak 25.0 (Docker Compose)\n10 users, 9 roles, MFA', 'Keycloak 25 on ECS\n(+ Okta integration)', 'Keycloak for multi-realm federation. Okta for existing enterprise MFA. ScotAccount SAML.'],
-                ['Hosting (Frontend)', 'GitHub Pages (static export)', 'AWS S3 + CloudFront\n(or AWS Amplify)', 'S3 static hosting + CloudFront CDN. Amplify for CI/CD integration. Scottish Gov AWS account.'],
-                ['Hosting (Backend)', 'Docker Compose (PostgreSQL +\nKeycloak + ClamAV + services)', 'AWS ECS Fargate\nor AWS EKS', 'ECS Fargate for serverless containers. EKS for Kubernetes at scale. Both in Scottish Gov AWS.'],
-                ['CI/CD', 'GitHub Actions → Vitest (298)\n→ Next.js build → GitHub Pages', 'AWS CodePipeline\n+ GitHub Actions', 'CodePipeline for AWS-native. GitHub Actions for flexibility. Both support environment gates.'],
+                ['Database', 'SQLite on Render disk (POC)\nPostgreSQL 15 (Docker)\nvia @aib-iaas/database', 'AWS RDS PostgreSQL 15\nMulti-AZ, db.r6g.large\nKMS-encrypted at rest', 'Graviton instance class for price/performance. Multi-AZ standby in a separate data subnet for automatic failover. Automated backups. POC repository pattern makes this a connection-string change.'],
+                ['Identity', 'Keycloak 25.0 (Docker Compose)\n10 users, 9 roles, MFA', 'Keycloak 25 on ECS Fargate\n2x tasks, 1GB (HA)\nCognito as alternative', 'Keycloak for multi-realm federation — SAML to ScotAccount, OIDC to GOV.UK One Login, LDAP sync to AD. Cognito is the managed alternative if federation needs narrow.'],
+                ['Hosting (Frontend)', 'GitHub Pages (static export)', 'AWS S3 + CloudFront\n+ Route 53', 'S3 origin, CloudFront CDN with TLS termination, Route 53 DNS with health checks. Scottish Gov AWS account.'],
+                ['Hosting (Backend)', 'Docker Compose (PostgreSQL +\nKeycloak + ClamAV + services)', 'AWS ECS Fargate\n(EKS at larger scale)', 'ECS Fargate for serverless containers — no node management. Private app subnets, NAT Gateway for egress. Both in Scottish Gov AWS.'],
+                ['Networking', 'localhost / Docker bridge', 'VPC 10.0.0.0/16, eu-west-2\n2 AZs x public/app/data subnets\nVPC endpoints, Site-to-Site VPN', 'Three subnet tiers so nothing in the data tier is internet-reachable. VPC endpoints keep S3/Secrets Manager/CloudWatch/ECR traffic off the internet. VPN or Direct Connect to AiB internal systems.'],
+                ['CI/CD', 'GitHub Actions → Vitest (582)\n→ Next.js build → GitHub Pages', 'AWS CodePipeline + CodeDeploy\n(blue/green) + GitHub Actions', 'Blue/green via CodeDeploy with health-check validation before cutover and automatic rollback. Migrations run as a pre-deployment step. CAB approval gate before production.'],
                 ['IaC', 'Bicep + Terraform', 'Terraform\n(AWS provider)', 'Terraform is cloud-agnostic. Existing modules in repo target AWS. State in S3 backend.'],
-                ['Testing', 'Vitest (298 tests, 26 files)', 'xUnit (.NET) + Playwright\nSpecFlow (BDD) + SonarQube', 'xUnit for .NET unit tests. Playwright for E2E. SpecFlow for acceptance. SonarQube for quality gates.'],
-                ['Monitoring', 'Health endpoints only', 'AWS CloudWatch + X-Ray\n+ Grafana', 'CloudWatch for logs/metrics. X-Ray for distributed tracing. Grafana for dashboards.'],
-                ['Messaging', 'Direct HTTP (sync)', 'AWS SQS / SNS\nor Amazon MQ (RabbitMQ)', 'SQS for queues, SNS for pub/sub. Dead letter queues. Event-driven architecture.'],
-                ['Caching', 'None', 'AWS ElastiCache (Redis)', 'Session cache, response cache, rate-limit counters, distributed locks.'],
-                ['Document Storage', 'Local filesystem', 'AWS S3\n(with CloudFront CDN)', 'Encrypted at rest (SSE-KMS), lifecycle policies, versioning, cross-region replication.'],
-                ['Virus Scanning', 'ClamAV (Docker)', 'ClamAV on ECS\nor AWS GuardDuty', 'ClamAV sidecar in ECS task. GuardDuty for S3 malware scanning.'],
-                ['Secrets', 'Environment variables', 'AWS Secrets Manager\n+ IAM Roles', 'No secrets in code. IAM roles for service-to-service auth. Automatic rotation.'],
+                ['Testing', 'Vitest — 659 tests, 39 files\n(519 backend + 140 frontend)', 'xUnit (.NET) + Playwright\nSpecFlow (BDD) + SonarQube', 'xUnit for .NET unit tests. Playwright for E2E. SpecFlow for acceptance. SonarQube for quality gates.'],
+                ['Monitoring', 'Health endpoints + /api/health\npolled from the browser', 'CloudWatch (logs 30d hot,\nS3 archive 7yr) + X-Ray\n+ CloudWatch Alarms → SNS', 'Structured JSON logs. X-Ray distributed tracing sampled at 5% normally, 100% on error. Alarms route P1/P2 to PagerDuty via SNS.'],
+                ['Messaging', 'Direct HTTP (sync)', 'AWS SQS / SNS / EventBridge\n(Lambda for event processing)', 'SQS for queues, SNS for pub/sub, dead letter queues. Lambda for spiky work like PDF generation — pay per invocation rather than always-on.'],
+                ['Caching', 'None', 'AWS ElastiCache Redis 7\nencrypted in transit', 'Session cache, response cache, rate-limit counters, distributed locks. Own security group, port 6379 from app tier only.'],
+                ['Document Storage', 'Local filesystem\n(1GB Render disk)', 'AWS S3 (SSE-KMS)\n+ CloudFront CDN', 'Encrypted at rest with a customer-managed KMS key, versioning enabled, lifecycle policies, cross-region replication.'],
+                ['Virus Scanning', 'ClamAV (Docker, TCP 3310)', 'ClamAV sidecar on ECS\n+ GuardDuty S3 malware scan', 'ClamAV sidecar in the Document Service task. GuardDuty adds threat detection across the account.'],
+                ['Secrets', 'Environment variables\n(Render env vars)', 'AWS Secrets Manager + KMS\n+ IAM task roles', 'No secrets in code or images. IAM task roles for service-to-service auth — no long-lived credentials. Automatic rotation.'],
+                ['Edge security', 'GitHub Pages TLS only', 'AWS WAF (OWASP Top 10)\n+ Shield, geo-blocking,\nbot detection', 'WAF in front of CloudFront with managed OWASP Top 10 rule groups, rate-based rules, and geo-blocking. Shield for DDoS.'],
               ].map(([layer, poc, prod, rationale]) => (
                 <tr key={layer} className="border-b border-gray-100 hover:bg-gray-50">
                   <td className="p-2 font-bold text-xs">{layer}</td>
@@ -240,22 +463,27 @@ export default function ArchitecturePage() {
               </tr></thead>
               <tbody>
                 {[
+                  ['Region / Data Sovereignty', 'eu-west-2 (London)', 'UK South (London)', 'AWS eu-west-2 — UK jurisdiction, no cross-border flows'],
                   ['Container Hosting', 'ECS Fargate / EKS', 'Container Apps / AKS', 'AWS ECS — already in AiB estate'],
                   ['Serverless', 'Lambda + API Gateway', 'Functions + APIM', 'AWS Lambda for event processing'],
-                  ['Database', 'RDS (PostgreSQL/SQL Server)', 'Azure SQL / Cosmos DB', 'AWS RDS — VPC connectivity established'],
-                  ['Object Storage', 'S3 + CloudFront', 'Blob Storage + CDN', 'AWS S3 — existing document pipeline'],
-                  ['Identity', 'Cognito or Keycloak on ECS', 'Azure AD B2C', 'Keycloak on ECS — multi-provider federation'],
+                  ['Database', 'RDS PostgreSQL 15, Multi-AZ,\ndb.r6g.large, KMS-encrypted', 'Azure SQL / Cosmos DB', 'AWS RDS — VPC connectivity established'],
+                  ['Caching', 'ElastiCache Redis 7', 'Azure Cache for Redis', 'AWS ElastiCache — same VPC, no egress cost'],
+                  ['Object Storage', 'S3 (SSE-KMS) + CloudFront', 'Blob Storage + CDN', 'AWS S3 — existing document pipeline'],
+                  ['DNS / Edge', 'Route 53 + CloudFront', 'Azure DNS + Front Door', 'AWS Route 53 — health-check failover'],
+                  ['Identity', 'Keycloak 25 on ECS\n(Cognito as alternative)', 'Azure AD B2C', 'Keycloak on ECS — multi-provider federation'],
                   ['Messaging', 'SQS / SNS / EventBridge', 'Service Bus / Event Grid', 'AWS SQS/SNS — Scottish Gov standard'],
-                  ['Secrets', 'Secrets Manager + IAM Roles', 'Key Vault + Managed Identity', 'AWS Secrets Manager — existing patterns'],
+                  ['Secrets / Keys', 'Secrets Manager + KMS\n+ IAM task roles', 'Key Vault + Managed Identity', 'AWS Secrets Manager — existing patterns'],
                   ['Monitoring', 'CloudWatch + X-Ray', 'App Insights + Monitor', 'AWS CloudWatch — centralised logging'],
-                  ['CI/CD', 'CodePipeline / GitHub Actions', 'Azure DevOps', 'GitHub Actions — deploys to AWS'],
+                  ['Threat Detection', 'GuardDuty', 'Microsoft Defender for Cloud', 'AWS GuardDuty — account-wide, S3 malware scan'],
+                  ['CI/CD', 'CodePipeline + CodeDeploy\n(blue/green) / GitHub Actions', 'Azure DevOps', 'GitHub Actions — deploys to AWS'],
                   ['IaC', 'Terraform (AWS provider)', 'Terraform / Bicep', 'Terraform — multi-env, existing modules'],
-                  ['WAF / Security', 'AWS WAF + Shield', 'Azure Front Door + WAF', 'AWS WAF — DDoS + OWASP protection'],
-                  ['Cost Model', 'Pay-per-use, reserved instances', 'Pay-per-use, reserved', 'AWS — existing Scottish Gov agreement'],
+                  ['WAF / Security', 'AWS WAF (OWASP Top 10) + Shield', 'Azure Front Door + WAF', 'AWS WAF — DDoS + OWASP protection'],
+                  ['Private Connectivity', 'VPC endpoints + Site-to-Site VPN\nor Direct Connect', 'Private Link + ExpressRoute', 'AWS VPC endpoints — AiB internal systems off the internet'],
+                  ['Cost Model', 'Pay-per-use, Reserved Instances\n(30–40%), Savings Plans (50–60%)', 'Pay-per-use, reserved', 'AWS — existing Scottish Gov agreement'],
                 ].map(([cap, aws, azure, rec]) => (
                   <tr key={cap} className="border-b border-gray-100">
                     <td className="p-2 font-bold">{cap}</td>
-                    <td className="p-2 bg-green-50">{aws}</td>
+                    <td className="p-2 bg-green-50 whitespace-pre-line">{aws}</td>
                     <td className="p-2">{azure}</td>
                     <td className="p-2 text-gray-600 italic">{rec}</td>
                   </tr>
@@ -263,7 +491,7 @@ export default function ArchitecturePage() {
               </tbody>
             </table>
           </div>
-          <p className="text-xs text-gray-500 mt-2"><strong>Note:</strong> AiB operates within the Scottish Government AWS Cloud environment. All production services should deploy to this existing estate. The POC deploys static frontend to GitHub Pages and full stack via Docker Compose (PostgreSQL + Keycloak + ClamAV) — production deployment targets AWS.</p>
+          <p className="text-xs text-gray-500 mt-2"><strong>Note:</strong> AiB operates within the Scottish Government AWS Cloud environment, so the recommendation column is not a greenfield preference — it is what already has VPC connectivity, IAM patterns, and a commercial agreement in place. The POC deploys the static frontend to GitHub Pages and the API as one consolidated container on Render&apos;s free tier; the full 12-service stack runs locally via Docker Compose (PostgreSQL + Keycloak + ClamAV). Production deployment targets AWS <span className="font-mono">eu-west-2</span>.</p>
         </div>
       </div>
     </div>

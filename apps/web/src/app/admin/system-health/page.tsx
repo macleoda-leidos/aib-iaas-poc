@@ -14,6 +14,7 @@ const SERVICES = [
   { name: 'Organisation Service', port: 3009, responseMs: 34, uptime: 99.98 },
   { name: 'User Service', port: 3011, responseMs: 41, uptime: 99.97 },
   { name: 'Notification Service', port: 3012, responseMs: 67, uptime: 99.94 },
+  { name: 'Identity Service', port: 3013, responseMs: 58, uptime: 99.96 },
 ];
 
 const INCIDENTS = [
@@ -28,13 +29,14 @@ export default function SystemHealthPage() {
       <Link href="/admin" className="text-blue-700 dark:text-blue-400 text-sm underline mb-4 inline-block">← Back to Admin</Link>
       <h1 className="text-3xl font-bold mb-2">System Health</h1>
 
-      <div className="bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg p-4 mb-6 flex items-center gap-2">
+      <div data-demo="health-summary" className="bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg p-4 mb-6 flex items-center gap-2">
         <span className="w-3 h-3 rounded-full bg-green-500"></span>
-        <span className="font-bold text-green-800 dark:text-green-300">All 11 services healthy</span>
+        {/* Derived from SERVICES so the headline count cannot drift from the list below. */}
+        <span className="font-bold text-green-800 dark:text-green-300">All {SERVICES.length} services healthy</span>
         <span className="text-green-600 dark:text-green-400 text-sm ml-2">• Error rate: 0.02% • Avg response: 104ms</span>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-8">
+      <div data-demo="health-services" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-8">
         {SERVICES.map(s => (
           <div key={s.name} className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
             <div className="flex items-center gap-2 mb-2">
@@ -50,7 +52,7 @@ export default function SystemHealthPage() {
       </div>
 
       <h2 className="text-xl font-bold mb-3">Recent Incidents (Last 72h)</h2>
-      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+      <div data-demo="health-incidents" className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-gray-50 dark:bg-gray-900 border-b"><tr><th className="text-left px-4 py-3">Time</th><th className="text-left px-4 py-3">Service</th><th className="text-left px-4 py-3">Issue</th><th className="text-left px-4 py-3">Duration</th><th className="text-left px-4 py-3">Status</th></tr></thead>
           <tbody className="divide-y divide-gray-100 dark:divide-gray-700">

@@ -37,7 +37,7 @@ The POC implements a complete end-to-end journey: identity verification, multi-s
 | Sprint 11 | Test & Document | 102 new tests (423 total), onboarding guide, demo script | ✅ Complete |
 | Sprint 12 | Operational Excellence | 78 Playwright E2E tests (501 total), runbooks, load test | ✅ Complete |
 | Sprint 13 | Handover & Scale | ADRs, cost model, vendor assessment, go-live checklist | ✅ Complete |
-| Sprint 14 | Stakeholder Value | Creditor portal, adviser workspace, workflow engine, MI reports, 600+ tests | ✅ Complete |
+| Sprint 14 | Stakeholder Value | Workflow engine, MI reports, 600+ tests. Creditor portal + adviser workspace as interface demonstrations only | ✅ Complete |
 | Phase 14 | Organisation Service | Shared master data, creditor type-ahead, 54 seeded orgs, 648 tests | ✅ Complete |
 | Sprint 15 | Quality Assurance | E2E link audit, basePath validation, navigation regression tests | ✅ Complete |
 | Sprint 16 | Documentation Alignment | Sprint logs, roadmap, testing docs, README aligned to current state | ✅ Complete |
@@ -55,7 +55,7 @@ The POC implements a complete end-to-end journey: identity verification, multi-s
 | Sprint 28 | Production Polish | LoadingSkeleton components, ApiErrorBoundary + retry, OfflineBanner, service worker | ✅ Complete |
 | Sprint 29 | Enterprise Showcase | API Versioning page, Monitoring & Observability (uptime, tracing, alerts) | ✅ Complete |
 
-**65+ pages | 40 admin features | 519 unit tests (+213 E2E) | 29 sprints | Dual backend (Node.js + .NET 9) | £0/month hosting**
+**65+ pages | 40 admin features | 659 unit tests (+213 E2E) | 29 sprints | Dual backend (Node.js + .NET 9) | £0/month hosting**
 
 📋 [Full Sprint Delivery Log](docs/sprint-delivery-log.md) | 📖 [Admin Portal Guide](docs/admin-portal-guide.md) | 📖 [Onboarding Guide](docs/onboarding-guide.md)
 
@@ -82,7 +82,7 @@ npm install
 # Seed demo data
 npm run seed
 
-# Start all backend services (13 microservices)
+# Start all backend services (12 logical services)
 npm run dev:services
 
 # In a separate terminal — start the web portal
@@ -141,8 +141,9 @@ docker compose -f infra/docker/docker-compose.yml up --build
         │   Moratorium │ RoI          │
         └─────────────────────────────┘
 
-Additional: user-service, organisation-service, notification-service,
-            consolidated-api (13 services total)
+Additional: user-service, organisation-service, notification-service.
+12 logical services in all; consolidated-api mounts every one of their
+routers into the single container that actually deploys.
 ```
 
 ---
@@ -372,7 +373,8 @@ npm run lint
 |----------|----------|-------------|
 | [Solution Architecture](docs/architecture.md) | Architects | C4 model, deployment, data architecture, ADRs |
 | [Integrations](docs/integrations.md) | Developers, Architects | 10 integrations with data flows & failure handling |
-| [Security Architecture](docs/security.md) | Security Architects | Threat model, RBAC matrix, OWASP, GDPR |
+| [Security Architecture](docs/security.md) | Security Architects | Threat model, RBAC matrix, OWASP, GDPR — **describes target state** |
+| [Security Known Gaps](docs/security-known-gaps.md) | Security Architects, Delivery | **Authoritative record of what the POC actually implements.** 10 findings from internal static review (3 Critical, 4 High). Takes precedence over the security case documents wherever they disagree |
 | [Recommendation Engine](docs/recommendation-engine.md) | Architects, BAs | Rules engine, decision trees, AI governance |
 | [Identity Architecture](docs/identity-architecture.md) | Security, Architects | Keycloak, SSO federation, MFA design |
 

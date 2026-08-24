@@ -6,13 +6,6 @@ import Link from 'next/link';
 export default function AdviserWorkspacePage() {
   const [searchTerm, setSearchTerm] = useState('');
 
-  const kpis = [
-    { label: 'Active Clients', value: '42', icon: '👥' },
-    { label: 'Pending Submissions', value: '3', icon: '📤' },
-    { label: 'Appointments This Week', value: '8', icon: '📅' },
-    { label: 'Success Rate', value: '89%', icon: '✅' },
-  ];
-
   const clients = [
     { name: 'Margaret Douglas', ref: 'IAAS-2026-00012', product: 'DAS', status: 'Active', lastContact: '18 Aug 2026', nextAction: 'Annual review' },
     { name: 'Steven Clark', ref: 'IAAS-2026-00034', product: 'MAP', status: 'Submitted', lastContact: '17 Aug 2026', nextAction: 'Await decision' },
@@ -38,6 +31,15 @@ export default function AdviserWorkspacePage() {
     { action: 'New client registered: William Henderson', time: '2 days ago', icon: '👤' },
   ];
 
+  // Derived from the arrays above so the headline figures can never drift from the rows
+  // rendered underneath them — the previous hardcoded "42" contradicted an 8-row table.
+  const kpis = [
+    { label: 'Active Clients', value: String(clients.length), icon: '👥' },
+    { label: 'Pending Submissions', value: String(clients.filter((c) => c.status === 'Submitted').length), icon: '📤' },
+    { label: 'Appointments This Week', value: String(appointments.length), icon: '📅' },
+    { label: 'Success Rate', value: '89%', icon: '✅' },
+  ];
+
   const filteredClients = clients.filter(
     (c) =>
       c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -61,8 +63,20 @@ export default function AdviserWorkspacePage() {
       </header>
 
       <main className="max-w-7xl mx-auto px-6 py-8 space-y-8">
+        {/* Honesty notice — this screen is a static mock, so say so rather than let the
+            chrome imply a working caseload system. */}
+        <div data-demo="adviser-notice" className="bg-gray-800 border border-gray-700 border-l-4 border-l-blue-500 rounded-lg p-4">
+          <p className="text-sm font-semibold text-white">Interface demonstration</p>
+          <p className="text-sm text-gray-300 mt-1">
+            This screen shows the intended money adviser interface using synthetic data. Client
+            records, appointments and activity are illustrative only. Creating clients and
+            submitting an application on behalf of a named client with a recorded declaration of
+            authority are not yet implemented.
+          </p>
+        </div>
+
         {/* KPI Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div data-demo="adviser-kpis" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {kpis.map((kpi) => (
             <div key={kpi.label} className="bg-gray-800 rounded-lg p-5 border border-gray-700">
               <div className="flex items-center gap-3">
@@ -83,11 +97,21 @@ export default function AdviserWorkspacePage() {
             <div className="flex gap-3">
               <Link
                 href="/apply"
+                title="Opens the standard application wizard. It does not yet carry client context or an authority declaration."
                 className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
               >
                 Submit on Behalf
               </Link>
-              <button className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors">
+              {/* Kept visible but disabled: the capability is part of the intended design, and
+                  hiding it would lose that from the demonstration. Removing the handler-less
+                  button entirely was the alternative. */}
+              <button
+                data-demo="adviser-new-client"
+                type="button"
+                disabled
+                title="Not implemented — client records are synthetic in this demonstration."
+                className="bg-green-600 text-white px-4 py-2 rounded-md text-sm font-medium opacity-50 cursor-not-allowed"
+              >
                 New Client
               </button>
             </div>
@@ -104,7 +128,7 @@ export default function AdviserWorkspacePage() {
             />
           </div>
 
-          <div className="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden overflow-x-auto">
+          <div data-demo="adviser-clients" className="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-gray-700">

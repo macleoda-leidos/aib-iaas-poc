@@ -68,7 +68,7 @@ This document captures the key architectural decisions made during the AiB IAAS 
 
 **Status**: Accepted
 
-**Context**: The IAAS platform consists of 2 frontend applications, 11 backend services, and 4 shared packages. Code sharing (types, validation schemas, UI components) is critical to maintaining consistency. The team needs coordinated releases, a single CI pipeline, and the ability to refactor shared code with immediate feedback across all consumers.
+**Context**: The IAAS platform consists of 2 frontend applications, 12 backend services, and 6 shared packages. Code sharing (types, validation schemas, UI components) is critical to maintaining consistency. The team needs coordinated releases, a single CI pipeline, and the ability to refactor shared code with immediate feedback across all consumers.
 
 **Decision**: Structure the project as an npm workspaces monorepo with three workspace directories: `apps/` (Next.js applications), `services/` (Express.js microservices), and `packages/` (shared code). Use TypeScript project references for build ordering and shared `tsconfig` base configurations.
 

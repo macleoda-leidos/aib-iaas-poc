@@ -233,7 +233,7 @@ export default function MyNewPage() {
 
 | Resource | Location | Description |
 |----------|----------|-------------|
-| Documentation Index | `docs/` directory | Full suite of 27+ documents |
+| Documentation Index | `docs/` directory | Full suite of 60 documents |
 | Architecture | `docs/architecture.md` | System diagrams, C4 model, ADRs |
 | API Documentation | `docs/api-first-design.md` | REST patterns and conventions |
 | Sprint Log | `docs/sprint-delivery-log.md` | What was built and when |

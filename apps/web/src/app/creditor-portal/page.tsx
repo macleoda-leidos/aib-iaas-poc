@@ -42,8 +42,19 @@ export default function CreditorPortalPage() {
       </header>
 
       <main className="max-w-7xl mx-auto px-6 py-8 space-y-8">
+        {/* Honesty notice — this screen is a static mock, so say so rather than let the
+            chrome imply a working creditor service. */}
+        <div data-demo="creditor-notice" className="bg-gray-800 border border-gray-700 border-l-4 border-l-blue-500 rounded-lg p-4">
+          <p className="text-sm font-semibold text-white">Interface demonstration</p>
+          <p className="text-sm text-gray-300 mt-1">
+            This screen shows the intended creditor interface using synthetic data. Cases,
+            dividend figures and proposals are illustrative only. Claim submission and voting on
+            proposals are not yet implemented.
+          </p>
+        </div>
+
         {/* KPI Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div data-demo="creditor-kpis" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {kpis.map((kpi) => (
             <div key={kpi.label} className="bg-gray-800 rounded-lg p-5 border border-gray-700">
               <div className="flex items-center gap-3">
@@ -62,6 +73,7 @@ export default function CreditorPortalPage() {
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-semibold">My Cases</h2>
             <button
+              data-demo="creditor-claim-toggle"
               onClick={() => setShowClaimForm(!showClaimForm)}
               className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
             >
@@ -95,7 +107,7 @@ export default function CreditorPortalPage() {
                   </select>
                 </div>
               </div>
-              <p className="text-gray-500 text-sm mt-4 italic">This form is a placeholder for demonstration purposes.</p>
+              <p data-demo="creditor-claim-placeholder" className="text-gray-500 text-sm mt-4 italic">This form is a placeholder for demonstration purposes.</p>
             </div>
           )}
 
@@ -134,7 +146,7 @@ export default function CreditorPortalPage() {
         </section>
 
         {/* Vote on Proposals */}
-        <section>
+        <section data-demo="creditor-proposals">
           <h2 className="text-xl font-semibold mb-4">Vote on Proposals</h2>
           <div className="space-y-4">
             {proposals.map((p) => (
@@ -146,11 +158,24 @@ export default function CreditorPortalPage() {
                       Ref: {p.ref} • Proposed: {p.proposedRate} for {p.duration}
                     </p>
                   </div>
+                  {/* Kept visible but disabled: voting is part of the intended design, so the
+                      controls stay to show the capability rather than being deleted. There is no
+                      vote endpoint and no `claims` permission behind them yet. */}
                   <div className="flex gap-2">
-                    <button className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors">
+                    <button
+                      type="button"
+                      disabled
+                      title="Not implemented — proposal voting has no backing service in this demonstration."
+                      className="bg-green-600 text-white px-4 py-2 rounded-md text-sm font-medium opacity-50 cursor-not-allowed"
+                    >
                       Accept
                     </button>
-                    <button className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors">
+                    <button
+                      type="button"
+                      disabled
+                      title="Not implemented — proposal voting has no backing service in this demonstration."
+                      className="bg-red-600 text-white px-4 py-2 rounded-md text-sm font-medium opacity-50 cursor-not-allowed"
+                    >
                       Reject
                     </button>
                   </div>
@@ -161,7 +186,7 @@ export default function CreditorPortalPage() {
         </section>
 
         {/* Dividend Schedule */}
-        <section>
+        <section data-demo="creditor-dividends">
           <h2 className="text-xl font-semibold mb-4">Dividend Schedule</h2>
           <div className="bg-gray-800 border border-gray-700 rounded-lg p-5">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

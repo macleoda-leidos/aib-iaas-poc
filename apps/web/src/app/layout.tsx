@@ -113,6 +113,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 <ul className="text-sm space-y-1.5">
                   <li><Link href="/apply" className="gov-link">Apply for debt advice</Link></li>
                   <li><Link href="/dashboard" className="gov-link">View your applications</Link></li>
+                  {/* Footer rather than header: the main nav already carries 11 items plus the
+                      notification bell and user menu, and these two screens are interface
+                      demonstrations for professional users, not part of the citizen journey. */}
+                  <li><Link href="/adviser-workspace" className="gov-link">Money adviser workspace</Link></li>
+                  <li><Link href="/creditor-portal" className="gov-link">Creditor portal</Link></li>
                   <li><a href="https://www.aib.gov.uk/debt-solutions" target="_blank" rel="noopener noreferrer" className="gov-link">Debt solutions overview</a></li>
                   <li><a href="https://www.citizensadvice.org.uk/scotland/" target="_blank" rel="noopener noreferrer" className="gov-link">Citizens Advice Scotland</a></li>
                 </ul>

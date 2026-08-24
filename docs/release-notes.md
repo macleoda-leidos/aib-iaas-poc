@@ -99,8 +99,8 @@
 - Fix: Admin back-link path verification
 
 ### v0.14.0 — Sprint 14: Stakeholder Value (July 2026)
-- Feat: Creditor Portal — claim submission, dividends, voting on proposals
-- Feat: Money Adviser Workspace — 42 clients, calendar, submit on behalf
+- Feat: Creditor Portal — interface demonstration on synthetic data: case list, dividend schedule and proposal list. Claim submission is a placeholder form and proposal voting is not implemented.
+- Feat: Money Adviser Workspace — interface demonstration on synthetic data: 8-client caseload, appointment list and recent activity. "Submit on Behalf" links to the standard citizen wizard; submitting against a named client with a declaration of authority is not implemented.
 - Feat: Visual Workflow Engine — CSS state machine with transition rules and SLA timers
 - Feat: MI Reports — management KPIs, staff performance, SLA breaches, export
 - Feat: Debtor Secure Messages — encrypted thread with AiB officers

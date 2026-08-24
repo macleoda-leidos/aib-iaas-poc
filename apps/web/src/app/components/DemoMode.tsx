@@ -31,7 +31,7 @@ function buildDemoSteps(app: GeneratedApplication): DemoStep[] {
   ].filter(Boolean).join(', ');
 
   return [
-    // Staff demo (steps 0-6)
+    // Staff demo
     {
       path: '/',
       duration: 5,
@@ -75,7 +75,7 @@ function buildDemoSteps(app: GeneratedApplication): DemoStep[] {
       narration: 'Now the citizen experience — applying for debt advice online.',
     },
 
-    // Apply form interaction (steps 7-16)
+    // Apply form interaction
     {
       path: '/apply',
       duration: 8,
@@ -142,47 +142,54 @@ function buildDemoSteps(app: GeneratedApplication): DemoStep[] {
       title: '\u{1F4C4} Step 6: Documents',
       narration: 'Uploading 4 documents: payslip, bank statement, council tax bill, creditor letter. ClamAV virus scan: Clean ✓',
       actions: [
-        { delay: 1000, action: { type: 'UPLOAD_DOCUMENT', data: { filename: 'Payslip-August-2026.pdf', size: 245000 } } },
-        { delay: 3000, action: { type: 'UPLOAD_DOCUMENT', data: { filename: 'BankStatement-Q2-2026.pdf', size: 1120000 } } },
-        { delay: 5000, action: { type: 'UPLOAD_DOCUMENT', data: { filename: 'CouncilTaxBill-2026-27.pdf', size: 186000 } } },
-        { delay: 7000, action: { type: 'UPLOAD_DOCUMENT', data: { filename: 'CreditorLetter-RBS.pdf', size: 92000 } } },
+        // Each upload runs a 2s progress bar then a 1s virus scan, so the last
+        // file has to be injected ~3.5s before NEXT_STEP or the step advances
+        // while it still reads "Scanning...".
+        { delay: 800, action: { type: 'UPLOAD_DOCUMENT', data: { filename: 'Payslip-August-2026.pdf', size: 245000 } } },
+        { delay: 2400, action: { type: 'UPLOAD_DOCUMENT', data: { filename: 'BankStatement-Q2-2026.pdf', size: 1120000 } } },
+        { delay: 4000, action: { type: 'UPLOAD_DOCUMENT', data: { filename: 'CouncilTaxBill-2026-27.pdf', size: 186000 } } },
+        { delay: 5600, action: { type: 'UPLOAD_DOCUMENT', data: { filename: 'CreditorLetter-RBS.pdf', size: 92000 } } },
         { delay: 9500, action: { type: 'NEXT_STEP' } },
       ],
     },
     {
       path: '/apply',
-      duration: 6,
+      duration: 10,
       title: '\u{1F50D} Step 7: System Checks',
-      narration: 'BASYS, eDEN, DAS, CFT, Moratorium, RoI — all checked in parallel. All clear.',
+      narration: 'BASYS, eDEN, DAS, CFT, Moratorium, RoI — all checked in parallel, then the credit check. All clear.',
       actions: [
-        { delay: 1000, action: { type: 'RUN_CHECKS' } },
-        { delay: 4500, action: { type: 'NEXT_STEP' } },
+        // RUN_CHECKS presses the real button, so this beat has to allow for the
+        // six systems plus the credit check resolving one at a time (~3.5s
+        // offline, longer against a cold API) before it moves on.
+        { delay: 800, action: { type: 'RUN_CHECKS' } },
+        { delay: 8000, action: { type: 'NEXT_STEP' } },
+      ],
+    },
+    {
+      path: '/apply',
+      duration: 11,
+      title: '✅ Step 8: Recommendation',
+      narration: `Clicking "Get my recommendation"... rules engine analysing... Result: ${app.expectedProduct}, with the decision factors that produced it.`,
+      actions: [
+        // The real handler spins for 2–3s before calling the rules engine, so
+        // give the result several seconds on screen before advancing. No
+        // DOWNLOAD_PDF beat: the print dialog is modal and would stall the tour.
+        { delay: 800, action: { type: 'CLICK_RECOMMEND' } },
+        { delay: 9500, action: { type: 'NEXT_STEP' } },
       ],
     },
     {
       path: '/apply',
       duration: 9,
-      title: '✅ Step 8: Recommendation',
-      narration: `Clicking "Get Recommendation"... AI rules engine analysing... Result: ${app.expectedProduct}. Downloading PDF.`,
-      actions: [
-        { delay: 1000, action: { type: 'CLICK_RECOMMEND' } },
-        { delay: 5500, action: { type: 'DOWNLOAD_PDF' } },
-        { delay: 7500, action: { type: 'NEXT_STEP' } },
-      ],
-    },
-    {
-      path: '/apply',
-      duration: 8,
       title: '\u{1F4E8} Step 9: Payment & Submit',
       narration: 'Selecting Apple Pay. Confirming payment. Application submitted!',
       actions: [
         { delay: 500, action: { type: 'SELECT_PAYMENT', method: 'apple_pay' } },
-        { delay: 2500, action: { type: 'CONFIRM_PAYMENT' } },
-        { delay: 5000, action: { type: 'SUBMIT' } },
+        { delay: 3000, action: { type: 'CONFIRM_PAYMENT' } },
       ],
     },
 
-    // Post-submission (steps 17-22)
+    // Post-submission, then the stakeholder-facing portals
     {
       path: '/dashboard',
       duration: 5,
@@ -214,6 +221,39 @@ function buildDemoSteps(app: GeneratedApplication): DemoStep[] {
       narration: '100 applications searchable. Fuzzy matching finds "Jhon Smith" from "John Smith".',
     },
     {
+      path: '/adviser-workspace',
+      duration: 26,
+      title: '\u{1F91D} Money Adviser Workspace',
+      narration: 'The intermediary view — Fiona MacRae of Citizens Advice Scotland, eight client records, two awaiting a decision, three appointments this week. This screen is an interface demonstration on synthetic data and says so on the page: "Submit on Behalf" opens the standard wizard but carries no client context or declaration of authority yet, and "New Client" is deliberately disabled with the reason on the control.',
+      actions: [
+        { delay: 1000, action: { type: 'HIGHLIGHT', selector: '[data-demo="adviser-notice"]', durationMs: 4000 } },
+        { delay: 5500, action: { type: 'HIGHLIGHT', selector: '[data-demo="adviser-kpis"]', durationMs: 3000 } },
+        // Highlight, never click: the control is disabled on purpose, and the
+        // point of the beat is to show that caveat rather than paper over it.
+        { delay: 9000, action: { type: 'HIGHLIGHT', selector: '[data-demo="adviser-new-client"]', durationMs: 3000 } },
+        { delay: 12500, action: { type: 'HIGHLIGHT', selector: '[data-demo="adviser-clients"]', durationMs: 3500 } },
+        { delay: 16500, action: { type: 'SLOW_SCROLL', durationMs: 5000 } },
+      ],
+    },
+    {
+      path: '/creditor-portal',
+      duration: 26,
+      title: '\u{1F3E6} Creditor Portal',
+      narration: 'The same treatment for creditors: Royal Bank of Scotland sees its own cases with the debt owed and the dividend rate on each, plus two proposals awaiting a vote. Also an interface demonstration — the claim form labels itself a placeholder, and Accept and Reject are disabled because no voting service sits behind them. Dividend schedule: £4,230 due on 15 September 2026, quarterly.',
+      actions: [
+        { delay: 1000, action: { type: 'HIGHLIGHT', selector: '[data-demo="creditor-notice"]', durationMs: 4000 } },
+        { delay: 5500, action: { type: 'HIGHLIGHT', selector: '[data-demo="creditor-kpis"]', durationMs: 3000 } },
+        // The claim form is an inline toggle rather than a modal, but the same
+        // control still closes it before the step ends so nothing is left
+        // expanded behind the rest of the tour.
+        { delay: 9000, action: { type: 'CLICK', selector: '[data-demo="creditor-claim-toggle"]' } },
+        { delay: 11500, action: { type: 'HIGHLIGHT', selector: '[data-demo="creditor-claim-placeholder"]', durationMs: 3000 } },
+        { delay: 15000, action: { type: 'CLICK', selector: '[data-demo="creditor-claim-toggle"]' } },
+        { delay: 17000, action: { type: 'HIGHLIGHT', selector: '[data-demo="creditor-proposals"]', durationMs: 3500 } },
+        { delay: 21000, action: { type: 'SCROLL_TO', selector: '[data-demo="creditor-dividends"]', block: 'start' } },
+      ],
+    },
+    {
       path: '/admin',
       duration: 5,
       title: '⚙️ Admin: 32 Features',
@@ -226,7 +266,51 @@ function buildDemoSteps(app: GeneratedApplication): DemoStep[] {
       narration: 'Visual decision tree. Full transparency — exactly HOW the AI decided.',
     },
 
-    // Admin deep dive (steps 23-30)
+    // Admin deep dive
+    {
+      path: '/admin/rules',
+      duration: 16,
+      title: '⚖️ Rules Engine',
+      narration: 'Nine recommendation rules on engine v2.3 — seven active, two in draft — evaluated in priority order. 96% average test coverage across the active set. Today a policy change is a code change; in production these are editable by policy officers through a Draft, Review, Active workflow with regression testing.',
+      actions: [
+        { delay: 1000, action: { type: 'HIGHLIGHT', selector: '[data-demo="rules-kpis"]', durationMs: 3000 } },
+        { delay: 4500, action: { type: 'HIGHLIGHT', selector: '[data-demo="rules-table"]', durationMs: 4000 } },
+        { delay: 9000, action: { type: 'HIGHLIGHT', selector: '[data-demo="rules-poc-notice"]', durationMs: 3000 } },
+      ],
+    },
+    {
+      // The list page cannot simulate a threshold — only the rule detail page
+      // can — so the tester gets its own beat rather than a mid-step click
+      // through that the audience would miss.
+      path: '/admin/rules/rule-das-eligibility',
+      duration: 22,
+      title: '\u{1F9EA} Rule Detail & Tester',
+      narration: 'DAS Eligibility v3.4: three conditions — debt of at least £5,000, no more than £25,000, disposable income above £100 — and the IF/THEN they compile to. The tester runs a synthetic applicant against the live rule: £18,000 of debt on £230 disposable, condition by condition, match. Every threshold move is versioned with its author and reason, back to the original £150 income floor.',
+      actions: [
+        { delay: 1000, action: { type: 'HIGHLIGHT', selector: '[data-demo="rule-conditions"]', durationMs: 3500 } },
+        { delay: 5000, action: { type: 'HIGHLIGHT', selector: '[data-demo="rule-actions"]', durationMs: 2500 } },
+        { delay: 8000, action: { type: 'SCROLL_TO', selector: '[data-demo="rule-tester"]', block: 'start' } },
+        { delay: 10000, action: { type: 'CLICK', selector: '[data-demo="rule-test-run"]' } },
+        // The result panel only mounts once the test has run; waitForElement
+        // covers the gap.
+        { delay: 12500, action: { type: 'HIGHLIGHT', selector: '[data-demo="rule-test-result"]', durationMs: 3500 } },
+        { delay: 17000, action: { type: 'SCROLL_TO', selector: '[data-demo="rule-history"]', block: 'start' } },
+      ],
+    },
+    {
+      path: '/admin/ai-governance',
+      duration: 26,
+      title: '\u{1F916} AI Governance',
+      narration: '1,247 recommendations over twelve weeks — 89.1% accepted by staff, 8.3% overridden, 2.6% pending review, with every override categorised by reason. Fairness tested across age, gender, region and employment: Highland & Islands is flagged, an 18.2% override rate against 8.7% nationally, p-value 0.003. The model registry names the responsible officer, the approver and the next review date, 14 November 2026.',
+      actions: [
+        { delay: 1000, action: { type: 'HIGHLIGHT', selector: '[data-demo="governance-alerts"]', durationMs: 3500 } },
+        { delay: 5000, action: { type: 'HIGHLIGHT', selector: '[data-demo="governance-kpis"]', durationMs: 3000 } },
+        { delay: 8500, action: { type: 'HIGHLIGHT', selector: '[data-demo="governance-bias-metrics"]', durationMs: 4000 } },
+        { delay: 13000, action: { type: 'HIGHLIGHT', selector: '[data-demo="governance-registry"]', durationMs: 3000 } },
+        // Closes on the decision audit log, which sits below the registry.
+        { delay: 16500, action: { type: 'SLOW_SCROLL', durationMs: 5500 } },
+      ],
+    },
     {
       // Five tabs to walk, each with a scroll to the bottom, so this is the
       // longest step in the script by a wide margin.
@@ -333,8 +417,19 @@ function buildDemoSteps(app: GeneratedApplication): DemoStep[] {
         { delay: 5000, action: { type: 'SLOW_SCROLL', durationMs: 5500 } },
       ],
     },
+    {
+      path: '/admin/system-health',
+      duration: 16,
+      title: '\u{1F49A} System Health',
+      narration: 'All twelve logical services healthy — 0.02% error rate, 104ms average response. Latency and uptime per service, from the API Gateway at 45ms to the Integration Orchestrator at 245ms. Three incidents in the last 72 hours, all resolved: an RoI check timeout, a ClamAV connection reset and a credit provider latency spike.',
+      actions: [
+        { delay: 1000, action: { type: 'HIGHLIGHT', selector: '[data-demo="health-summary"]', durationMs: 3000 } },
+        { delay: 4500, action: { type: 'HIGHLIGHT', selector: '[data-demo="health-services"]', durationMs: 3500 } },
+        { delay: 8500, action: { type: 'HIGHLIGHT', selector: '[data-demo="health-incidents"]', durationMs: 3000 } },
+      ],
+    },
 
-    // Platform-wide views and the closing architecture beat (steps 31-33)
+    // Platform-wide views and the closing architecture beat
     {
       path: '/statistics',
       duration: 22,
@@ -358,21 +453,23 @@ function buildDemoSteps(app: GeneratedApplication): DemoStep[] {
     {
       // Final content beat — the presenter closes on cost and the AWS target.
       path: '/architecture',
-      duration: 26,
+      duration: 30,
       title: '\u{1F3D7}️ Architecture & Production Path',
-      narration: 'Everything you have just seen runs for £0/month on free-tier hosting. The table maps all 17 layers from this POC to the production target: .NET 8 on ECS Fargate, RDS, S3 and CloudFront in Scottish Government AWS, eu-west-2. The second table is why AWS over Azure.',
+      narration: 'Twelve logical services, deployed as one container on a free tier — that is a deliberate cost choice, not a compromise on the decomposition. Everything you have seen runs for £0/month. The table maps all 19 layers to the production target: .NET on ECS Fargate, RDS Multi-AZ, S3 and CloudFront in Scottish Government AWS, eu-west-2. The second table is why AWS over Azure.',
       actions: [
-        { delay: 1000, action: { type: 'SCROLL_TO', selector: '[data-demo="production-stack"]', block: 'start' } },
-        { delay: 3500, action: { type: 'SLOW_SCROLL', durationMs: 9000 } },
-        { delay: 13500, action: { type: 'SCROLL_TO', selector: '[data-demo="aws-comparison"]', block: 'start' } },
-        { delay: 16500, action: { type: 'SLOW_SCROLL', durationMs: 8000 } },
+        { delay: 1000, action: { type: 'SCROLL_TO', selector: '[data-demo="logical-vs-physical"]', block: 'start' } },
+        { delay: 4000, action: { type: 'SCROLL_TO', selector: '[data-demo="cost-story"]', block: 'start' } },
+        { delay: 7000, action: { type: 'SCROLL_TO', selector: '[data-demo="production-stack"]', block: 'start' } },
+        { delay: 9500, action: { type: 'SLOW_SCROLL', durationMs: 8000 } },
+        { delay: 18500, action: { type: 'SCROLL_TO', selector: '[data-demo="aws-comparison"]', block: 'start' } },
+        { delay: 21000, action: { type: 'SLOW_SCROLL', durationMs: 7000 } },
       ],
     },
     {
       path: '/',
       duration: 6,
       title: '\u{1F3C1} Demo Complete',
-      narration: 'Live API • 57+ pages • 648 tests • 12 AI capabilities • 32 admin features • £0/month. Questions?',
+      narration: 'Live API • 57+ pages • 659 tests • 12 AI capabilities • 32 admin features • £0/month. Questions?',
     },
   ];
 }

@@ -570,23 +570,39 @@ sequenceDiagram
 
 IAAS implements a 9-role hierarchy with fine-grained permission codes:
 
-| Role | Level | Scope | Example Permissions |
-|------|-------|-------|---------------------|
-| `system_admin` | 100 | Full system | All permissions, user management, system configuration |
-| `aib_senior_officer` | 80 | All applications | `application.approve`, `application.reject`, `reports.export`, `user.assign` |
-| `aib_officer` | 60 | Assigned applications | `application.read.all`, `application.update`, `staff_note.create` |
-| `aib_readonly` | 40 | Read-only | `application.read.all`, `reports.view` |
-| `money_adviser` | 30 | Own organisation cases | `application.create`, `application.submit`, `application.read.org` |
-| `creditor` | 20 | Relevant cases | `application.read.relevant`, `claim.submit` |
-| `supplier` | 15 | Provider operations | `provider.manage`, `case.trustee_actions` |
-| `debtor` | 10 | Own applications | `application.create`, `application.read.own`, `application.submit` |
+Levels and permission grants below are the seeded values, from
+`packages/database/src/seed-data/roles.json` and the role-permission mappings in
+`packages/database/src/seed.ts` (lines 47–90). Permission codes are those in
+`packages/database/src/seed-data/permissions.json` — 20 codes, all unscoped.
 
-**Permission Code Convention:** `{resource}.{action}[.{scope}]`
-- `application.read.own` — View only the user's own applications
-- `application.read.all` — View all applications (staff roles)
-- `application.submit` — Submit completed applications
-- `reports.view` — Access reporting dashboards
+| Role | Level | Scope | Seeded Permissions |
+|------|-------|-------|---------------------|
+| `system_admin` | 100 | Full system | All 20 permissions |
+| `aib_senior_officer` | 80 | All applications | `applications.read`, `.update`, `.approve`, `.reject`, `.assign`, `.export`, `users.read`, `.create`, `.update`, `organisations.read`, `audit.read`, `.export`, `reports.read`, `.export`, `system.admin` |
+| `aib_officer` | 60 | Assigned applications | `applications.read`, `.update`, `.assign`, `users.read`, `organisations.read`, `audit.read`, `reports.read` |
+| `money_adviser` | 50 | Own organisation cases | `applications.create`, `.read`, `.update`, `.submit`, `organisations.read`, `audit.read` |
+| `supplier` | 40 | Provider operations | `applications.read`, `.update`, `organisations.read` |
+| `creditor` | 30 | Relevant cases | `applications.read`, `organisations.read` |
+| `aib_readonly` | 20 | Read-only | `applications.read`, `organisations.read`, `audit.read`, `reports.read` |
+| `debtor` | 10 | Own applications | `applications.create`, `.read`, `.update`, `.submit` |
+
+**Permission Code Convention:** `{resource}.{action}`
+- `applications.read` — View applications
+- `applications.submit` — Submit completed applications
+- `reports.read` — Access reporting dashboards
 - `reports.export` — Export report data (CSV/PDF)
+
+> 🎯 **TARGET — record-level scoping.** A scoped convention (`{resource}.{action}.{scope}`, e.g.
+> `applications.read.own` / `.org` / `.all`) is the intended design, and the "Scope" column above
+> describes intent rather than anything the permission model expresses. **Not implemented.** All
+> seeded codes are unscoped, and no ownership or organisation predicate is applied when resolving
+> a record — see GAP-005 in `docs/security-known-gaps.md`.
+
+> 🎯 **TARGET — creditor claims.** The `creditor` role's stated purpose in `roles.json` is "View
+> cases, submit claims", but **there is no `claims` resource and no `claims.*` permission anywhere
+> in `permissions.json`**, so the claim-submission half of that purpose has no permission backing
+> it. **Not implemented.** The `/creditor-portal` claim form is a placeholder (see F-66 in
+> `docs/feature-catalogue.md`).
 
 **Enforcement Chain:** Every protected endpoint passes through:
 1. `authenticate()` — validates token, attaches user context
@@ -619,10 +635,15 @@ IAAS implements a 9-role hierarchy with fine-grained permission codes:
 
 ### 9.1 POC Deployment Modes
 
-The POC operates in two modes to serve different stakeholder needs:
+The POC operates in three modes to serve different stakeholder needs:
 
-1. **Static Demo (GitHub Pages):** Next.js static export deployed via GitHub Actions CI/CD; pre-rendered pages for stakeholder review without any backend infrastructure
+1. **Static Demo (GitHub Pages):** Next.js static export deployed via GitHub Actions CI/CD (`.github/workflows/deploy-pages.yml`); pre-rendered pages for stakeholder review, calling the hosted API at `NEXT_PUBLIC_API_URL`
 2. **Full Stack (Docker Compose):** All 12 services + 2 frontends + PostgreSQL + Keycloak 25.0 + ClamAV orchestrated via Docker Compose; complete feature demonstration with production-grade identity and persistence
+3. **Hosted API (Render free tier):** `render.yaml` deploys two web services — `iaas-api` (Node, Docker, 1GB persistent disk at `/data` for SQLite) and `iaas-dotnet-api` (.NET 9). The Node service runs `services/consolidated-api`, which mounts the routers from all 12 logical services into a single Express app on port 3001
+
+**Logical decomposition vs deployed topology.** The container diagram in §3 is the *logical* view: 12 independently deployable services, each with its own port, tests and `package.json`, all runnable separately via `npm run dev:services`. The hosted POC deliberately collapses them into one container because Render's free plan spins an idle service down after 15 minutes — twelve free services would mean twelve independent cold starts during a demo, and always-on would cost 12 × the Starter plan. `services/consolidated-api` contains no business logic (it is excluded from coverage in `vitest.config.ts` for that reason); splitting back out means deleting that file and pointing the gateway at service URLs. The production target in §9.2 does exactly that: one ECS Fargate service per logical service.
+
+`services/` therefore contains 14 directories: the 12 logical services, plus `consolidated-api` (deployment shim) and `dotnet-api` (an alternative implementation of the same API surface in .NET 9 with MediatR + CQS, which de-risks migration to AiB's primary backend stack — the frontend switches backends by changing `NEXT_PUBLIC_API_URL`).
 
 ### 9.2 Production Target Architecture (AWS)
 
@@ -723,7 +744,7 @@ graph LR
 
     subgraph "GitHub Actions Pipeline (Current POC)"
         lint["1. Lint<br/>ESLint + TypeScript"]
-        test["2. Unit + Integration Tests<br/>Vitest (298 tests, 26 files)"]
+        test["2. Unit + Integration Tests<br/>Vitest (659 tests, 39 files)"]
         build["3. Next.js Build<br/>Static export"]
         deploy["4. Deploy<br/>GitHub Pages"]
     end
@@ -741,7 +762,7 @@ graph LR
 ```
 
 **POC Deployment (Current):**
-- GitHub Actions runs Vitest (298 tests across 26 files)
+- GitHub Actions runs Vitest (659 tests across 39 files — 519 backend under node, 140 frontend under jsdom)
 - Next.js static export builds the web frontend
 - Deploys to GitHub Pages for stakeholder review
 - Full stack available via `docker-compose up` (PostgreSQL + Keycloak + ClamAV + all services)
