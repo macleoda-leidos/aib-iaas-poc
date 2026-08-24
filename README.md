@@ -50,8 +50,12 @@ The POC implements a complete end-to-end journey: identity verification, multi-s
 | Sprint 23 | Admin Functionality | Reports builder (100 cases), User CRUD to API, Data Retention editable | ✅ Complete |
 | Sprint 24 | Interactive Admin | GitHub heatmap, Digital Signature canvas, Statistics time periods | ✅ Complete |
 | Sprint 25 | Polish & Safety | Admin user fix, backend health checks, Data Export search/filter/sort | ✅ Complete |
+| Sprint 26 | Real-Time & Notifications | Toast system, notification bell + dropdown, dashboard auto-refresh 30s | ✅ Complete |
+| Sprint 27 | Casework Workflow | Batch select + approve/reject, SLA timer column (green/amber/red), select-all | ✅ Complete |
+| Sprint 28 | Production Polish | LoadingSkeleton components, ApiErrorBoundary + retry, OfflineBanner, service worker | ✅ Complete |
+| Sprint 29 | Enterprise Showcase | API Versioning page, Monitoring & Observability (uptime, tracing, alerts) | ✅ Complete |
 
-**65+ pages | 38 admin features | 658+ tests | 25 sprints | Dual backend (Node.js + .NET 9) | £0/month hosting**
+**65+ pages | 40 admin features | 658+ tests | 29 sprints | Dual backend (Node.js + .NET 9) | £0/month hosting**
 
 📋 [Full Sprint Delivery Log](docs/sprint-delivery-log.md) | 📖 [Admin Portal Guide](docs/admin-portal-guide.md) | 📖 [Onboarding Guide](docs/onboarding-guide.md)
 

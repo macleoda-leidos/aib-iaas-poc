@@ -31,8 +31,12 @@ This document records what was delivered in each sprint of the AiB IAAS POC deve
 | 23 | Admin Functionality | ✅ Complete | +2 | — |
 | 24 | Interactive Admin | ✅ Complete | +2 | — |
 | 25 | Polish & Safety | ✅ Complete | +1 | — |
+| 26 | Real-Time & Notifications | ✅ Complete | — | — |
+| 27 | Casework Workflow | ✅ Complete | — | — |
+| 28 | Production Polish | ✅ Complete | — | — |
+| 29 | Enterprise Showcase | ✅ Complete | +2 | — |
 
-**Totals: 62+ pages, 50+ features, 658+ tests, 36+ docs, 12+ AI capabilities**
+**Totals: 65+ pages, 50+ features, 658+ tests, 36+ docs, 12+ AI capabilities**
 
 ---
 
@@ -543,6 +547,53 @@ This document records what was delivered in each sprint of the AiB IAAS POC deve
 
 ---
 
+## Sprint 26 — Real-Time & Notifications
+
+**Goal**: Things update without refresh. Notifications appear.
+
+### Delivered:
+1. Toast notification system (ToastProvider + useToast hook)
+2. Notification bell in nav with unread count + dropdown panel
+3. Dashboard auto-refresh every 30s with "Last updated X seconds ago" indicator
+4. useNotifications hook polling /api/notifications
+
+---
+
+## Sprint 27 — Casework Workflow
+
+**Goal**: Staff can manage cases efficiently with batch actions and SLA visibility.
+
+### Delivered:
+1. Batch select (checkbox column) with Batch Approve/Reject
+2. SLA timer column (green ≤3d, amber ≤5d, red >5d)
+3. Select-all header checkbox
+
+---
+
+## Sprint 28 — Production Polish
+
+**Goal**: Handle failures gracefully. Load fast. Look enterprise-ready.
+
+### Delivered:
+1. LoadingSkeleton components (Card, Table, Dashboard, Page variants)
+2. ApiErrorBoundary with retry button
+3. OfflineBanner (red bar when browser offline)
+4. Service worker (sw.js) for stale-while-revalidate caching
+5. useApiCall hook with loading/error/retry pattern
+
+---
+
+## Sprint 29 — Enterprise Showcase
+
+**Goal**: Demonstrate enterprise-grade operational maturity.
+
+### Delivered:
+1. API Versioning page (v1 current, v0 deprecated, rate limit docs, endpoint catalogue)
+2. Monitoring & Observability page (5 uptime monitors, distributed tracing, alert history)
+3. All on free tiers (UptimeRobot + Grafana Cloud)
+
+---
+
 ## Pre-Sprint Work (Initial POC + Copilot Recommendations)
 
 Before the numbered sprints, significant foundational work was delivered:
@@ -580,7 +631,7 @@ Before the numbered sprints, significant foundational work was delivered:
 | Database Tables | 14 |
 | Seed Data Records | 30+ (users, orgs, roles, permissions, applications) |
 | Live API Endpoints | 10 groups |
-| Sprints Completed | 25 |
+| Sprints Completed | 29 |
 | Monthly Running Cost | £0 |
 
 ---

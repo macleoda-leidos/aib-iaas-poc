@@ -2,6 +2,26 @@
 
 ## Version History
 
+### v0.29.0 — Sprint 29: Enterprise Showcase (August 2026)
+- Feat: API Versioning page — version history, response headers, rate limits, endpoint catalogue
+- Feat: Monitoring & Observability — uptime monitors, OpenTelemetry traces, alert history
+
+### v0.28.0 — Sprint 28: Production Polish (August 2026)
+- Feat: LoadingSkeleton components for Render cold-start
+- Feat: ApiErrorBoundary with retry + offline detection banner
+- Feat: Service worker for static asset caching (stale-while-revalidate)
+
+### v0.27.0 — Sprint 27: Casework Workflow (August 2026)
+- Feat: Batch select + Batch Approve/Reject actions
+- Feat: SLA timer column on dashboard (green/amber/red)
+- Feat: Select-all checkbox for bulk operations
+
+### v0.26.0 — Sprint 26: Real-Time & Notifications (August 2026)
+- Feat: Toast notification system (success/error/info/warning with auto-dismiss)
+- Feat: Notification bell in nav bar with unread count + dropdown
+- Feat: Dashboard auto-refresh every 30s + "Last updated X seconds ago"
+- Feat: useNotifications hook with 30s polling
+
 ### v0.25.0 — Sprint 25: Polish & Safety (August 2026)
 - Fix: Admin page shows actual logged-in user (was hardcoded Karen MacLeod)
 - Fix: Backend selector hides localhost on deployed site, health-checks before switching
