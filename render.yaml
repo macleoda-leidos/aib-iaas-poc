@@ -2,6 +2,7 @@
 # Deploy with: Dashboard → New Blueprint → Connect this repo
 
 services:
+  # Node.js consolidated API (all 11 microservices)
   - type: web
     name: iaas-api
     runtime: docker
@@ -31,3 +32,18 @@ services:
       name: iaas-data
       mountPath: /data
       sizeGB: 1
+
+  # .NET 9 API (MediatR + CQS, full endpoint parity)
+  - type: web
+    name: iaas-dotnet-api
+    runtime: docker
+    dockerfilePath: services/dotnet-api/Dockerfile
+    dockerContext: services/dotnet-api
+    plan: free
+    region: frankfurt
+    healthCheckPath: /api/health
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: DATABASE_URL
+        sync: false

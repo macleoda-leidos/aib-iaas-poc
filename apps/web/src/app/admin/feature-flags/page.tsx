@@ -41,10 +41,14 @@ export default function FeatureFlagsPage() {
       <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 mb-6">
         <h3 className="font-bold text-sm mb-2">🔄 Backend API</h3>
         <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">Switch between Node.js (live on Render) and .NET 9 (local Docker). Same endpoints, same JSON contracts.</p>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <button onClick={() => switchBackend('https://iaas-api.onrender.com')}
             className={`px-3 py-1.5 rounded text-xs font-bold ${backendUrl === 'https://iaas-api.onrender.com' ? 'bg-green-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'}`}>
             Node.js (Render) — Live
+          </button>
+          <button onClick={() => switchBackend('https://iaas-dotnet-api.onrender.com')}
+            className={`px-3 py-1.5 rounded text-xs font-bold ${backendUrl === 'https://iaas-dotnet-api.onrender.com' ? 'bg-blue-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'}`}>
+            .NET 9 (Render) — Live
           </button>
           <button onClick={() => switchBackend('http://localhost:5001')}
             className={`px-3 py-1.5 rounded text-xs font-bold ${backendUrl === 'http://localhost:5001' ? 'bg-purple-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'}`}>
