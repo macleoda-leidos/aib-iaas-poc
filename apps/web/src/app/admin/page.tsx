@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import AuthGuard from '../AuthGuard';
 
@@ -271,6 +272,15 @@ const ADMIN_FEATURES = [
 ];
 
 export default function AdminPortalPage() {
+  const [currentUser, setCurrentUser] = useState({ name: 'Admin', roleLabel: 'System Admin' });
+
+  useEffect(() => {
+    const stored = sessionStorage.getItem('iaas-current-user') || localStorage.getItem('iaas-current-user');
+    if (stored) {
+      try { const u = JSON.parse(stored); setCurrentUser(u); } catch {}
+    }
+  }, []);
+
   return (
     <AuthGuard requiredRole="staff">
     <div className="max-w-5xl mx-auto px-4 py-8">
@@ -281,7 +291,7 @@ export default function AdminPortalPage() {
           <span className="w-2 h-2 rounded-full bg-green-500"></span>
           <span className="text-green-700 dark:text-green-400 font-medium">All admin services operational</span>
           <span className="text-gray-400">•</span>
-          <span className="text-gray-500 dark:text-gray-400">Logged in as: Karen MacLeod (Senior Officer)</span>
+          <span className="text-gray-500 dark:text-gray-400">Logged in as: {currentUser.name} ({currentUser.roleLabel})</span>
         </div>
       </div>
 

@@ -14,21 +14,63 @@ const INITIAL_FLAGS = [
   { id: 'webhooks', name: 'Webhooks', description: 'External system event notifications', enabled: false, audience: 'Admin Only', modified: '22 Aug 2026' },
 ];
 
+type BackendHealth = 'checking' | 'online' | 'offline';
+
 export default function FeatureFlagsPage() {
   const [flags, setFlags] = useState(INITIAL_FLAGS);
   const [backendUrl, setBackendUrl] = useState('');
+  const [isLocal, setIsLocal] = useState(false);
+  const [switching, setSwitching] = useState('');
+  const [healthStatus, setHealthStatus] = useState<Record<string, BackendHealth>>({});
+
+  const BACKENDS = [
+    { url: 'https://iaas-api.onrender.com', label: 'Node.js (Render) — Live', color: 'green', alwaysShow: true },
+    { url: 'https://iaas-dotnet-api.onrender.com', label: '.NET 9 (Render) — Live', color: 'blue', alwaysShow: true },
+    { url: 'http://localhost:5001', label: '.NET 9 (Local) — Docker', color: 'purple', alwaysShow: false },
+  ];
 
   useEffect(() => {
     setBackendUrl(localStorage.getItem('iaas-backend-url') || 'https://iaas-api.onrender.com');
+    setIsLocal(window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+
+    // Check health of all backends on page load
+    BACKENDS.forEach(b => {
+      if (!b.alwaysShow && !(window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) return;
+      setHealthStatus(prev => ({ ...prev, [b.url]: 'checking' }));
+      fetch(`${b.url}/api/health`, { signal: AbortSignal.timeout(5000) })
+        .then(res => {
+          setHealthStatus(prev => ({ ...prev, [b.url]: res.ok ? 'online' : 'offline' }));
+        })
+        .catch(() => {
+          setHealthStatus(prev => ({ ...prev, [b.url]: 'offline' }));
+        });
+    });
   }, []);
 
-  const switchBackend = (url: string) => {
+  const switchBackend = async (url: string) => {
+    setSwitching(url);
+    try {
+      const res = await fetch(`${url}/api/health`, { signal: AbortSignal.timeout(5000) });
+      if (!res.ok) throw new Error('unhealthy');
+    } catch {
+      setSwitching('');
+      alert(`Cannot reach ${url} — service may be offline or waking up. Try again in 30 seconds.`);
+      setHealthStatus(prev => ({ ...prev, [url]: 'offline' }));
+      return;
+    }
     localStorage.setItem('iaas-backend-url', url);
     window.location.reload();
   };
 
   const toggle = (id: string) => {
     setFlags(f => f.map(flag => flag.id === id ? { ...flag, enabled: !flag.enabled, modified: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) } : flag));
+  };
+
+  const healthDot = (url: string) => {
+    const status = healthStatus[url];
+    if (status === 'online') return <span className="w-2 h-2 rounded-full bg-green-500 inline-block" title="Online"></span>;
+    if (status === 'offline') return <span className="w-2 h-2 rounded-full bg-red-500 inline-block" title="Offline"></span>;
+    return <span className="w-2 h-2 rounded-full bg-gray-400 animate-pulse inline-block" title="Checking..."></span>;
   };
 
   return (
@@ -40,22 +82,16 @@ export default function FeatureFlagsPage() {
       {/* Backend Selector */}
       <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 mb-6">
         <h3 className="font-bold text-sm mb-2">🔄 Backend API</h3>
-        <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">Switch between Node.js (live on Render) and .NET 9 (local Docker). Same endpoints, same JSON contracts.</p>
+        <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">Switch between Node.js and .NET backends. Health is checked before switching. Same endpoints, same JSON contracts.</p>
         <div className="flex gap-2 flex-wrap">
-          <button onClick={() => switchBackend('https://iaas-api.onrender.com')}
-            className={`px-3 py-1.5 rounded text-xs font-bold ${backendUrl === 'https://iaas-api.onrender.com' ? 'bg-green-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'}`}>
-            Node.js (Render) — Live
-          </button>
-          <button onClick={() => switchBackend('https://iaas-dotnet-api.onrender.com')}
-            className={`px-3 py-1.5 rounded text-xs font-bold ${backendUrl === 'https://iaas-dotnet-api.onrender.com' ? 'bg-blue-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'}`}>
-            .NET 9 (Render) — Live
-          </button>
-          <button onClick={() => switchBackend('http://localhost:5001')}
-            className={`px-3 py-1.5 rounded text-xs font-bold ${backendUrl === 'http://localhost:5001' ? 'bg-purple-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'}`}>
-            .NET 9 (Local) — Docker
-          </button>
+          {BACKENDS.filter(b => b.alwaysShow || isLocal).map(b => (
+            <button key={b.url} onClick={() => switchBackend(b.url)} disabled={switching === b.url}
+              className={`px-3 py-1.5 rounded text-xs font-bold flex items-center gap-1.5 ${backendUrl === b.url ? `bg-${b.color}-600 text-white` : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'} ${switching === b.url ? 'opacity-50' : ''}`}>
+              {healthDot(b.url)} {switching === b.url ? 'Checking...' : b.label}
+            </button>
+          ))}
         </div>
-        <p className="text-xs text-gray-400 mt-2">Current: {backendUrl || '...'} &bull; Page reloads on switch</p>
+        <p className="text-xs text-gray-400 mt-2">Current: {backendUrl || '...'} • Health checked before switch • Selection persists in browser</p>
       </div>
 
       <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
