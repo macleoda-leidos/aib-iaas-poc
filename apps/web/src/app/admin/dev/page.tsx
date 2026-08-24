@@ -40,6 +40,9 @@ const DOCS = [
   { file: 'wcag-accessibility-audit.md', title: 'WCAG Accessibility Audit', category: 'Compliance' },
   { file: 'gds-service-assessment.md', title: 'GDS Service Assessment', category: 'Compliance' },
   { file: 'authority-to-operate.md', title: 'Authority to Operate', category: 'Compliance' },
+  { file: 'IAAS_DOCUMENTATION_REVIEW.md', title: 'Documentation Review & Gap Analysis', category: 'Compliance' },
+  { file: 'admin-portal-guide.md', title: 'Admin Portal Guide (38 Features)', category: 'Functional' },
+  { file: 'release-notes.md', title: 'Release Notes (v0.1–v0.25)', category: 'Delivery' },
 ];
 
 const CATEGORIES = ['Strategic', 'Functional', 'Technical', 'Operations', 'Delivery', 'Compliance'];

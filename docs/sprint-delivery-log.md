@@ -20,8 +20,19 @@ This document records what was delivered in each sprint of the AiB IAAS POC deve
 | 12 | Operational Excellence | ✅ Complete | — | +78 |
 | 13 | Handover & Scale | ✅ Complete | — | — |
 | 14 | Stakeholder Value | ✅ Complete | +7 | +60 |
+| 15 | Quality Assurance & Link Integrity | ✅ Complete | — | +10 |
+| 16 | Documentation Alignment | ✅ Complete | — | — |
+| 17 | Test Infrastructure Expansion | ✅ Complete | — | +10 |
+| 18 | .NET Backend | ✅ Complete | — | — |
+| 19 | Enterprise Persistence | ✅ Complete | — | — |
+| 20 | Live Deployment | ✅ Complete | — | — |
+| 21 | Data Comes Alive | ✅ Complete | +1 | — |
+| 22 | Demo Enhancement | ✅ Complete | — | — |
+| 23 | Admin Functionality | ✅ Complete | +2 | — |
+| 24 | Interactive Admin | ✅ Complete | +2 | — |
+| 25 | Polish & Safety | ✅ Complete | +1 | — |
 
-**Totals: 57+ pages, 40+ features, 658+ tests, 36+ docs, 12+ AI capabilities**
+**Totals: 62+ pages, 50+ features, 658+ tests, 36+ docs, 12+ AI capabilities**
 
 ---
 
@@ -383,6 +394,155 @@ This document records what was delivered in each sprint of the AiB IAAS POC deve
 
 ---
 
+## Sprint 18 — .NET Backend
+
+**Goal**: Demonstrate enterprise-grade .NET alternative backend with full feature parity.
+
+### Delivered:
+1. Full .NET 9 Web API with MediatR + CQS pattern
+2. 11 endpoint modules (Applications, Auth, Audit, Organisations, Users, Recommendations, Integrations, Documents, Payments, CreditCheck, Notifications)
+3. Entity Framework Core with dual SQLite/PostgreSQL support
+4. Swagger/OpenAPI documentation auto-generated
+5. Health check endpoint for monitoring
+6. Polly resilience policies, Serilog structured logging, FluentValidation
+
+### Key Files:
+- `services/dotnet-api/` (entire project)
+- `services/dotnet-api/Program.cs`
+- `services/dotnet-api/Endpoints/`
+- `services/dotnet-api/Data/ApplicationDbContext.cs`
+
+---
+
+## Sprint 19 — Enterprise Persistence
+
+**Goal**: Move from ephemeral SQLite to cloud-hosted PostgreSQL for data durability across deploys.
+
+### Delivered:
+1. Neon PostgreSQL integration (free tier, 0.5GB)
+2. pg-schema.ts — 14 tables + 5 indexes created programmatically
+3. pg-seed.ts — 9 roles, 5 orgs, 6 users seeded
+4. pg-connection.ts — Pool singleton with SSL
+5. init-neon.ts script for one-command database setup
+6. Consolidated API syncs to Neon on startup
+
+### Key Files:
+- `services/consolidated-api/src/db/pg-schema.ts`
+- `services/consolidated-api/src/db/pg-seed.ts`
+- `services/consolidated-api/src/db/pg-connection.ts`
+- `scripts/init-neon.ts`
+
+---
+
+## Sprint 20 — Live Deployment
+
+**Goal**: Deploy .NET API to cloud hosting with real PostgreSQL connection.
+
+### Delivered:
+1. .NET API deployed to Render (Docker container)
+2. Dockerfile uses dynamic PORT env var (shell entrypoint for Render compatibility)
+3. postgresql:// URI converted to ADO.NET format for Npgsql
+4. EF Core entities mapped to existing Neon snake_case schema
+5. IsDeleted/RowVersion added to Application model for soft-delete and concurrency
+
+### Key Files:
+- `services/dotnet-api/Dockerfile`
+- `services/dotnet-api/Data/ApplicationDbContext.cs`
+- `render.yaml`
+
+---
+
+## Sprint 21 — Data Comes Alive
+
+**Goal**: Wire the frontend to live data — search, case detail, and actions hit real APIs.
+
+### Delivered:
+1. 100 applications seeded into SQLite at API startup
+2. 100 applications seeded into Neon PostgreSQL
+3. Search page hits API first, falls back to seed data
+4. Case detail approve/reject/notes wired to live API
+5. render.yaml updated with iaas-dotnet-api service
+6. Frontend backend toggle — 3 options (Node, .NET, Mock) with health indicator
+
+### Key Files:
+- `services/consolidated-api/src/db/seed-100.ts`
+- `apps/web/src/app/search/page.tsx`
+- `apps/web/src/app/case/[ref]/CaseDetail.tsx`
+- `apps/web/src/app/components/BackendSelector.tsx`
+
+---
+
+## Sprint 22 — Demo Enhancement
+
+**Goal**: Make the guided demo visually impressive — auto-scroll, sequential reveals, realistic timing.
+
+### Delivered:
+1. Demo mode page scrolls to follow field population (was stuck at top)
+2. Debts — 3 creditors added sequentially with scroll following
+3. Assets — property, vehicle, savings appear one-by-one
+4. Documents — 2 visible file uploads with progress bars
+5. Recommendation — button click + loading spinner + result after 2.5s
+6. Payment — Apple Pay selected + confirmed before submit
+7. PDF download triggered during demo
+
+### Key Files:
+- `apps/web/src/app/apply/page.tsx` (demo orchestration)
+- `apps/web/src/app/apply/DemoController.tsx`
+
+---
+
+## Sprint 23 — Admin Functionality
+
+**Goal**: Wire admin pages to real backend operations — reports, user creation, data retention.
+
+### Delivered:
+1. Report Builder — 100 cases, 6 quick-start tiles, generated report with stats/table/CSV
+2. User Management — Create User wired to POST /api/users (persists to Neon)
+3. Data Retention — editable policies + Add Credit Checks (3yr max, readonly type)
+4. Dev docs — C4 diagram fallback, zoom modal, download .md
+
+### Key Files:
+- `apps/web/src/app/admin/report-builder/page.tsx`
+- `apps/web/src/app/admin/user-management/page.tsx`
+- `apps/web/src/app/admin/data-retention/page.tsx`
+- `apps/web/src/app/dev-docs/page.tsx`
+
+---
+
+## Sprint 24 — Interactive Admin
+
+**Goal**: Add rich interactive visualisations and signature capture to the admin portal.
+
+### Delivered:
+1. Activity Heatmap — GitHub-style with hover tooltips (system breakdown), click drill-down
+2. Digital Signature — canvas drawing, document selection, audit log persisted
+3. Statistics time period buttons (7d/30d/90d/12m) now update all charts and KPIs
+4. Data Retention — delete Credit Checks policy for demo re-runs
+
+### Key Files:
+- `apps/web/src/app/admin/activity-heatmap/page.tsx`
+- `apps/web/src/app/admin/digital-signature/page.tsx`
+- `apps/web/src/app/statistics/page.tsx`
+- `apps/web/src/app/admin/data-retention/page.tsx`
+
+---
+
+## Sprint 25 — Polish & Safety
+
+**Goal**: Fix UX issues discovered during live demos — correctness, safety, and data export rewrite.
+
+### Delivered:
+1. Admin page shows actual logged-in user (was hardcoded Karen MacLeod)
+2. Backend selector hides localhost on deployed site, health-checks before switching
+3. Data Export page rewritten — 100 cases, search by name/ref/status/date, sort, CSV, Print/PDF
+
+### Key Files:
+- `apps/web/src/app/admin/page.tsx`
+- `apps/web/src/app/components/BackendSelector.tsx`
+- `apps/web/src/app/admin/data-export/page.tsx`
+
+---
+
 ## Pre-Sprint Work (Initial POC + Copilot Recommendations)
 
 Before the numbered sprints, significant foundational work was delivered:
@@ -420,7 +580,7 @@ Before the numbered sprints, significant foundational work was delivered:
 | Database Tables | 14 |
 | Seed Data Records | 30+ (users, orgs, roles, permissions, applications) |
 | Live API Endpoints | 10 groups |
-| Sprints Completed | 17 |
+| Sprints Completed | 25 |
 | Monthly Running Cost | £0 |
 
 ---

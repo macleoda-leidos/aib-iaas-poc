@@ -12,9 +12,10 @@ This repository contains a fully functional Proof of Concept for the Accountant 
 The POC implements a complete end-to-end journey: identity verification, multi-step application form, real-time system checks against 6 AiB databases, rules-based recommendation across 7 Scottish debt products, correspondence generation, case management, statistics dashboards, and a Security Operations Centre.
 
 **Live Demo:** https://macleoda-leidos.github.io/aib-iaas-poc/
-**Live API:** https://iaas-api.onrender.com
-**.NET 9 API (local):** `dotnet run` in `services/dotnet-api/` → http://localhost:5001
-**Backend Switch:** Admin → Feature Flags → Backend API toggle (or [docs](docs/backend-switching.md))
+**Live API (Node.js):** https://iaas-api.onrender.com
+**Live API (.NET 9):** https://iaas-dotnet-api.onrender.com
+**Database:** Neon PostgreSQL (persistent, shared across backends)
+**Backend Switch:** Admin → Feature Flags → Backend API toggle (health-checked)
 **API Docs:** https://macleoda-leidos.github.io/aib-iaas-poc/api-docs
 
 **This is a POC — not production software. All data is synthetic. No real payments, credit checks, or system integrations are performed.**
@@ -41,10 +42,18 @@ The POC implements a complete end-to-end journey: identity verification, multi-s
 | Sprint 15 | Quality Assurance | E2E link audit, basePath validation, navigation regression tests | ✅ Complete |
 | Sprint 16 | Documentation Alignment | Sprint logs, roadmap, testing docs, README aligned to current state | ✅ Complete |
 | Sprint 17 | Test Infrastructure | 10 new link audit E2E scenarios, 658+ tests across 48 files | ✅ Complete |
+| Sprint 18 | .NET Backend | Full .NET 9 API (MediatR + CQS), 11 endpoints, EF Core, Swagger | ✅ Complete |
+| Sprint 19 | Enterprise Persistence | Neon PostgreSQL, pg-schema (14 tables), pg-seed, write-through cache | ✅ Complete |
+| Sprint 20 | Live Deployment | .NET on Render (Docker), URI→ADO.NET, EF Core snake_case mapping | ✅ Complete |
+| Sprint 21 | Data Comes Alive | 100 apps seeded (SQLite + Neon), API-first search, case actions persist | ✅ Complete |
+| Sprint 22 | Demo Enhancement | Smart scroll, sequential debts/assets/docs, Apple Pay, PDF download | ✅ Complete |
+| Sprint 23 | Admin Functionality | Reports builder (100 cases), User CRUD to API, Data Retention editable | ✅ Complete |
+| Sprint 24 | Interactive Admin | GitHub heatmap, Digital Signature canvas, Statistics time periods | ✅ Complete |
+| Sprint 25 | Polish & Safety | Admin user fix, backend health checks, Data Export search/filter/sort | ✅ Complete |
 
-**57+ pages | 33 admin features | 658 tests | 17 sprints | £0/month hosting**
+**65+ pages | 38 admin features | 658+ tests | 25 sprints | Dual backend (Node.js + .NET 9) | £0/month hosting**
 
-📋 [Full Sprint Delivery Log](docs/sprint-delivery-log.md) | 📖 [Onboarding Guide](docs/onboarding-guide.md)
+📋 [Full Sprint Delivery Log](docs/sprint-delivery-log.md) | 📖 [Admin Portal Guide](docs/admin-portal-guide.md) | 📖 [Onboarding Guide](docs/onboarding-guide.md)
 
 ---
 
