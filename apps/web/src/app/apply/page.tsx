@@ -413,6 +413,23 @@ export default function ApplyPage() {
   const applicationCreated = useRef(false);
 
   // Demo mode event listener — responds to DemoMode dispatched actions
+  // Smart scroll: scrolls to the last modified field area instead of fixed offset
+  const demoScrollTo = (selector?: string) => {
+    setTimeout(() => {
+      const el = selector
+        ? document.querySelector(selector)
+        : document.querySelector('[data-demo-target]') || document.querySelector('.apply-form-active');
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      } else {
+        // Fallback: scroll to show current form section
+        const section = document.querySelector(`[data-section="${currentSection}"]`);
+        if (section) section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        else window.scrollTo({ top: 300, behavior: 'smooth' });
+      }
+    }, 350);
+  };
+
   useEffect(() => {
     const cleanup = onDemoAction((action: DemoAction) => {
       switch (action.type) {
@@ -432,7 +449,7 @@ export default function ApplyPage() {
               dependants: d.dependants,
             },
           }));
-          setTimeout(() => window.scrollTo({ top: 250, behavior: 'smooth' }), 300);
+          demoScrollTo('[data-field="nationalInsuranceNumber"]');
           break;
         }
         case 'FILL_ADDRESS': {
@@ -449,7 +466,7 @@ export default function ApplyPage() {
               phone: '07' + String(Math.floor(Math.random() * 900000000) + 100000000),
             },
           }));
-          setTimeout(() => window.scrollTo({ top: 250, behavior: 'smooth' }), 300);
+          demoScrollTo('[data-field="postcode"]');
           break;
         }
         case 'FILL_DEBTS': {
@@ -458,7 +475,13 @@ export default function ApplyPage() {
             ...prev,
             debts: { items: debts },
           }));
-          setTimeout(() => window.scrollTo({ top: 250, behavior: 'smooth' }), 300);
+          // Scroll to last debt entry
+          setTimeout(() => {
+            const rows = document.querySelectorAll('[data-debt-row]');
+            const last = rows[rows.length - 1];
+            if (last) last.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            else demoScrollTo();
+          }, 350);
           break;
         }
         case 'FILL_INCOME': {
@@ -472,7 +495,7 @@ export default function ApplyPage() {
               other: d.other || 0,
             },
           }));
-          setTimeout(() => window.scrollTo({ top: 250, behavior: 'smooth' }), 300);
+          demoScrollTo('[data-field="income-other"]');
           break;
         }
         case 'FILL_EXPENDITURE': {
@@ -490,7 +513,7 @@ export default function ApplyPage() {
               other: d.other || 0,
             },
           }));
-          setTimeout(() => window.scrollTo({ top: 250, behavior: 'smooth' }), 300);
+          demoScrollTo('[data-field="expenditure-other"]');
           break;
         }
         case 'FILL_ASSETS': {
@@ -505,7 +528,65 @@ export default function ApplyPage() {
               other: d.other || [],
             },
           }));
-          setTimeout(() => window.scrollTo({ top: 250, behavior: 'smooth' }), 300);
+          // Scroll to last asset card
+          setTimeout(() => {
+            const cards = document.querySelectorAll('[data-asset-card]');
+            const last = cards[cards.length - 1];
+            if (last) last.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            else demoScrollTo();
+          }, 350);
+          break;
+        }
+        case 'UPLOAD_DOCUMENT': {
+          const d = action.data;
+          setFormData(prev => ({
+            ...prev,
+            documents: {
+              ...prev.documents,
+              uploaded: (prev.documents?.uploaded || 0) + 1,
+              files: [...(prev.documents?.files || []), { name: d.filename, size: d.size, status: 'clean', progress: 100 }],
+            },
+          }));
+          demoScrollTo('[data-document-list]');
+          break;
+        }
+        case 'CLICK_RECOMMEND': {
+          // Simulate clicking the Get Recommendation button — set loading then result
+          setFormData(prev => ({
+            ...prev,
+            recommendation: { ...prev.recommendation, loading: true, received: false },
+          }));
+          // After 2.5s, show the result
+          setTimeout(() => {
+            setFormData(prev => ({
+              ...prev,
+              recommendation: { ...prev.recommendation, loading: false, received: true },
+            }));
+            demoScrollTo('[data-recommendation-result]');
+          }, 2500);
+          demoScrollTo('[data-recommend-button]');
+          break;
+        }
+        case 'DOWNLOAD_PDF': {
+          // Trigger print dialog to simulate PDF download
+          try { window.print(); } catch { /* ignore in static export */ }
+          break;
+        }
+        case 'SELECT_PAYMENT': {
+          const method = action.method;
+          setFormData(prev => ({
+            ...prev,
+            payment: { ...prev.payment, method },
+          }));
+          demoScrollTo('[data-payment-method]');
+          break;
+        }
+        case 'CONFIRM_PAYMENT': {
+          setFormData(prev => ({
+            ...prev,
+            payment: { ...prev.payment, confirmed: true },
+          }));
+          demoScrollTo('[data-payment-confirm]');
           break;
         }
         case 'RUN_CHECKS': {
@@ -513,15 +594,15 @@ export default function ApplyPage() {
           setFormData(prev => ({
             ...prev,
             checks: { started: true, completed: true },
-            documents: { ...prev.documents, uploaded: 3 },
           }));
-          setTimeout(() => window.scrollTo({ top: 250, behavior: 'smooth' }), 300);
+          demoScrollTo('[data-checks-results]');
           break;
         }
         case 'NEXT_STEP': {
           setErrors({});
           setCurrentSection(prev => Math.min(prev + 1, SECTIONS.length - 1));
-          setTimeout(() => window.scrollTo({ top: 250, behavior: 'smooth' }), 300);
+          // Scroll to top of new section
+          setTimeout(() => window.scrollTo({ top: 200, behavior: 'smooth' }), 300);
           break;
         }
         case 'SUBMIT': {
@@ -529,17 +610,17 @@ export default function ApplyPage() {
           setFormData(prev => ({
             ...prev,
             recommendation: { ...prev.recommendation, received: true },
-            payment: { method: 'card', completed: true },
+            payment: { method: prev.payment?.method || 'apple_pay', completed: true },
           }));
           setSubmitted(true);
           setSubmittedRef(`IAAS-2026-${String(Math.floor(Math.random() * 99999)).padStart(5, '0')}`);
-          setTimeout(() => window.scrollTo({ top: 250, behavior: 'smooth' }), 300);
+          setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 300);
           break;
         }
       }
     });
     return cleanup;
-  }, []);
+  }, [currentSection]);
 
   // Create draft application on first interaction
   const ensureApplicationExists = useCallback(async () => {

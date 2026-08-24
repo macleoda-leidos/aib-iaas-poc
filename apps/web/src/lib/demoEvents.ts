@@ -10,7 +10,12 @@ export type DemoAction =
   | { type: 'RUN_CHECKS' }
   | { type: 'SUBMIT' }
   | { type: 'SCROLL_TO'; selector: string }
-  | { type: 'APPROVE_CASE' };
+  | { type: 'APPROVE_CASE' }
+  | { type: 'UPLOAD_DOCUMENT'; data: { filename: string; size: number } }
+  | { type: 'CLICK_RECOMMEND' }
+  | { type: 'DOWNLOAD_PDF' }
+  | { type: 'SELECT_PAYMENT'; method: string }
+  | { type: 'CONFIRM_PAYMENT' };
 
 export function dispatchDemoAction(action: DemoAction) {
   if (typeof window !== 'undefined') {

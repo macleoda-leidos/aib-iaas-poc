@@ -71,64 +71,75 @@ function buildDemoSteps(app: GeneratedApplication): DemoStep[] {
     // Apply form interaction (steps 7-16)
     {
       path: '/apply',
-      duration: 7,
+      duration: 8,
       title: '\u{1F4DD} Step 1: Personal Details',
       narration: `Filling personal details: ${app.personal.firstName} ${app.personal.lastName}, DOB ${app.personal.dateOfBirth}, NI ${app.personal.nationalInsuranceNumber}`,
       actions: [
         { delay: 1000, action: { type: 'FILL_PERSONAL', data: app.personal } },
-        { delay: 5500, action: { type: 'NEXT_STEP' } },
-      ],
-    },
-    {
-      path: '/apply',
-      duration: 6,
-      title: '\u{1F3E0} Step 2: Address',
-      narration: `Address: ${app.address.line1}, ${app.address.city} ${app.address.postcode}. Resident since ${app.address.residentSince}.`,
-      actions: [
-        { delay: 1000, action: { type: 'FILL_ADDRESS', data: app.address } },
-        { delay: 4500, action: { type: 'NEXT_STEP' } },
+        { delay: 6500, action: { type: 'NEXT_STEP' } },
       ],
     },
     {
       path: '/apply',
       duration: 7,
-      title: '\u{1F4B3} Step 3: Debts',
-      narration: `${app.debts.length} creditors entered. Total debt: £${totalDebt.toLocaleString()}. Largest: ${app.debts[0]?.creditorName}.`,
+      title: '\u{1F3E0} Step 2: Address',
+      narration: `Address: ${app.address.line1}, ${app.address.city} ${app.address.postcode}. Resident since ${app.address.residentSince}.`,
       actions: [
-        { delay: 1000, action: { type: 'FILL_DEBTS', data: app.debts } },
+        { delay: 1000, action: { type: 'FILL_ADDRESS', data: app.address } },
         { delay: 5500, action: { type: 'NEXT_STEP' } },
       ],
     },
     {
       path: '/apply',
-      duration: 6,
+      duration: 10,
+      title: '\u{1F4B3} Step 3: Debts',
+      narration: `Adding 3 creditors one by one. Total debt: £${totalDebt.toLocaleString()}.`,
+      actions: [
+        // Add debts one at a time so viewer sees each row appear
+        { delay: 1000, action: { type: 'FILL_DEBTS', data: [app.debts[0] || { creditorName: 'Royal Bank of Scotland', creditorType: 'credit_card', outstandingAmount: 12400, monthlyPayment: 280 }] } },
+        { delay: 3000, action: { type: 'FILL_DEBTS', data: [app.debts[0], app.debts[1] || { creditorName: 'Barclays', creditorType: 'personal_loan', outstandingAmount: 8200, monthlyPayment: 195 }] } },
+        { delay: 5000, action: { type: 'FILL_DEBTS', data: [app.debts[0], app.debts[1] || { creditorName: 'Barclays', creditorType: 'personal_loan', outstandingAmount: 8200, monthlyPayment: 195 }, app.debts[2] || { creditorName: 'HMRC', creditorType: 'tax', outstandingAmount: 3800, monthlyPayment: 0 }] } },
+        { delay: 8500, action: { type: 'NEXT_STEP' } },
+      ],
+    },
+    {
+      path: '/apply',
+      duration: 7,
       title: '\u{1F4B0} Step 4: Income & Expenditure',
       narration: `Income: £${totalIncome.toLocaleString()}/mo. Expenditure: £${totalExp.toLocaleString()}/mo. Disposable: £${(totalIncome - totalExp).toLocaleString()}/mo.`,
       actions: [
         { delay: 800, action: { type: 'FILL_INCOME', data: app.income } },
-        { delay: 1500, action: { type: 'FILL_EXPENDITURE', data: app.expenditure } },
-        { delay: 4500, action: { type: 'NEXT_STEP' } },
+        { delay: 2000, action: { type: 'FILL_EXPENDITURE', data: app.expenditure } },
+        { delay: 5500, action: { type: 'NEXT_STEP' } },
       ],
     },
     {
       path: '/apply',
-      duration: 5,
+      duration: 8,
       title: '\u{1F3E1} Step 5: Assets',
       narration: app.assets.noAssets
         ? 'No assets declared. This opens eligibility for MAP.'
-        : `Assets declared: ${app.assets.vehicles.length} vehicle(s), ${app.assets.properties.length} property(ies), ${app.assets.savings.length} savings account(s).`,
-      actions: [
+        : `Adding assets: property, vehicle, savings — one by one.`,
+      actions: app.assets.noAssets ? [
         { delay: 1000, action: { type: 'FILL_ASSETS', data: app.assets } },
-        { delay: 3500, action: { type: 'NEXT_STEP' } },
+        { delay: 4000, action: { type: 'NEXT_STEP' } },
+      ] : [
+        // Sequential asset entry
+        { delay: 1000, action: { type: 'FILL_ASSETS', data: { ...app.assets, vehicles: [], savings: [] } } },
+        { delay: 3000, action: { type: 'FILL_ASSETS', data: { ...app.assets, savings: [] } } },
+        { delay: 5000, action: { type: 'FILL_ASSETS', data: app.assets } },
+        { delay: 6500, action: { type: 'NEXT_STEP' } },
       ],
     },
     {
       path: '/apply',
-      duration: 5,
+      duration: 8,
       title: '\u{1F4C4} Step 6: Documents',
-      narration: 'Payslip.pdf, BankStatement.pdf, UtilityBill.pdf uploaded. ClamAV virus scan: Clean ✓',
+      narration: 'Uploading Payslip and Bank Statement. ClamAV virus scan: Clean ✓',
       actions: [
-        { delay: 3500, action: { type: 'NEXT_STEP' } },
+        { delay: 1000, action: { type: 'UPLOAD_DOCUMENT', data: { filename: 'Payslip-August-2026.pdf', size: 245000 } } },
+        { delay: 3500, action: { type: 'UPLOAD_DOCUMENT', data: { filename: 'BankStatement-Q2-2026.pdf', size: 1120000 } } },
+        { delay: 6500, action: { type: 'NEXT_STEP' } },
       ],
     },
     {
@@ -143,20 +154,24 @@ function buildDemoSteps(app: GeneratedApplication): DemoStep[] {
     },
     {
       path: '/apply',
-      duration: 6,
+      duration: 9,
       title: '✅ Step 8: Recommendation',
-      narration: `AI rules engine recommends: ${app.expectedProduct} based on financial profile. Confidence: High.`,
+      narration: `Clicking "Get Recommendation"... AI rules engine analysing... Result: ${app.expectedProduct}. Downloading PDF.`,
       actions: [
-        { delay: 4500, action: { type: 'NEXT_STEP' } },
+        { delay: 1000, action: { type: 'CLICK_RECOMMEND' } },
+        { delay: 5500, action: { type: 'DOWNLOAD_PDF' } },
+        { delay: 7500, action: { type: 'NEXT_STEP' } },
       ],
     },
     {
       path: '/apply',
-      duration: 6,
-      title: '\u{1F4E8} Step 9: Submit',
-      narration: 'Application submitted! Reference IAAS-2026-00101 generated. Confirmation shown.',
+      duration: 8,
+      title: '\u{1F4E8} Step 9: Payment & Submit',
+      narration: 'Selecting Apple Pay. Confirming payment. Application submitted!',
       actions: [
-        { delay: 1500, action: { type: 'SUBMIT' } },
+        { delay: 500, action: { type: 'SELECT_PAYMENT', method: 'apple_pay' } },
+        { delay: 2500, action: { type: 'CONFIRM_PAYMENT' } },
+        { delay: 5000, action: { type: 'SUBMIT' } },
       ],
     },
 
