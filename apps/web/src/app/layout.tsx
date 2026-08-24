@@ -28,6 +28,7 @@ import DemoMode from './components/DemoMode';
 import { DemoToolsProvider, DemoToolsToggle } from './DemoTools';
 import { ToastProvider } from './components/Toast';
 import NotificationBell from './components/NotificationBell';
+import { OfflineBanner } from './components/ApiErrorBoundary';
 
 const BASE = process.env.GITHUB_PAGES === 'true' ? '/aib-iaas-poc' : '';
 
@@ -40,6 +41,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <DemoToolsProvider>
       <ToastProvider>
       <ApiStatusProvider>
+      <OfflineBanner />
 
         {/* Header — AiB brand red */}
         <header className="bg-[#d32205] text-white">
