@@ -198,6 +198,8 @@ function AibDashboard({ user }: { user: any }) {
   const [apiOnline, setApiOnline] = useState(false);
   const [apiWaking, setApiWaking] = useState(true);
   const [showDemoFallback, setShowDemoFallback] = useState(false);
+  const [lastRefreshed, setLastRefreshed] = useState<Date>(new Date());
+  const [refreshAgo, setRefreshAgo] = useState('just now');
 
   // Fetch real applications from the API with graceful degradation
   useEffect(() => {
@@ -222,6 +224,7 @@ function AibDashboard({ user }: { user: any }) {
         setApiOnline(true);
         setApiWaking(false);
         setShowDemoFallback(false);
+        setLastRefreshed(new Date());
         if (demoTimeout) { clearTimeout(demoTimeout); demoTimeout = null; }
       } catch (err) {
         // API not available — show waking banner, then demo data after 3s
@@ -232,13 +235,19 @@ function AibDashboard({ user }: { user: any }) {
       }
     };
     fetchApps();
-    // Auto-retry every 10 seconds until API responds
-    const interval = setInterval(fetchApps, 10000);
+    // Auto-refresh every 30 seconds
+    const interval = setInterval(fetchApps, 30000);
+    // Update "X seconds ago" ticker every 5s
+    const ticker = setInterval(() => {
+      const secs = Math.round((Date.now() - lastRefreshed.getTime()) / 1000);
+      setRefreshAgo(secs < 5 ? 'just now' : secs < 60 ? `${secs}s ago` : `${Math.floor(secs / 60)}m ago`);
+    }, 5000);
     return () => {
       clearInterval(interval);
+      clearInterval(ticker);
       if (demoTimeout) clearTimeout(demoTimeout);
     };
-  }, []);
+  }, [lastRefreshed]);
 
   // Static seed data (always shown as baseline)
   const seedApps = [
@@ -352,6 +361,12 @@ function AibDashboard({ user }: { user: any }) {
           <button onClick={() => setAlertDismissed(true)} className="text-amber-500 hover:text-amber-800 text-sm">Dismiss</button>
         </div>
       )}
+
+      {/* Last updated indicator */}
+      <div className="flex items-center gap-2 mb-3 text-xs text-gray-500 dark:text-gray-400">
+        <span className={`w-2 h-2 rounded-full ${apiOnline ? 'bg-green-500 animate-pulse' : 'bg-amber-500'}`}></span>
+        <span>{apiOnline ? 'Live' : 'Demo data'} • Updated {refreshAgo} • Auto-refreshes every 30s</span>
+      </div>
 
       {/* KPI Cards — derived from 100 seed applications */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">

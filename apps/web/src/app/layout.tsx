@@ -26,6 +26,8 @@ import ApiStatusBar, { ApiStatusProvider } from './ApiStatus';
 import AiChatbot from './components/AiChatbot';
 import DemoMode from './components/DemoMode';
 import { DemoToolsProvider, DemoToolsToggle } from './DemoTools';
+import { ToastProvider } from './components/Toast';
+import NotificationBell from './components/NotificationBell';
 
 const BASE = process.env.GITHUB_PAGES === 'true' ? '/aib-iaas-poc' : '';
 
@@ -36,6 +38,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <Providers>
       <LanguageProvider>
       <DemoToolsProvider>
+      <ToastProvider>
       <ApiStatusProvider>
 
         {/* Header — AiB brand red */}
@@ -74,6 +77,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 <NavItem href="/admin">Admin</NavItem>
                 <NavItem href="/architecture">Architecture</NavItem>
                 <NavItem href="/api-docs">API Docs</NavItem>
+                <li className="flex items-center"><NotificationBell /></li>
                 <UserNavItem />
               </ul>
             </div>
@@ -141,6 +145,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <DemoMode />
       <DemoToolsToggle />
       </ApiStatusProvider>
+      </ToastProvider>
       </DemoToolsProvider>
       </LanguageProvider>
       </Providers>
