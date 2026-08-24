@@ -173,6 +173,50 @@ export default function StatisticsPage() {
     fetchData();
   }, []);
 
+  // ─── Time-range-aware data ─────────────────────────────────────────────────
+  const rangeKpis = {
+    week:    { total: 47,   thisLabel: 'This Week', avgDays: 2.8, sla: 94, trend: '+8% vs last week', creditCheck: 97, uptime: 99.8 },
+    month:   { total: 189,  thisLabel: 'Last 30 Days', avgDays: 3.1, sla: 91, trend: '+12% vs last month', creditCheck: 95, uptime: 99.5 },
+    quarter: { total: 534,  thisLabel: 'Last 90 Days', avgDays: 3.4, sla: 89, trend: '+15% vs last quarter', creditCheck: 94, uptime: 99.2 },
+    year:    { total: data.summary.totalApplications, thisLabel: '12 Months', avgDays: data.summary.averageProcessingDays, sla: data.performance.slaCompliance, trend: '+22% vs last year', creditCheck: data.performance.creditCheckSuccessRate, uptime: data.performance.integrationUptime },
+  };
+
+  const rangeTrends = {
+    week: [
+      { month: 'Mon', applications: 12, das: 4, map: 3, ptd: 2, other: 3 },
+      { month: 'Tue', applications: 18, das: 6, map: 4, ptd: 3, other: 5 },
+      { month: 'Wed', applications: 22, das: 7, map: 5, ptd: 4, other: 6 },
+      { month: 'Thu', applications: 15, das: 5, map: 3, ptd: 3, other: 4 },
+      { month: 'Fri', applications: 24, das: 8, map: 5, ptd: 4, other: 7 },
+      { month: 'Sat', applications: 4, das: 1, map: 1, ptd: 1, other: 1 },
+      { month: 'Sun', applications: 2, das: 1, map: 0, ptd: 0, other: 1 },
+    ],
+    month: [
+      { month: 'Week 1', applications: 45, das: 13, map: 10, ptd: 8, other: 14 },
+      { month: 'Week 2', applications: 52, das: 15, map: 11, ptd: 9, other: 17 },
+      { month: 'Week 3', applications: 48, das: 14, map: 10, ptd: 8, other: 16 },
+      { month: 'Week 4', applications: 44, das: 13, map: 9, ptd: 8, other: 14 },
+    ],
+    quarter: [
+      { month: 'W23', applications: 41, das: 12, map: 9, ptd: 7, other: 13 },
+      { month: 'W24', applications: 44, das: 13, map: 9, ptd: 8, other: 14 },
+      { month: 'W25', applications: 38, das: 11, map: 8, ptd: 7, other: 12 },
+      { month: 'W26', applications: 46, das: 14, map: 10, ptd: 8, other: 14 },
+      { month: 'W27', applications: 50, das: 15, map: 11, ptd: 9, other: 15 },
+      { month: 'W28', applications: 43, das: 13, map: 9, ptd: 7, other: 14 },
+      { month: 'W29', applications: 47, das: 14, map: 10, ptd: 8, other: 15 },
+      { month: 'W30', applications: 52, das: 15, map: 11, ptd: 9, other: 17 },
+      { month: 'W31', applications: 45, das: 13, map: 10, ptd: 8, other: 14 },
+      { month: 'W32', applications: 48, das: 14, map: 10, ptd: 8, other: 16 },
+      { month: 'W33', applications: 51, das: 15, map: 11, ptd: 9, other: 16 },
+      { month: 'W34', applications: 29, das: 9, map: 6, ptd: 5, other: 9 },
+    ],
+    year: data.trends.monthly,
+  };
+
+  const currentKpis = rangeKpis[timeRange];
+  const currentTrends = rangeTrends[timeRange];
+
   const formatCurrency = (n: number) => `£${(n / 1000000).toFixed(1)}M`;
   const formatNumber = (n: number) => n.toLocaleString();
 
@@ -201,13 +245,13 @@ export default function StatisticsPage() {
         </div>
       </div>
 
-      {/* ─── Section A: KPI Cards (Feature 6: counters tick up every 10s) ── */}
+      {/* ─── Section A: KPI Cards — update with time range ── */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
-        <KpiCard label="Total Applications" value={formatNumber(data.summary.totalApplications + liveOffsets.total)} trend="+12% vs last month" icon="📊" color="blue" />
-        <KpiCard label="This Week" value={String(data.summary.thisWeek + liveOffsets.week)} trend="+3 today" icon="📈" color="green" />
-        <KpiCard label="This Month" value={String(data.summary.thisMonth + liveOffsets.month)} trend="on track" icon="📅" color="purple" />
-        <KpiCard label="Avg Processing" value={`${data.summary.averageProcessingDays}d`} trend="↓ 0.3d improvement" icon="⚡" color="orange" />
-        <KpiCard label="SLA Compliance" value={`${data.performance.slaCompliance}%`} trend="above 85% target" icon="✅" color="green" />
+        <KpiCard label={`Applications (${currentKpis.thisLabel})`} value={formatNumber(currentKpis.total + liveOffsets.total)} trend={currentKpis.trend} icon="📊" color="blue" />
+        <KpiCard label="Credit Check Success" value={`${currentKpis.creditCheck}%`} trend="above 90% target" icon="🔍" color="green" />
+        <KpiCard label="Integration Uptime" value={`${currentKpis.uptime}%`} trend="target: 99%" icon="🔗" color="purple" />
+        <KpiCard label="Avg Processing" value={`${currentKpis.avgDays}d`} trend="↓ improving" icon="⚡" color="orange" />
+        <KpiCard label="SLA Compliance" value={`${currentKpis.sla}%`} trend="above 85% target" icon="✅" color="green" />
       </div>
 
       {/* ─── Section B: Application Volume Over Time ───────────────────── */}
@@ -225,7 +269,7 @@ export default function StatisticsPage() {
         </div>
         <ResponsiveContainer width="100%" height={300}>
           {chartView === 'stacked' ? (
-            <AreaChart data={data.trends.monthly}>
+            <AreaChart data={currentTrends}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="month" tick={{ fontSize: 12 }} />
               <YAxis tick={{ fontSize: 12 }} />
@@ -237,7 +281,7 @@ export default function StatisticsPage() {
               <Area type="monotone" dataKey="other" stackId="1" stroke={COLORS.purple} fill={COLORS.purple} fillOpacity={0.8} name="Other" />
             </AreaChart>
           ) : chartView === 'area' ? (
-            <AreaChart data={data.trends.monthly}>
+            <AreaChart data={currentTrends}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="month" tick={{ fontSize: 12 }} />
               <YAxis tick={{ fontSize: 12 }} />
@@ -245,7 +289,7 @@ export default function StatisticsPage() {
               <Area type="monotone" dataKey="applications" stroke={COLORS.blue} fill={COLORS.blue} fillOpacity={0.3} name="Applications" />
             </AreaChart>
           ) : (
-            <LineChart data={data.trends.monthly}>
+            <LineChart data={currentTrends}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="month" tick={{ fontSize: 12 }} />
               <YAxis tick={{ fontSize: 12 }} />

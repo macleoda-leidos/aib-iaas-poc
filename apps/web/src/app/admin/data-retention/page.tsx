@@ -186,9 +186,15 @@ export default function DataRetentionPage() {
                           <button onClick={() => setEditingIdx(null)} className="bg-gray-300 dark:bg-gray-600 text-xs font-bold px-2 py-1 rounded">Cancel</button>
                         </div>
                       ) : (
-                        p.editable && !p.periodLabel && (
-                          <button onClick={() => startEdit(idx)} className="text-blue-600 dark:text-blue-400 text-xs font-bold hover:underline">Edit</button>
-                        )
+                        <div className="flex gap-2 justify-center">
+                          {p.editable && !p.periodLabel && (
+                            <button onClick={() => startEdit(idx)} className="text-blue-600 dark:text-blue-400 text-xs font-bold hover:underline">Edit</button>
+                          )}
+                          {p.recordType === 'Credit Checks' && (
+                            <button onClick={() => { const updated = policies.filter((_, i) => i !== idx); save(updated); }}
+                              className="text-red-600 dark:text-red-400 text-xs font-bold hover:underline">🗑 Delete</button>
+                          )}
+                        </div>
                       )}
                     </td>
                   </tr>
