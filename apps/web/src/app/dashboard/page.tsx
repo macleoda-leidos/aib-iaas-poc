@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { applications as applicationsApi, ApplicationSummary, ApiError, getAuthToken } from '../../lib/apiClient';
+import { seedApplications } from '../../lib/seedData';
 import { navigateTo } from '../../lib/navigation';
 
 // Role selection for POC demo purposes
@@ -204,7 +205,7 @@ function AibDashboard({ user }: { user: any }) {
 
     const fetchApps = async () => {
       try {
-        const response = await applicationsApi.list({ pageSize: 20 });
+        const response = await applicationsApi.list({ pageSize: 50 });
         const mapped = (response.data || []).map((app: ApplicationSummary) => ({
           ref: app.referenceNumber,
           name: app.summary?.applicantName || 'Unknown',
@@ -352,12 +353,12 @@ function AibDashboard({ user }: { user: any }) {
         </div>
       )}
 
-      {/* KPI Cards */}
+      {/* KPI Cards — derived from 100 seed applications */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-        <KpiCard label="Pending Review" value="12" trend="+3 today" colour="blue" />
-        <KpiCard label="Awaiting Info" value="5" trend="2 overdue" colour="orange" />
-        <KpiCard label="Approved This Week" value="28" trend="↑ 12%" colour="green" />
-        <KpiCard label="Total Active" value="156" trend="across all products" colour="purple" />
+        <KpiCard label="Pending Review" value={String(seedApplications.filter(a => a.status === 'under_review' || a.status === 'submitted').length)} trend="+3 today" colour="blue" />
+        <KpiCard label="Awaiting Info" value={String(seedApplications.filter(a => a.status === 'additional_info_required').length)} trend="2 overdue" colour="orange" />
+        <KpiCard label="Approved" value={String(seedApplications.filter(a => a.status === 'approved').length)} trend="↑ 12%" colour="green" />
+        <KpiCard label="Total Active" value={String(seedApplications.filter(a => a.status !== 'draft' && a.status !== 'rejected').length)} trend="across all products" colour="purple" />
       </div>
 
       {/* AI Anomaly Alerts */}

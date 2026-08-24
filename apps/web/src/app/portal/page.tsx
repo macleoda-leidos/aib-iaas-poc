@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, Suspense } from 'react';
+import { useState, useMemo, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { seedApplications } from '../../lib/seedData';
 
 const USERS: Record<string, any> = {
   admin: { name: 'Admin User', role: 'System Admin', org: 'Accountant in Bankruptcy', realm: 'aib-internal' },
@@ -14,32 +15,54 @@ const USERS: Record<string, any> = {
   john: { name: 'John Testerton', role: 'Debtor', org: null, realm: 'public-debtors' },
 };
 
+// Derive system counts from 100 seeded applications
+const sourceCounts = seedApplications.reduce((acc, app) => {
+  acc[app.source] = (acc[app.source] || 0) + 1;
+  return acc;
+}, {} as Record<string, number>);
+
 const SYSTEMS = [
-  { id: 'BASYS', name: 'Bankruptcy Administration', icon: '⚖️', colour: 'border-blue-500', tasks: 12 },
-  { id: 'ASTRA', name: 'Strategy & Admin', icon: '📊', colour: 'border-purple-500', tasks: 5 },
-  { id: 'eDEN', name: 'DAS Electronic System', icon: '💳', colour: 'border-green-500', tasks: 18 },
-  { id: 'CFT', name: 'Creditor/Trustee', icon: '🏛️', colour: 'border-orange-500', tasks: 8 },
-  { id: 'RoI', name: 'Register of Insolvencies', icon: '📋', colour: 'border-red-500', tasks: 3 },
-  { id: 'IAAS', name: 'Application Advice', icon: '🎯', colour: 'border-teal-500', tasks: 15 },
+  { id: 'BASYS', name: 'Bankruptcy Administration', icon: '⚖️', colour: 'border-blue-500', tasks: sourceCounts['BASYS'] || 0 },
+  { id: 'ASTRA', name: 'Strategy & Admin', icon: '📊', colour: 'border-purple-500', tasks: Math.round((sourceCounts['BASYS'] || 0) * 0.4) },
+  { id: 'eDEN', name: 'DAS Electronic System', icon: '💳', colour: 'border-green-500', tasks: sourceCounts['eDEN'] || 0 },
+  { id: 'CFT', name: 'Creditor/Trustee', icon: '🏛️', colour: 'border-orange-500', tasks: Math.round((sourceCounts['DAS'] || 0) * 0.5) },
+  { id: 'RoI', name: 'Register of Insolvencies', icon: '📋', colour: 'border-red-500', tasks: Math.round((sourceCounts['BASYS'] || 0) * 0.3) },
+  { id: 'IAAS', name: 'Application Advice', icon: '🎯', colour: 'border-teal-500', tasks: sourceCounts['IAAS'] || 0 },
 ];
 
-const WORK_QUEUE = [
-  { id: 1, system: 'IAAS', ref: 'IAAS-2024-00012', task: 'New application submitted', priority: 'high', assignee: 'Unassigned', due: '30 Jun', status: 'New' },
-  { id: 2, system: 'BASYS', ref: 'SEQ-2024-00123', task: 'Annual review due — A. Brown', priority: 'high', assignee: 'James Wilson', due: '1 Jul', status: 'Overdue' },
-  { id: 3, system: 'eDEN', ref: 'DAS-ARR-2024-001', task: 'Payment distribution overdue', priority: 'high', assignee: 'System', due: '28 Jun', status: 'Overdue' },
-  { id: 4, system: 'IAAS', ref: 'IAAS-2024-00010', task: 'Awaiting additional information — C. Stewart', priority: 'medium', assignee: 'Karen MacLeod', due: '5 Jul', status: 'Pending' },
-  { id: 5, system: 'CFT', ref: 'CFT-REG-2024-045', task: 'Provider registration renewal — Highland Debt', priority: 'medium', assignee: 'Policy Team', due: '15 Jul', status: 'Pending' },
-  { id: 6, system: 'DAS', ref: 'DPP-2024-00456', task: 'New DPP application received', priority: 'medium', assignee: 'Unassigned', due: '3 Jul', status: 'New' },
-  { id: 7, system: 'BASYS', ref: 'MAP-2024-00089', task: 'Discharge pending — D. Minimal', priority: 'low', assignee: 'James Wilson', due: '20 Jul', status: 'In Progress' },
-  { id: 8, system: 'eDEN', ref: 'DAS-VAR-2024-023', task: 'DAS variation request — F. Existing', priority: 'medium', assignee: 'Fiona Campbell', due: '8 Jul', status: 'Pending' },
-  { id: 9, system: 'RoI', ref: 'ROI-ENT-2024-067', task: 'New entry registration required', priority: 'low', assignee: 'System', due: '10 Jul', status: 'Pending' },
-  { id: 10, system: 'CFT', ref: 'CFT-ANN-2024-012', task: 'Trustee annual return — Sample IP LLP', priority: 'low', assignee: 'Robert Henderson', due: '31 Jul', status: 'Not Started' },
-  { id: 11, system: 'IAAS', ref: 'IAAS-2024-00011', task: 'Credit check review required — B. Campbell', priority: 'medium', assignee: 'James Wilson', due: '2 Jul', status: 'In Progress' },
-  { id: 12, system: 'RoI', ref: 'ROI-QRY-2024-089', task: 'Public search query — response needed', priority: 'low', assignee: 'System', due: '4 Jul', status: 'New' },
-  { id: 13, system: 'ASTRA', ref: 'ASTRA-RPT-2024-Q2', task: 'Q2 performance report due', priority: 'medium', assignee: 'Karen MacLeod', due: '15 Jul', status: 'Not Started' },
-  { id: 14, system: 'eDEN', ref: 'DAS-REV-2024-015', task: 'DPP annual review — 3 programmes', priority: 'medium', assignee: 'Fiona Campbell', due: '12 Jul', status: 'Pending' },
-  { id: 15, system: 'IAAS', ref: 'IAAS-2024-00009', task: 'Application approved — notify debtor', priority: 'low', assignee: 'System', due: '1 Jul', status: 'Pending' },
-];
+// Generate work queue from 100 seeded applications
+const TASK_LABELS: Record<string, string> = {
+  submitted: 'Application submitted — awaiting review',
+  under_review: 'Under review — decision pending',
+  additional_info_required: 'Awaiting additional information',
+  approved: 'Approved — notify debtor',
+  rejected: 'Rejected — close case',
+  draft: 'Draft application started',
+};
+const PRIORITY_MAP: Record<string, string> = {
+  submitted: 'high', under_review: 'medium', additional_info_required: 'high',
+  approved: 'low', rejected: 'low', draft: 'low',
+};
+const STATUS_MAP: Record<string, string> = {
+  submitted: 'New', under_review: 'In Progress', additional_info_required: 'Pending',
+  approved: 'Complete', rejected: 'Complete', draft: 'Not Started',
+};
+const WORK_QUEUE = seedApplications
+  .filter(a => a.status !== 'draft')
+  .map((app, i) => ({
+    id: i + 1,
+    system: app.source === 'IAAS' ? 'IAAS' : app.source === 'BASYS' ? 'BASYS' : app.source === 'eDEN' ? 'eDEN' : app.source === 'DAS' ? 'DAS' : 'RoI',
+    ref: app.ref,
+    task: `${TASK_LABELS[app.status] || 'Review required'} — ${app.firstName} ${app.lastName}`,
+    priority: PRIORITY_MAP[app.status] || 'medium',
+    assignee: app.assignedTo === 'Unassigned' ? 'Unassigned' : app.assignedTo,
+    due: app.date.replace('2026-', '').replace('-', ' '),
+    status: STATUS_MAP[app.status] || 'Pending',
+  }))
+  .sort((a, b) => {
+    const p = { high: 0, medium: 1, low: 2 };
+    return (p[a.priority as keyof typeof p] || 1) - (p[b.priority as keyof typeof p] || 1);
+  });
 
 // Debtor-specific items (they only see their own case updates)
 const DEBTOR_QUEUE = [
