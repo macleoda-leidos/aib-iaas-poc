@@ -3,6 +3,8 @@ import { Pool } from 'pg';
 export async function initPgSchema(pool: Pool): Promise<void> {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS roles (id TEXT PRIMARY KEY, name TEXT UNIQUE NOT NULL, display_name TEXT NOT NULL, description TEXT, level INTEGER DEFAULT 0, created_at TIMESTAMPTZ DEFAULT NOW());
+    CREATE TABLE IF NOT EXISTS permissions (id TEXT PRIMARY KEY, code TEXT UNIQUE NOT NULL, name TEXT NOT NULL, description TEXT, resource TEXT NOT NULL, action TEXT NOT NULL);
+    CREATE TABLE IF NOT EXISTS role_permissions (role_id TEXT NOT NULL REFERENCES roles(id) ON DELETE CASCADE, permission_id TEXT NOT NULL REFERENCES permissions(id) ON DELETE CASCADE, PRIMARY KEY (role_id, permission_id));
     CREATE TABLE IF NOT EXISTS organisations (id TEXT PRIMARY KEY, name TEXT NOT NULL, type TEXT NOT NULL, parent_id TEXT, status TEXT DEFAULT 'active', registration_number TEXT, contact_email TEXT, contact_phone TEXT, address_line1 TEXT, address_city TEXT, address_postcode TEXT, metadata TEXT, created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW());
     CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, email TEXT UNIQUE NOT NULL, first_name TEXT NOT NULL, last_name TEXT NOT NULL, display_name TEXT, role_id TEXT REFERENCES roles(id), organisation_id TEXT, status TEXT DEFAULT 'active', password_hash TEXT, mfa_enabled BOOLEAN DEFAULT false, created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW());
     CREATE TABLE IF NOT EXISTS sessions (id TEXT PRIMARY KEY, user_id TEXT REFERENCES users(id) ON DELETE CASCADE, token TEXT UNIQUE NOT NULL, expires_at TIMESTAMPTZ NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW());
@@ -22,5 +24,5 @@ export async function initPgSchema(pool: Pool): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_audit_app ON audit_events(application_id);
     CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON audit_events(timestamp);
   `);
-  console.log('[PostgreSQL] Schema initialized (14 tables + 5 indexes)');
+  console.log('[PostgreSQL] Schema initialized (16 tables + 5 indexes)');
 }

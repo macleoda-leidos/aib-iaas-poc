@@ -50,7 +50,16 @@ This roadmap outlines the evolution of IAAS from Proof of Concept through to a f
 
 An internal static code review on 24 August 2026 identified 10 security findings in the POC
 codebase — 3 Critical, 4 High, 2 Medium, 1 Low — recorded in full with file-and-line evidence
-in [Security Known Gaps](./security-known-gaps.md). Nine of the ten block production.
+in [Security Known Gaps](./security-known-gaps.md). An eleventh, GAP-011, was added on
+25 August 2026: role-permission grants were defined three times over in the seed code and the
+three copies disagreed, leaving three roles with no permissions on SQLite and every role with
+none on PostgreSQL. The seeding and permission-vocabulary defects are already fixed; what
+remains in this sprint is the modelling work in stage 2. Ten of the eleven block production.
+
+GAP-011 is sequenced ahead of GAP-002 deliberately. Switching on default-deny while the grant
+data is wrong produces a lockout rather than a security improvement, and the instinctive
+response to a lockout — relaxing the check to restore access — ends up worse than having no
+check at all.
 
 **No real data is at risk today.** The POC operates exclusively on synthetic seed data, so the
 confidentiality impact of every finding is currently theoretical. The findings are the distance
@@ -67,6 +76,7 @@ identity is.
 | 1 | GAP-001 | Replace unsigned base64 tokens with signed JWTs (RS256/EdDSA), verified on every request | Critical | Must |
 | 1 | GAP-003 | Verify passwords with Argon2id/bcrypt (cost ≥ 12); reject when no hash is stored | Critical | Must |
 | 1 | GAP-007 | Integrate a real identity provider and enforce MFA as IdP policy | High | Must |
+| 2 | GAP-011 | Model `documents.*` and `credit_check.*` permissions; drive the `/admin/users` RBAC matrix from the API rather than a hardcoded mock | Medium | Must |
 | 2 | GAP-002 | Apply `authenticate` + `requirePermission` to every deployed route; default-deny | Critical | Must |
 | 3 | GAP-005 | Add resource ownership checks on all application routes, including approve/reject | High | Must |
 | 3 | GAP-006 | Derive audit actor from the verified token, not the request body; make ingestion internal | High | Must |

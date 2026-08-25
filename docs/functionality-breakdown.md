@@ -96,7 +96,7 @@ All accessible from the admin hub at `/admin`. Each feature is a self-contained 
 | 8 | Security Headers | `/admin/security-headers` | Helmet.js configuration display, CSP policies, HSTS settings |
 | 9 | User Management | `/admin/users` | User listing, role assignment, account status, last login |
 | 10 | Organisation Management | `/admin/organisations` | Organisation registry, associated users, permissions |
-| 11 | Role Management | `/admin/roles` | RBAC configuration, 9 roles, permission matrix |
+| 11 | Role & Permission Matrix | `/admin/users` | RBAC matrix rendered on the user management page, 10 roles, 20 permissions |
 | 12 | Audit Logs | `/admin/audit` | System-wide audit trail viewer with filters |
 | 13 | System Health | `/admin/health` | Service status for all 13 microservices, uptime, response times |
 | 14 | Feature Flags | `/admin/feature-flags` | Toggle features on/off without deployment |
@@ -172,7 +172,7 @@ Full endpoint reference following the OpenAPI 3.0 specification format. Document
 
 ### Security Features
 - Multi-factor authentication (TOTP)
-- Role-based access control (9 roles)
+- Role-based access control (10 roles)
 - Session management with revocation
 - Rate limiting with user feedback
 - Security headers (Helmet.js)

@@ -47,7 +47,7 @@
 
 **Designed but not production-ready:**
 
-- ⚠️ Role-based access control (9 roles) — the role model and permission matrix are defined and the enforcing middleware is written and unit-tested, but it is **not applied to any route on the deployed service** (GAP-002). Functionally the UI respects roles; the API does not enforce them.
+- ⚠️ Role-based access control (10 roles) — the role model and permission matrix are defined and the enforcing middleware is written and unit-tested, but it is **not applied to any route on the deployed service** (GAP-002). Functionally the UI respects roles; the API does not enforce them.
 - ⚠️ Comprehensive audit trail — events are recorded with good detail, but ingestion is unauthenticated and the actor is taken from the request body, so entries are forgeable (GAP-006).
 
 ## Remaining Production Work
@@ -186,7 +186,7 @@ yet implemented as controls. The table below separates the two honestly. Full ev
 | # | Area | Implemented in POC | Target state |
 |---|------|-------------------|--------------|
 | 1 | **Authentication** | ❌ **None.** Login accepts any password (GAP-003); tokens are unsigned base64 JSON and forgeable (GAP-001); no MFA (GAP-007). The "simulated identity" is simulated to the point of accepting anyone. | Identity-provider OIDC federation with enforced MFA and signed tokens verified per request |
-| 2 | **Authorisation** | ❌ **Not enforced.** Role model and middleware are written and unit-tested, but no deployed route applies them (GAP-002); no resource ownership checks (GAP-005). | RBAC with 9 roles enforced at the API layer, default-deny, with ownership constraints |
+| 2 | **Authorisation** | ❌ **Not enforced.** Role model and middleware are written and unit-tested, but no deployed route applies them (GAP-002); no resource ownership checks (GAP-005). | RBAC with 10 roles enforced at the API layer, default-deny, with ownership constraints |
 | 3 | **Transport** | ✅ HTTPS everywhere (Render.com and GitHub Pages managed TLS). HSTS not set. | AWS Certificate Manager, TLS 1.3, HSTS with preload |
 | 4 | **Input validation** | ❌ **Not wired in.** `packages/validation` has no importers outside its own tests — dead code (GAP-009). **However SQL injection is genuinely and completely prevented** by universal query parameterisation, which does not depend on it. | Schema validation on every endpoint → FluentValidation in .NET |
 | 5 | **Rate limiting** | ⚠️ Global limiter present at 500/15min with correct 429 handling. No authentication-specific limit, no account lockout (GAP-008). | AWS WAF + API Gateway throttling, per-account login limits |

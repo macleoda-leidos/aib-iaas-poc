@@ -1,11 +1,18 @@
+/**
+ * Must stay in step with `packages/database/src/seed-data/roles.json`, which is
+ * the source both database backends seed from. An RBAC test in that package
+ * fails if the two lists diverge.
+ */
 export type UserRole =
   | 'system_admin'
   | 'aib_senior_officer'
+  | 'cyberops_analyst'
   | 'aib_officer'
-  | 'aib_readonly'
   | 'money_adviser'
-  | 'creditor'
+  | 'statistician'
   | 'supplier'
+  | 'creditor'
+  | 'aib_readonly'
   | 'debtor';
 
 export type UserStatus = 'active' | 'suspended' | 'pending_approval' | 'deactivated';

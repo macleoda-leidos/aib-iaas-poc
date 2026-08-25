@@ -14,18 +14,18 @@
     "level": 80
   },
   {
+    "id": "role-cyberops",
+    "name": "cyberops_analyst",
+    "displayName": "CyberOps Analyst",
+    "description": "Security monitoring and incident response",
+    "level": 70
+  },
+  {
     "id": "role-officer",
     "name": "aib_officer",
     "displayName": "AiB Case Officer",
     "description": "Process and review applications",
     "level": 60
-  },
-  {
-    "id": "role-readonly",
-    "name": "aib_readonly",
-    "displayName": "AiB Read Only",
-    "description": "View-only access",
-    "level": 20
   },
   {
     "id": "role-adviser",
@@ -35,11 +35,11 @@
     "level": 50
   },
   {
-    "id": "role-creditor",
-    "name": "creditor",
-    "displayName": "Creditor",
-    "description": "View cases, submit claims",
-    "level": 30
+    "id": "role-statistician",
+    "name": "statistician",
+    "displayName": "AiB Statistician",
+    "description": "Anonymised reporting and analytics",
+    "level": 45
   },
   {
     "id": "role-supplier",
@@ -47,6 +47,20 @@
     "displayName": "Supplier/Trustee",
     "description": "Manage assigned cases",
     "level": 40
+  },
+  {
+    "id": "role-creditor",
+    "name": "creditor",
+    "displayName": "Creditor",
+    "description": "View cases, submit claims",
+    "level": 30
+  },
+  {
+    "id": "role-readonly",
+    "name": "aib_readonly",
+    "displayName": "AiB Read Only",
+    "description": "View-only access",
+    "level": 20
   },
   {
     "id": "role-debtor",

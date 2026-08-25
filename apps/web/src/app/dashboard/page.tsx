@@ -15,8 +15,8 @@ const DEMO_USERS = [
   { id: 'USR-007', name: 'Sarah Mitchell', role: 'creditor', roleDisplay: 'Creditor', org: 'Royal Bank of Scotland (Sample)' },
   { id: 'USR-008', name: 'Robert Henderson', role: 'supplier', roleDisplay: 'Supplier/Trustee', org: 'Sample Insolvency Practitioners LLP' },
   { id: 'USR-009', name: 'John Testerton', role: 'debtor', roleDisplay: 'Debtor', org: null },
-  { id: 'USR-010', name: 'Dr. Helen Fraser', role: 'aib_statistician', roleDisplay: 'AiB Statistician', org: 'Accountant in Bankruptcy — Reporting & Analytics' },
-  { id: 'USR-011', name: 'Ryan MacIntyre', role: 'cyber_ops', roleDisplay: 'CyberOps Analyst', org: 'AiB — Security Operations Centre' },
+  { id: 'USR-010', name: 'Dr. Helen Fraser', role: 'statistician', roleDisplay: 'AiB Statistician', org: 'Accountant in Bankruptcy — Reporting & Analytics' },
+  { id: 'USR-011', name: 'Ryan MacIntyre', role: 'cyberops_analyst', roleDisplay: 'CyberOps Analyst', org: 'AiB — Security Operations Centre' },
 ];
 
 // Notification Bell component with dropdown
@@ -174,9 +174,12 @@ export default function DashboardPage() {
       </div>
 
       {/* Render appropriate dashboard */}
-      {(selectedUser.role.startsWith('aib') || selectedUser.role === 'system_admin') && selectedUser.role !== 'aib_statistician' && <AibDashboard user={selectedUser} />}
-      {selectedUser.role === 'aib_statistician' && <StatisticianDashboard user={selectedUser} />}
-      {selectedUser.role === 'cyber_ops' && <CyberOpsDashboard user={selectedUser} />}
+      {/* Role names match packages/database/src/seed-data/roles.json. `statistician`
+          and `cyberops_analyst` do not start with "aib", so the startsWith test
+          below no longer needs to exclude them explicitly. */}
+      {(selectedUser.role.startsWith('aib') || selectedUser.role === 'system_admin') && <AibDashboard user={selectedUser} />}
+      {selectedUser.role === 'statistician' && <StatisticianDashboard user={selectedUser} />}
+      {selectedUser.role === 'cyberops_analyst' && <CyberOpsDashboard user={selectedUser} />}
       {selectedUser.role === 'money_adviser' && <AdviserDashboard user={selectedUser} />}
       {selectedUser.role === 'creditor' && <CreditorDashboard user={selectedUser} />}
       {selectedUser.role === 'supplier' && <SupplierDashboard user={selectedUser} />}

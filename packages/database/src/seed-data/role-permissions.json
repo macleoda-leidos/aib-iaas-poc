@@ -1,0 +1,120 @@
+[
+  {
+    "roleId": "role-sysadmin",
+    "permissions": [
+      "applications.create",
+      "applications.read",
+      "applications.update",
+      "applications.delete",
+      "applications.submit",
+      "applications.approve",
+      "applications.reject",
+      "applications.assign",
+      "applications.export",
+      "users.create",
+      "users.read",
+      "users.update",
+      "users.delete",
+      "organisations.read",
+      "organisations.admin",
+      "audit.read",
+      "audit.export",
+      "reports.read",
+      "reports.export",
+      "system.admin"
+    ]
+  },
+  {
+    "roleId": "role-senior",
+    "permissions": [
+      "applications.read",
+      "applications.update",
+      "applications.approve",
+      "applications.reject",
+      "applications.assign",
+      "applications.export",
+      "users.create",
+      "users.read",
+      "users.update",
+      "organisations.read",
+      "audit.read",
+      "audit.export",
+      "reports.read",
+      "reports.export"
+    ]
+  },
+  {
+    "roleId": "role-cyberops",
+    "permissions": [
+      "users.read",
+      "organisations.read",
+      "audit.read",
+      "audit.export",
+      "reports.read"
+    ]
+  },
+  {
+    "roleId": "role-officer",
+    "permissions": [
+      "applications.read",
+      "applications.update",
+      "applications.assign",
+      "users.read",
+      "organisations.read",
+      "audit.read",
+      "reports.read"
+    ]
+  },
+  {
+    "roleId": "role-adviser",
+    "permissions": [
+      "applications.create",
+      "applications.read",
+      "applications.update",
+      "applications.submit",
+      "organisations.read",
+      "audit.read"
+    ]
+  },
+  {
+    "roleId": "role-statistician",
+    "permissions": [
+      "organisations.read",
+      "reports.read",
+      "reports.export"
+    ]
+  },
+  {
+    "roleId": "role-supplier",
+    "permissions": [
+      "applications.read",
+      "applications.update",
+      "organisations.read"
+    ]
+  },
+  {
+    "roleId": "role-creditor",
+    "permissions": [
+      "applications.read",
+      "organisations.read"
+    ]
+  },
+  {
+    "roleId": "role-readonly",
+    "permissions": [
+      "applications.read",
+      "organisations.read",
+      "audit.read",
+      "reports.read"
+    ]
+  },
+  {
+    "roleId": "role-debtor",
+    "permissions": [
+      "applications.create",
+      "applications.read",
+      "applications.update",
+      "applications.submit"
+    ]
+  }
+]

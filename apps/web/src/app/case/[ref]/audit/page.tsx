@@ -1,13 +1,11 @@
 import AuditLogContent from './AuditLogContent';
+import { caseStaticParams } from '../caseParams';
 
-// Required for static export (output: 'export') — tells Next.js which dynamic pages to pre-render
+// Required for static export (output: 'export') — tells Next.js which dynamic pages to pre-render.
+// Must match the parent route: case detail links here for every case, so a
+// shorter list here means dead links rather than a smaller build.
 export function generateStaticParams() {
-  return [
-    { ref: 'IAAS-2026-00012' },
-    { ref: 'IAAS-2026-00011' },
-    { ref: 'IAAS-2026-00010' },
-    { ref: 'IAAS-2026-00009' },
-  ];
+  return caseStaticParams();
 }
 
 export default function AuditLogPage() {

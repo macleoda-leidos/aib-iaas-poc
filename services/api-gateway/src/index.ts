@@ -45,7 +45,10 @@ app.use('/api/auth', authRouter);
 app.use('/api/applications', applicationsRouter);
 app.use('/api/postcode', postcodeRouter);
 app.use('/api/reports/export', reportsExportRouter); // Public for POC demo (must be before auth-protected route)
-app.use('/api/reports', authenticate, requirePermission('reports.view'), reportsRouter);
+// `reports.read` is the code seeded into role_permissions. This asked for
+// `reports.view` until Sprint 30 — a code no role has ever held, so the only
+// authorised route in the repo returned 403 to everyone including system_admin.
+app.use('/api/reports', authenticate, requirePermission('reports.read'), reportsRouter);
 
 // Health check
 app.get('/api/health', (_req, res) => {

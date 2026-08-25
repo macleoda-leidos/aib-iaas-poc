@@ -244,9 +244,22 @@ export default function UsersPage() {
         </div>
       </div>
 
-      {/* RBAC Matrix */}
+      {/* RBAC Matrix — hardcoded illustration, NOT the enforcement surface.
+          The rows below are 11 capability groups over this page's 9 role tiers.
+          The seeded model is different: 20 permission codes over 10 roles, in
+          packages/database/src/seed-data/. Reconciling the two by driving this
+          table from GET /api/roles/matrix/full is GAP-011 residual item 2 —
+          until then the caption must say so, because a screenshot of this table
+          reads as evidence of the access controls actually in force. */}
       <div data-demo="users-rbac-matrix" className="mt-8 bg-white border border-gray-200 rounded p-4">
         <h2 className="font-bold mb-2">Role Hierarchy & Permissions ({ALL_ROLES.length} levels)</h2>
+        <p className="text-xs text-gray-600 mb-3">
+          Illustrative summary — {ALL_ROLES.length} role tiers against 11 grouped capabilities,
+          held in this page for demonstration. It is not the enforcement surface. The seeded
+          model that authorisation checks against is 20 permission codes across 10 roles, defined
+          in <code className="bg-gray-100 px-1">packages/database/src/seed-data/</code>; the two
+          are not yet reconciled (GAP-011).
+        </p>
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
             <thead><tr>

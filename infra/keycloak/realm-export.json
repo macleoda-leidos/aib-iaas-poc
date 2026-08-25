@@ -57,7 +57,7 @@
         "clientRole": false
       },
       {
-        "name": "aib_case_officer",
+        "name": "aib_officer",
         "description": "AiB Case Officer - can review and process applications",
         "composite": false,
         "clientRole": false
@@ -75,7 +75,7 @@
         "clientRole": false
       },
       {
-        "name": "supplier_trustee",
+        "name": "supplier",
         "description": "Supplier Trustee - can manage assigned cases",
         "composite": false,
         "clientRole": false
@@ -95,6 +95,12 @@
       {
         "name": "cyberops_analyst",
         "description": "Cyber Operations Analyst - security monitoring and audit access",
+        "composite": false,
+        "clientRole": false
+      },
+      {
+        "name": "aib_readonly",
+        "description": "AiB Read Only - view-only access for audit and oversight staff",
         "composite": false,
         "clientRole": false
       }
@@ -217,7 +223,7 @@
           "temporary": false
         }
       ],
-      "realmRoles": ["aib_case_officer"]
+      "realmRoles": ["aib_officer"]
     },
     {
       "username": "sarah.mitchell@aib.gov.uk",
@@ -233,7 +239,7 @@
           "temporary": false
         }
       ],
-      "realmRoles": ["aib_case_officer"]
+      "realmRoles": ["aib_officer"]
     },
     {
       "username": "fiona.macrae@cas.org.uk",
@@ -313,7 +319,7 @@
           "temporary": false
         }
       ],
-      "realmRoles": ["supplier_trustee"]
+      "realmRoles": ["supplier"]
     },
     {
       "username": "jamie.henderson@gmail.com",

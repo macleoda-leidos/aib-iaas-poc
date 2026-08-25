@@ -1,22 +1,19 @@
 import { Pool } from 'pg';
+import { PERMISSIONS, ROLES, resolveGrants, seedRbacPostgres } from './rbac';
 
 export async function seedPgDatabase(pool: Pool): Promise<void> {
-  const { rows } = await pool.query('SELECT COUNT(*) as c FROM roles');
-  if (parseInt(rows[0].c) > 0) { console.log('[PostgreSQL] Already seeded — skipping'); return; }
+  // RBAC is seeded unconditionally, ahead of the "already seeded" guard below.
+  // The guard tests for roles, and roles were the one thing this function did
+  // insert — so any database seeded before permissions existed would return
+  // early here forever and keep every role on zero permissions. The inserts are
+  // idempotent, so re-running costs nothing.
+  await seedRbacPostgres(pool);
+  console.log(
+    `[PostgreSQL] RBAC seeded (${ROLES.length} roles, ${PERMISSIONS.length} permissions, ${resolveGrants().length} grants)`
+  );
 
-  await pool.query(`
-    INSERT INTO roles (id, name, display_name, description, level) VALUES
-    ('role-sysadmin', 'system_admin', 'System Administrator', 'Full access', 100),
-    ('role-senior', 'aib_senior_officer', 'AiB Senior Officer', 'Approve applications', 80),
-    ('role-officer', 'aib_officer', 'AiB Case Officer', 'Process applications', 60),
-    ('role-adviser', 'money_adviser', 'Money Adviser', 'Submit on behalf of clients', 50),
-    ('role-debtor', 'debtor', 'Debtor', 'Apply for debt solutions', 10),
-    ('role-cyberops', 'cyberops_analyst', 'CyberOps Analyst', 'Security monitoring', 70),
-    ('role-statistician', 'statistician', 'AiB Statistician', 'Analytics and reporting', 40),
-    ('role-creditor', 'creditor', 'Creditor', 'View cases and submit claims', 30),
-    ('role-supplier', 'supplier_trustee', 'Supplier/Trustee', 'Manage assigned cases', 40)
-    ON CONFLICT (id) DO NOTHING;
-  `);
+  const { rows } = await pool.query('SELECT COUNT(*) as c FROM organisations');
+  if (parseInt(rows[0].c) > 0) { console.log('[PostgreSQL] Already seeded — skipping'); return; }
 
   await pool.query(`
     INSERT INTO organisations (id, name, type, status) VALUES
@@ -39,5 +36,5 @@ export async function seedPgDatabase(pool: Pool): Promise<void> {
     ON CONFLICT (id) DO NOTHING;
   `);
 
-  console.log('[PostgreSQL] Seed data inserted (9 roles, 5 orgs, 6 users)');
+  console.log('[PostgreSQL] Seed data inserted (5 orgs, 6 users)');
 }

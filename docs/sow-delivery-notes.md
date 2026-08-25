@@ -46,7 +46,7 @@ This document maps the POC artefacts to a 16-week Statement of Work delivery und
 ### Phase 3: Core Platform & Shared Services (Weeks 5-6)
 
 **POC Evidence:**
-- `services/user-service/` — RBAC with 8 roles, 23 permissions
+- `services/user-service/` — RBAC with 10 roles, 20 permissions
 - `services/organisation-service/` — Parent/child org hierarchy
 - `services/audit-service/` — Full audit trail
 - `services/notification-service/` — Multi-channel notifications

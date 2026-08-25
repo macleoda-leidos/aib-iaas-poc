@@ -1,6 +1,17 @@
 export { getDatabase, closeDatabase, getDatabasePath } from './connection';
 export { initializeSchema } from './schema';
 
+// RBAC reference data — the single definition of roles, permissions and grants
+export {
+  ROLES,
+  PERMISSIONS,
+  ROLE_GRANTS,
+  resolveGrants,
+  seedRbacSqlite,
+  seedRbacPostgres,
+} from './rbac';
+export type { SeedRole, SeedPermission, RoleGrant } from './rbac';
+
 // PostgreSQL support (dual-mode)
 export { isPostgresEnabled, getPgPool, closePgPool } from './pg-connection';
 export { initPgSchema } from './pg-schema';

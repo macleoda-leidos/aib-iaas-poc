@@ -66,11 +66,11 @@ const WORK_QUEUE = seedApplications
 
 // Debtor-specific items (they only see their own case updates)
 const DEBTOR_QUEUE = [
-  { id: 101, system: 'IAAS', ref: 'IAAS-2024-00001', task: 'Your application was submitted', priority: 'low', assignee: 'You', due: '15 Mar', status: 'Complete' },
-  { id: 102, system: 'IAAS', ref: 'IAAS-2024-00001', task: 'System checks completed — no issues found', priority: 'low', assignee: 'System', due: '15 Mar', status: 'Complete' },
-  { id: 103, system: 'IAAS', ref: 'IAAS-2024-00001', task: 'Credit check completed', priority: 'low', assignee: 'System', due: '15 Mar', status: 'Complete' },
-  { id: 104, system: 'IAAS', ref: 'IAAS-2024-00001', task: 'Recommendation issued: Debt Arrangement Scheme', priority: 'medium', assignee: 'System', due: '16 Mar', status: 'Complete' },
-  { id: 105, system: 'IAAS', ref: 'IAAS-2024-00001', task: 'Action required: Accept or review recommendation', priority: 'high', assignee: 'You', due: '5 Jul', status: 'Pending' },
+  { id: 101, system: 'IAAS', ref: 'IAAS-2026-00012', task: 'Your application was submitted', priority: 'low', assignee: 'You', due: '15 Mar', status: 'Complete' },
+  { id: 102, system: 'IAAS', ref: 'IAAS-2026-00012', task: 'System checks completed — no issues found', priority: 'low', assignee: 'System', due: '15 Mar', status: 'Complete' },
+  { id: 103, system: 'IAAS', ref: 'IAAS-2026-00012', task: 'Credit check completed', priority: 'low', assignee: 'System', due: '15 Mar', status: 'Complete' },
+  { id: 104, system: 'IAAS', ref: 'IAAS-2026-00012', task: 'Recommendation issued: Debt Arrangement Scheme', priority: 'medium', assignee: 'System', due: '16 Mar', status: 'Complete' },
+  { id: 105, system: 'IAAS', ref: 'IAAS-2026-00012', task: 'Action required: Accept or review recommendation', priority: 'high', assignee: 'You', due: '5 Jul', status: 'Pending' },
 ];
 
 // Role-based portal configuration

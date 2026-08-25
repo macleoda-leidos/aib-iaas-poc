@@ -185,7 +185,7 @@ MFA is enforced for all user roles. The platform supports three second-factor me
 | SMS OTP | 6-digit code, 5-minute expiry | Fallback for accessibility |
 | WebAuthn/FIDO2 | Platform/roaming authenticators | Strongest — hardware keys, biometrics |
 
-Staff accounts (system_admin, aib_senior_officer, aib_case_officer, cyberops_analyst) require WebAuthn or TOTP; SMS-only is not permitted for privileged roles.
+Staff accounts (system_admin, aib_senior_officer, aib_officer, cyberops_analyst) require WebAuthn or TOTP; SMS-only is not permitted for privileged roles.
 
 ### Session Management
 
@@ -250,15 +250,18 @@ flowchart TD
 |------|-------------|----------------|-----------|-------|---------|------------|-------|---------------|
 | **system_admin** | View | View | View | CRUD | View/Export | View | View | CRUD |
 | **aib_senior_officer** | View/Approve/Reject | View/Override | View/Download | View | View/Export | View | Edit/Approve | View |
-| **aib_case_officer** | View/Edit/Assign | View | View/Download/Upload | — | View | View (own) | View | — |
+| **aib_officer** | View/Edit/Assign | View | View/Download/Upload | — | View | View (own) | View | — |
 | **money_adviser** | Create/View/Edit (own clients) | View (own) | Upload/View (own) | — | View (own) | — | — | — |
 | **creditor** | View (relevant) | — | View (relevant) | — | View (own) | — | — | — |
-| **supplier_trustee** | View (assigned) | View (assigned) | View/Upload (assigned) | — | View (assigned) | — | — | — |
+| **supplier** | View (assigned) | View (assigned) | View/Upload (assigned) | — | View (assigned) | — | — | — |
 | **debtor** | Create/View/Edit (own) | View (own) | Upload/View (own) | — | — | — | — | — |
 | **statistician** | — | View (anonymised) | — | — | View/Export (anonymised) | — | — | — |
 | **cyberops_analyst** | — | — | — | View | View (security) | View/Export | — | View |
+| **aib_readonly** | View | View | View | — | View | View | View | — |
 
 *CRUD = Create, Read, Update, Delete*
+
+**Two caveats on reading this table.** It groups capabilities for review purposes; it is not the enforcement surface. The authoritative grants are the 20 permission codes in `packages/database/src/seed-data/permissions.json`, mapped to these 10 roles by `role-permissions.json` — the Documents, Recommendations and Rules columns above have no corresponding permission resource yet. Second, the per-row scoping qualifiers ("own", "assigned", "relevant") describe the target model: every seeded permission is currently unscoped, and no organisation or ownership predicate is applied at the point of check. See GAP-005.
 
 ### Role Hierarchy and Inheritance
 
@@ -312,7 +315,7 @@ Every security-relevant action generates an audit event. The following categorie
   "eventType": "APPLICATION_VIEWED",
   "actor": {
     "userId": "uuid",
-    "role": "aib_case_officer",
+    "role": "aib_officer",
     "sessionId": "uuid",
     "ipAddress": "192.168.1.100",
     "userAgent": "Mozilla/5.0..."

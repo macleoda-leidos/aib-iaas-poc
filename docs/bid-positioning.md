@@ -22,7 +22,7 @@ This solution is built on ten years of direct experience with AiB's systems, pro
 |----------------|-----------------|--------|----------|
 | Online application channel for citizens | Multi-step guided application journey with save/resume | **Delivered** | `/apps/web` — full Next.js application |
 | Identity verification | ScotAccount, GOV.UK Login, SAML federation patterns | **Delivered** | Auth middleware with MFA support |
-| Role-based access control | 9 roles with granular permissions matrix | **Delivered** | RBAC middleware with permission checks |
+| Role-based access control | 10 roles with granular permissions matrix | **Delivered** | RBAC middleware with permission checks |
 | Integration with legacy systems | Adapter pattern for BASYS, eDEN, ASTRA, CFT, Moratorium, RoI | **Delivered** | `/services/mock-integrations` |
 | Document upload | Upload with file type validation and ClamAV scanning | **Delivered** | `/services/document-service` |
 | Payment processing | GOV.UK Pay-pattern payment simulation | **Delivered** | `/services/payment-service` |

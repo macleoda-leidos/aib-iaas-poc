@@ -5,14 +5,14 @@ import http from 'http';
 let server: http.Server;
 let baseUrl: string;
 
-// Create a valid admin token with reports.view permission
+// Create a valid admin token with reports.read permission
 function adminToken(): string {
   return Buffer.from(JSON.stringify({
     userId: 'USR-001',
     email: 'admin@aib.example.gov.scot',
     role: 'system_admin',
     roleLevel: 100,
-    permissions: ['reports.view', 'application.read.all'],
+    permissions: ['reports.read', 'applications.read'],
     exp: Date.now() + 60 * 60 * 1000,
   })).toString('base64');
 }
@@ -58,13 +58,14 @@ describe('API Gateway - Reports Routes', () => {
       expect(res.status).toBe(401);
     });
 
-    it('GET /api/reports/dashboard rejects user without reports.view permission', async () => {
+    it('GET /api/reports/dashboard rejects user without reports.read permission', async () => {
       const token = Buffer.from(JSON.stringify({
         userId: 'USR-009',
         email: 'debtor@example.com',
         role: 'debtor',
         roleLevel: 10,
-        permissions: ['application.read.own'],
+        // A real debtor's grant set: applications.read, but no reports.read.
+        permissions: ['applications.read'],
         exp: Date.now() + 60000,
       })).toString('base64');
 

@@ -205,7 +205,7 @@ UAT is conducted with representative users from each role:
 |---------------|---------|------------|--------|
 | REQ-AUTH-001 | User authentication via Keycloak | TS-007, UT-AUTH-001–015 | Pass |
 | REQ-AUTH-002 | MFA enforcement for all roles | TS-007, UT-MFA-001–008 | Pass |
-| REQ-RBAC-001 | Role-based access control (9 roles) | TS-003, UT-RBAC-001–045 | Pass |
+| REQ-RBAC-001 | Role-based access control (10 roles) | TS-003, UT-RBAC-001–045 | Pass |
 | REQ-REC-001 | Deterministic product recommendation | TS-001, TS-002, UT-REC-001–030 | Pass |
 | REQ-REC-002 | Confidence scoring | TS-008, UT-CONF-001–012 | Pass |
 | REQ-REC-003 | Alternative product identification | UT-ALT-001–008 | Pass |

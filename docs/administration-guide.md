@@ -33,8 +33,8 @@ Users are provisioned through the Keycloak administration console or via the IAA
 
 Role assignment follows a controlled process:
 - **Self-service roles** (debtor) — Automatically assigned on citizen registration
-- **Verified roles** (money_adviser, creditor, supplier_trustee) — Require organisation verification before activation
-- **Internal roles** (aib_case_officer, aib_senior_officer, statistician, cyberops_analyst) — Require senior officer approval and line manager confirmation
+- **Verified roles** (money_adviser, creditor, supplier) — Require organisation verification before activation
+- **Internal roles** (aib_officer, aib_senior_officer, statistician, cyberops_analyst) — Require senior officer approval and line manager confirmation
 - **Privileged roles** (system_admin) — Require two-person approval (senior officer + existing system_admin)
 
 ### Suspending Accounts
@@ -55,10 +55,11 @@ Account suspension is immediate and revocable:
 |------|-------|-------------|-------------------|
 | system_admin | Full system access | IT operations | Two-person (senior officer + existing admin) |
 | aib_senior_officer | Case oversight, rule approval, reporting | Senior AiB staff | Line manager |
-| aib_case_officer | Case processing, application review | AiB case workers | Senior officer |
+| aib_officer | Case processing, application review | AiB case workers | Senior officer |
 | money_adviser | Client management, application creation | Qualified money advisers | Organisation verification |
 | creditor | View relevant cases, submit claims | Creditor representatives | Organisation verification |
-| supplier_trustee | Manage assigned cases | Appointed trustees | Senior officer |
+| supplier | Manage assigned cases | Appointed trustees | Senior officer |
+| aib_readonly | View-only access | Audit and oversight staff | Senior officer |
 | debtor | Own application management | Citizens | Self-registration |
 | statistician | Anonymised reporting and analytics | Research analysts | Senior officer |
 | cyberops_analyst | Security monitoring and audit | Security operations | System admin |
@@ -162,7 +163,7 @@ docker-compose up -d keycloak
 # Admin console: http://localhost:8080
 # Credentials: admin / admin
 # Pre-configured realm: aib-iaas
-# Pre-seeded: 10 users across 9 roles
+# Pre-seeded: 10 users across 10 roles
 # Federation placeholders: SAML (ScotAccount), OIDC (GOV.UK Login)
 ```
 
@@ -236,7 +237,7 @@ All services produce structured JSON logs for machine parsing:
   "statusCode": 200,
   "durationMs": 45,
   "userId": "uuid",
-  "userRole": "aib_case_officer"
+  "userRole": "aib_officer"
 }
 ```
 

@@ -173,7 +173,7 @@ C4Context
 | Domain | Approach |
 |--------|----------|
 | **Authentication** | Federated identity (ScotAccount, GOV.UK Login), MFA, session management |
-| **Authorisation** | Role-Based Access Control with 9 roles and granular permissions |
+| **Authorisation** | Role-Based Access Control with 10 roles and granular permissions |
 | **Data protection** | GDPR by design; data minimisation; purpose limitation; encryption at rest and in transit |
 | **Network security** | Defence in depth; zero trust alignment; mTLS between services |
 | **Application security** | Input validation (Zod schemas), output encoding, CSRF protection, security headers (Helmet) |

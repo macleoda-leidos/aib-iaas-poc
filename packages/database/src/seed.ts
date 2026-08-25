@@ -1,5 +1,6 @@
 import { getDatabase } from './connection';
 import { initializeSchema } from './schema';
+import { PERMISSIONS, ROLES, resolveGrants, seedRbacSqlite } from './rbac';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { randomUUID } from 'crypto';
@@ -19,77 +20,14 @@ export function seedDatabase(): void {
 
   console.log('[Database] Seeding...');
 
-  // ─── Roles ───────────────────────────────────
-  const roles = loadJSON('roles.json');
-  const insertRole = db.prepare(
-    'INSERT OR IGNORE INTO roles (id, name, display_name, description, level) VALUES (?, ?, ?, ?, ?)'
-  );
-  for (const role of roles) {
-    insertRole.run(role.id, role.name, role.displayName, role.description || null, role.level);
-  }
-  console.log(`  [+] ${roles.length} roles`);
-
-  // ─── Permissions ─────────────────────────────
-  const permissions = loadJSON('permissions.json');
-  const insertPerm = db.prepare(
-    'INSERT OR IGNORE INTO permissions (id, code, name, description, resource, action) VALUES (?, ?, ?, ?, ?, ?)'
-  );
-  for (const perm of permissions) {
-    insertPerm.run(perm.id, perm.code, perm.name, perm.description || null, perm.resource, perm.action);
-  }
-  console.log(`  [+] ${permissions.length} permissions`);
-
-  // ─── Role-Permission mappings ────────────────
-  const insertRP = db.prepare(
-    'INSERT OR IGNORE INTO role_permissions (role_id, permission_id) VALUES (?, ?)'
-  );
-
-  // System Admin gets all permissions
-  for (const perm of permissions) {
-    insertRP.run('role-sysadmin', perm.id);
-  }
-
-  // AiB Senior Officer
-  const seniorPerms = [
-    'perm-app-read', 'perm-app-update', 'perm-app-approve', 'perm-app-reject',
-    'perm-app-assign', 'perm-app-export', 'perm-users-read', 'perm-users-create',
-    'perm-users-update', 'perm-orgs-read', 'perm-audit-read', 'perm-audit-export',
-    'perm-reports-read', 'perm-reports-export', 'perm-system-admin',
-  ];
-  seniorPerms.forEach(p => insertRP.run('role-senior', p));
-
-  // AiB Officer
-  const officerPerms = [
-    'perm-app-read', 'perm-app-update', 'perm-app-assign',
-    'perm-users-read', 'perm-orgs-read', 'perm-audit-read',
-    'perm-reports-read',
-  ];
-  officerPerms.forEach(p => insertRP.run('role-officer', p));
-
-  // AiB Read-Only
-  const readonlyPerms = ['perm-app-read', 'perm-orgs-read', 'perm-audit-read', 'perm-reports-read'];
-  readonlyPerms.forEach(p => insertRP.run('role-readonly', p));
-
-  // Money Adviser
-  const adviserPerms = [
-    'perm-app-create', 'perm-app-read', 'perm-app-update', 'perm-app-submit',
-    'perm-orgs-read', 'perm-audit-read',
-  ];
-  adviserPerms.forEach(p => insertRP.run('role-adviser', p));
-
-  // Creditor
-  const creditorPerms = ['perm-app-read', 'perm-orgs-read'];
-  creditorPerms.forEach(p => insertRP.run('role-creditor', p));
-
-  // Supplier/Trustee
-  const supplierPerms = ['perm-app-read', 'perm-app-update', 'perm-orgs-read'];
-  supplierPerms.forEach(p => insertRP.run('role-supplier', p));
-
-  // Debtor
-  const debtorPerms = ['perm-app-create', 'perm-app-read', 'perm-app-update', 'perm-app-submit'];
-  debtorPerms.forEach(p => insertRP.run('role-debtor', p));
-
-  console.log('  [+] role-permission mappings');
+  // ─── Roles, permissions and grants ───────────
+  // initializeSchema above has already applied these; calling it explicitly
+  // keeps this function's output a complete account of what was seeded rather
+  // than relying on a side effect of schema initialisation.
+  seedRbacSqlite(db);
+  console.log(`  [+] ${ROLES.length} roles`);
+  console.log(`  [+] ${PERMISSIONS.length} permissions`);
+  console.log(`  [+] ${resolveGrants().length} role-permission grants`);
 
   // ─── Organisations ───────────────────────────
   const orgs = loadJSON('organisations.json');

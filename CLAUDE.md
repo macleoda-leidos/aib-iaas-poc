@@ -34,7 +34,7 @@ API Gateway (Express, port 3001) - BFF with auth, rate limiting, routing
     ├── Audit Service (3007) - Immutable event log
     ├── Credit Check Service (3008) - CRA interface + consent
     ├── Organisation Service (3009) - Org hierarchy
-    ├── User Service (3011) - Auth, 9 roles, 23 permissions
+    ├── User Service (3011) - Auth, 10 roles, 20 permissions
     ├── Notification Service (3012) - Email/SMS/in-app
     └── Identity Service (3013) - ScotAccount/GOV.UK federation
 

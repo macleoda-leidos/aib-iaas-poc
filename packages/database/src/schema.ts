@@ -1,4 +1,5 @@
 import type Database from 'better-sqlite3';
+import { seedRbacSqlite } from './rbac';
 
 /**
  * Initialize all tables matching the Prisma schema.
@@ -238,36 +239,16 @@ export function initializeSchema(db: Database.Database): void {
     CREATE INDEX IF NOT EXISTS idx_payments_app ON payments(application_id);
   `);
 
-  // Seed default roles and users for testing (matches original api-gateway behaviour)
-  // Roles MUST be inserted before users (FK constraint)
+  // Roles, permissions and grants come from ./rbac so that SQLite and PostgreSQL
+  // grant identical access. This used to be a hand-maintained list here, which
+  // is how it came to omit three roles and use a permission vocabulary no other
+  // file understood. Must run before the users below — role_id is a FK.
+  seedRbacSqlite(db);
+
+  // Seed default organisations and users for testing (matches original
+  // api-gateway behaviour, for callers that use createRepositories() without
+  // running the full seed).
   db.exec(`
-    INSERT OR IGNORE INTO roles (id, name, display_name, description, level, created_at)
-    VALUES ('role-sysadmin', 'system_admin', 'System Administrator', 'Full access', 100, datetime('now'));
-
-    INSERT OR IGNORE INTO roles (id, name, display_name, description, level, created_at)
-    VALUES ('role-officer', 'aib_officer', 'AiB Case Officer', 'Process applications', 60, datetime('now'));
-
-    INSERT OR IGNORE INTO roles (id, name, display_name, description, level, created_at)
-    VALUES ('role-senior', 'aib_senior_officer', 'AiB Senior Officer', 'Approve applications', 80, datetime('now'));
-
-    INSERT OR IGNORE INTO roles (id, name, display_name, description, level, created_at)
-    VALUES ('role-adviser', 'money_adviser', 'Money Adviser', 'Submit on behalf of clients', 50, datetime('now'));
-
-    INSERT OR IGNORE INTO roles (id, name, display_name, description, level, created_at)
-    VALUES ('role-debtor', 'debtor', 'Debtor', 'Apply for debt solutions', 10, datetime('now'));
-
-    INSERT OR IGNORE INTO roles (id, name, display_name, description, level, created_at)
-    VALUES ('role-cyberops', 'cyberops_analyst', 'CyberOps Analyst', 'Security monitoring and incident response', 70, datetime('now'));
-
-    INSERT OR IGNORE INTO roles (id, name, display_name, description, level, created_at)
-    VALUES ('role-statistician', 'statistician', 'AiB Statistician', 'Analytics and reporting', 40, datetime('now'));
-
-    INSERT OR IGNORE INTO roles (id, name, display_name, description, level, created_at)
-    VALUES ('role-creditor', 'creditor', 'Creditor', 'View cases and submit claims', 30, datetime('now'));
-
-    INSERT OR IGNORE INTO roles (id, name, display_name, description, level, created_at)
-    VALUES ('role-supplier', 'supplier_trustee', 'Supplier/Trustee', 'Manage assigned cases', 40, datetime('now'));
-
     -- ─── Organisations ──────────────────────────
 
     INSERT OR IGNORE INTO organisations (id, name, type, parent_id, status, contact_email, address_city, address_postcode, created_at, updated_at)
@@ -304,41 +285,5 @@ export function initializeSchema(db: Database.Database): void {
 
     INSERT OR IGNORE INTO users (id, email, first_name, last_name, display_name, role_id, organisation_id, status, password_hash, mfa_enabled, created_at, updated_at)
     VALUES ('user-debtor', 'john.testerton@example.com', 'John', 'Testerton', 'John Testerton', 'role-debtor', NULL, 'active', 'not-a-real-hash', 0, datetime('now'), datetime('now'));
-
-    -- ─── Permissions ─────────────────────────────
-
-    INSERT OR IGNORE INTO permissions (id, code, name, description, resource, action)
-    VALUES ('perm-app-read-all', 'application.read.all', 'Read All Applications', 'View all applications', 'application', 'read');
-
-    INSERT OR IGNORE INTO permissions (id, code, name, description, resource, action)
-    VALUES ('perm-app-write', 'application.write', 'Write Applications', 'Create and update applications', 'application', 'write');
-
-    INSERT OR IGNORE INTO permissions (id, code, name, description, resource, action)
-    VALUES ('perm-app-approve', 'application.approve', 'Approve Applications', 'Approve or reject applications', 'application', 'approve');
-
-    INSERT OR IGNORE INTO permissions (id, code, name, description, resource, action)
-    VALUES ('perm-user-manage', 'user.manage', 'Manage Users', 'Create and manage user accounts', 'user', 'manage');
-
-    INSERT OR IGNORE INTO permissions (id, code, name, description, resource, action)
-    VALUES ('perm-report-view', 'report.view', 'View Reports', 'Access reporting dashboards', 'report', 'view');
-
-    INSERT OR IGNORE INTO permissions (id, code, name, description, resource, action)
-    VALUES ('perm-audit-view', 'audit.view', 'View Audit Trail', 'Access audit logs', 'audit', 'view');
-
-    -- ─── Role-Permission Assignments ─────────────
-
-    INSERT OR IGNORE INTO role_permissions (role_id, permission_id) VALUES ('role-sysadmin', 'perm-app-read-all');
-    INSERT OR IGNORE INTO role_permissions (role_id, permission_id) VALUES ('role-sysadmin', 'perm-app-write');
-    INSERT OR IGNORE INTO role_permissions (role_id, permission_id) VALUES ('role-sysadmin', 'perm-app-approve');
-    INSERT OR IGNORE INTO role_permissions (role_id, permission_id) VALUES ('role-sysadmin', 'perm-user-manage');
-    INSERT OR IGNORE INTO role_permissions (role_id, permission_id) VALUES ('role-sysadmin', 'perm-report-view');
-    INSERT OR IGNORE INTO role_permissions (role_id, permission_id) VALUES ('role-sysadmin', 'perm-audit-view');
-    INSERT OR IGNORE INTO role_permissions (role_id, permission_id) VALUES ('role-officer', 'perm-app-read-all');
-    INSERT OR IGNORE INTO role_permissions (role_id, permission_id) VALUES ('role-officer', 'perm-app-write');
-    INSERT OR IGNORE INTO role_permissions (role_id, permission_id) VALUES ('role-senior', 'perm-app-read-all');
-    INSERT OR IGNORE INTO role_permissions (role_id, permission_id) VALUES ('role-senior', 'perm-app-write');
-    INSERT OR IGNORE INTO role_permissions (role_id, permission_id) VALUES ('role-senior', 'perm-app-approve');
-    INSERT OR IGNORE INTO role_permissions (role_id, permission_id) VALUES ('role-adviser', 'perm-app-write');
-    INSERT OR IGNORE INTO role_permissions (role_id, permission_id) VALUES ('role-debtor', 'perm-app-write');
   `);
 }

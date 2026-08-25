@@ -148,7 +148,11 @@ describe('User Service - Routes', () => {
     it('returns true for admin with assigned permission', async () => {
       const res = await request('POST', '/api/auth/check-permission', {
         userId: 'user-admin',
-        permission: 'application.read.all',
+        // Codes come from seed-data/permissions.json via rbac.ts. This asserted
+        // 'application.read.all' — one of the invented codes that only ever
+        // existed in schema.ts's parallel grant table, removed when the three
+        // divergent RBAC definitions were consolidated (GAP-011).
+        permission: 'applications.read',
       });
       expect(res.status).toBe(200);
       expect(res.data.data.hasPermission).toBe(true);
@@ -157,7 +161,7 @@ describe('User Service - Routes', () => {
     it('returns false for debtor with admin permission', async () => {
       const res = await request('POST', '/api/auth/check-permission', {
         userId: 'user-debtor',
-        permission: 'user.manage',
+        permission: 'system.admin',
       });
       expect(res.status).toBe(200);
       expect(res.data.data.hasPermission).toBe(false);

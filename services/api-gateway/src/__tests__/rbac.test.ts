@@ -69,7 +69,7 @@ describe('RBAC Middleware - authenticate', () => {
   });
 
   it('accepts valid token and attaches user to request', () => {
-    const payload = { userId: 'u1', email: 'test@example.com', role: 'admin', roleLevel: 100, permissions: ['application.read.all'], exp: Date.now() + 60000 };
+    const payload = { userId: 'u1', email: 'test@example.com', role: 'admin', roleLevel: 100, permissions: ['applications.read'], exp: Date.now() + 60000 };
     const token = createToken(payload);
     const req = { headers: { authorization: `Bearer ${token}` } } as AuthenticatedRequest;
     const res = mockResponse();
@@ -81,7 +81,7 @@ describe('RBAC Middleware - authenticate', () => {
     expect(req.user).toBeDefined();
     expect(req.user!.userId).toBe('u1');
     expect(req.user!.email).toBe('test@example.com');
-    expect(req.user!.permissions).toContain('application.read.all');
+    expect(req.user!.permissions).toContain('applications.read');
   });
 
   it('accepts valid token without exp field (no expiry)', () => {
@@ -104,18 +104,18 @@ describe('RBAC Middleware - requirePermission', () => {
     const res = mockResponse();
     const next = vi.fn();
 
-    requirePermission('application.read.all')(req, res, next);
+    requirePermission('applications.read')(req, res, next);
 
     expect(res.status).toHaveBeenCalledWith(401);
     expect(next).not.toHaveBeenCalled();
   });
 
   it('rejects if user lacks required permission', () => {
-    const req = { headers: {}, user: { userId: 'u1', email: 'a@b.com', role: 'debtor', roleLevel: 10, permissions: ['application.read.own'] } } as AuthenticatedRequest;
+    const req = { headers: {}, user: { userId: 'u1', email: 'a@b.com', role: 'debtor', roleLevel: 10, permissions: ['applications.update'] } } as AuthenticatedRequest;
     const res = mockResponse();
     const next = vi.fn();
 
-    requirePermission('application.read.all')(req, res, next);
+    requirePermission('applications.read')(req, res, next);
 
     expect(res.status).toHaveBeenCalledWith(403);
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
@@ -125,21 +125,21 @@ describe('RBAC Middleware - requirePermission', () => {
   });
 
   it('passes if user has the required permission', () => {
-    const req = { headers: {}, user: { userId: 'u1', email: 'a@b.com', role: 'admin', roleLevel: 100, permissions: ['application.read.all', 'reports.view'] } } as AuthenticatedRequest;
+    const req = { headers: {}, user: { userId: 'u1', email: 'a@b.com', role: 'admin', roleLevel: 100, permissions: ['applications.read', 'reports.read'] } } as AuthenticatedRequest;
     const res = mockResponse();
     const next = vi.fn();
 
-    requirePermission('reports.view')(req, res, next);
+    requirePermission('reports.read')(req, res, next);
 
     expect(next).toHaveBeenCalled();
   });
 
   it('requires ALL specified permissions', () => {
-    const req = { headers: {}, user: { userId: 'u1', email: 'a@b.com', role: 'officer', roleLevel: 80, permissions: ['application.read.all'] } } as AuthenticatedRequest;
+    const req = { headers: {}, user: { userId: 'u1', email: 'a@b.com', role: 'officer', roleLevel: 80, permissions: ['applications.read'] } } as AuthenticatedRequest;
     const res = mockResponse();
     const next = vi.fn();
 
-    requirePermission('application.read.all', 'reports.view')(req, res, next);
+    requirePermission('applications.read', 'reports.read')(req, res, next);
 
     expect(res.status).toHaveBeenCalledWith(403);
     expect(next).not.toHaveBeenCalled();
@@ -158,21 +158,21 @@ describe('RBAC Middleware - requireAnyPermission', () => {
   });
 
   it('passes if user has at least one of the listed permissions', () => {
-    const req = { headers: {}, user: { userId: 'u1', email: 'a@b.com', role: 'debtor', roleLevel: 10, permissions: ['application.create'] } } as AuthenticatedRequest;
+    const req = { headers: {}, user: { userId: 'u1', email: 'a@b.com', role: 'debtor', roleLevel: 10, permissions: ['applications.create'] } } as AuthenticatedRequest;
     const res = mockResponse();
     const next = vi.fn();
 
-    requireAnyPermission('reports.view', 'application.create')(req, res, next);
+    requireAnyPermission('reports.read', 'applications.create')(req, res, next);
 
     expect(next).toHaveBeenCalled();
   });
 
   it('rejects if user has none of the listed permissions', () => {
-    const req = { headers: {}, user: { userId: 'u1', email: 'a@b.com', role: 'debtor', roleLevel: 10, permissions: ['document.read'] } } as AuthenticatedRequest;
+    const req = { headers: {}, user: { userId: 'u1', email: 'a@b.com', role: 'debtor', roleLevel: 10, permissions: ['applications.read'] } } as AuthenticatedRequest;
     const res = mockResponse();
     const next = vi.fn();
 
-    requireAnyPermission('reports.view', 'user.manage')(req, res, next);
+    requireAnyPermission('reports.read', 'users.update')(req, res, next);
 
     expect(res.status).toHaveBeenCalledWith(403);
     expect(next).not.toHaveBeenCalled();
@@ -238,7 +238,7 @@ describe('RBAC Middleware - optionalAuth', () => {
   });
 
   it('attaches user if valid token present', () => {
-    const payload = { userId: 'u1', email: 'opt@example.com', role: 'adviser', roleLevel: 50, permissions: ['application.create'], exp: Date.now() + 60000 };
+    const payload = { userId: 'u1', email: 'opt@example.com', role: 'adviser', roleLevel: 50, permissions: ['applications.create'], exp: Date.now() + 60000 };
     const token = createToken(payload);
     const req = { headers: { authorization: `Bearer ${token}` } } as AuthenticatedRequest;
     const res = mockResponse();

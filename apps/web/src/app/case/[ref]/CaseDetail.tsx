@@ -399,32 +399,33 @@ function CaseContent() {
   const [toastMessage, setToastMessage] = useState<{ text: string; type: 'success' | 'error' | 'warning' } | null>(null);
   const [auditEvents, setAuditEvents] = useState<Array<{ date: string; action: string; actor: string; icon: string }>>([]);
 
-  if (!c) {
-    // Try to find in seed data
-    const seedApp = seedApplications.find(a => a.ref === ref);
-    if (!seedApp) {
-      return (
-        <div className="max-w-4xl mx-auto px-4 py-8 text-center">
-          <h1 className="text-2xl font-bold mb-2">Case Not Found</h1>
-          <p className="text-gray-600 mb-4">Reference <code className="font-mono bg-gray-100 px-2 py-0.5 rounded">{ref}</code> was not found.</p>
-          <Link href="/dashboard" className="text-blue-700 underline">← Back to Dashboard</Link>
-        </div>
-      );
-    }
-
-    // Generate a case view from seed data
-    return <SeedCaseView seedApp={seedApp} caseRef={ref} />;
-  }
-
-  const totalDebt = c.debts.reduce((s: number, d: any) => s + d.amount, 0);
-  const totalMonthly = c.debts.reduce((s: number, d: any) => s + d.monthly, 0);
-  const totalIncome = Object.values(c.income).reduce((s: number, v: any) => s + (v || 0), 0);
-  const totalExpenditure = Object.values(c.expenditure).reduce((s: number, v: any) => s + (v || 0), 0);
+  // Derived totals and the three useMemo blocks below sit ABOVE the `if (!c)`
+  // guard deliberately. CASES holds only four hand-written cases, so a ref
+  // outside it used to return early before three hooks had been called — 13
+  // hooks on one path and 16 on the other. Navigating between a CASES ref and a
+  // seed-only ref without a remount (browser back/forward reuses this
+  // component) then threw React error #310 and tripped the error boundary. Each
+  // block already tolerates a missing case via optional chaining.
+  const totalDebt = c?.debts.reduce((s: number, d: any) => s + d.amount, 0) ?? 0;
+  const totalMonthly = c?.debts.reduce((s: number, d: any) => s + d.monthly, 0) ?? 0;
+  const totalIncome = c ? Object.values(c.income).reduce((s: number, v: any) => s + (v || 0), 0) : 0;
+  const totalExpenditure = c ? Object.values(c.expenditure).reduce((s: number, v: any) => s + (v || 0), 0) : 0;
   const disposable = totalIncome - totalExpenditure;
 
   // ─── AI Case Summary generation ────────────────────────────────────────────
   const aiSummary = useMemo(() => {
-    const age = c.debtor.dob ? new Date().getFullYear() - new Date(c.debtor.dob).getFullYear() : 'unknown age';
+    if (!c) return '';
+    // Year subtraction alone overstates age by one for anyone whose birthday has
+    // not yet fallen this year — roughly half of all cases. Same adjustment the
+    // apply form already makes when validating date of birth.
+    let age: number | string = 'unknown age';
+    if (c.debtor.dob) {
+      const dob = new Date(c.debtor.dob);
+      const now = new Date();
+      age = now.getFullYear() - dob.getFullYear();
+      const monthDelta = now.getMonth() - dob.getMonth();
+      if (monthDelta < 0 || (monthDelta === 0 && now.getDate() < dob.getDate())) age -= 1;
+    }
     const employment = c.debtor.employment?.toLowerCase() || 'unknown employment';
     const marital = c.debtor.maritalStatus?.toLowerCase() || '';
     const creditorCount = c.debts.length;
@@ -461,6 +462,7 @@ function CaseContent() {
 
   // ─── Predictive Case Outcome ───────────────────────────────────────────────
   const predictedApproval = useMemo(() => {
+    if (!c) return 0;
     const confBase = c.recommendation?.confidence === 'High' ? 80 : c.recommendation?.confidence === 'Medium' ? 55 : 35;
     const creditBonus = c.creditResult === 'PASS' ? 10 : -5;
     const statusBonus = c.status === 'under_review' ? 5 : c.status === 'approved' ? 15 : 0;
@@ -472,6 +474,7 @@ function CaseContent() {
 
   // ─── AI Quality Check ──────────────────────────────────────────────────────
   const qualityChecks = useMemo(() => {
+    if (!c) return { checks: [], passedCount: 0, total: 0, overallStatus: '', overallColor: '' };
     const docCount = c.documents?.length || 0;
     const allSystemsClear = Object.values(c.systemChecks || {}).every((v: any) => v === 'clear');
     const creditAboveThreshold = c.creditScore >= 600;
@@ -502,6 +505,24 @@ function CaseContent() {
 
     return { checks, passedCount, total: checks.length, overallStatus, overallColor };
   }, [c]);
+
+  // Safe to return early now that every hook above has run unconditionally.
+  if (!c) {
+    // Try to find in seed data
+    const seedApp = seedApplications.find(a => a.ref === ref);
+    if (!seedApp) {
+      return (
+        <div className="max-w-4xl mx-auto px-4 py-8 text-center">
+          <h1 className="text-2xl font-bold mb-2">Case Not Found</h1>
+          <p className="text-gray-600 mb-4">Reference <code className="font-mono bg-gray-100 px-2 py-0.5 rounded">{ref}</code> was not found.</p>
+          <Link href="/dashboard" className="text-blue-700 underline">← Back to Dashboard</Link>
+        </div>
+      );
+    }
+
+    // Generate a case view from seed data
+    return <SeedCaseView seedApp={seedApp} caseRef={ref} />;
+  }
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">

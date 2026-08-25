@@ -67,7 +67,7 @@ Users see a horizontal progress bar with numbered steps. They can navigate freel
 |-----------|--------|
 | Purpose | Provide single sign-on across all AiB systems via federated identity |
 | Business Value | One login grants access to BASYS, eDEN, DAS, CFT, RoI, and IAAS; reduces credential fatigue |
-| Users | All user types (9 roles across 4 identity realms) |
+| Users | All user types (10 roles across 4 identity realms) |
 | Status | Design (UI simulated) |
 | Pages | `/login` |
 
@@ -159,9 +159,9 @@ Users see a clear MFA challenge with method icons, a code input (pre-populated w
 
 ### Description
 
-RBAC implements 9 hierarchical roles (L10 Debtor through L100 System Admin) with 23 granular permissions. Each role sees only data and functions appropriate to their responsibility. The system supports per-organisation scoping (e.g., a money adviser sees only their bureau's clients).
+RBAC implements 10 hierarchical roles (L10 Debtor through L100 System Admin) with 20 granular permissions. Each role sees only data and functions appropriate to their responsibility. The system supports per-organisation scoping (e.g., a money adviser sees only their bureau's clients).
 
-Roles: System Admin, AiB Senior Officer, AiB Case Officer, AiB Statistician, CyberOps Analyst, Money Adviser, Creditor, Supplier/Trustee, Debtor.
+Roles: System Admin, AiB Senior Officer, AiB Case Officer, AiB Statistician, CyberOps Analyst, Money Adviser, Creditor, Supplier/Trustee, AiB Read Only, Debtor.
 
 ### Technical Overview
 

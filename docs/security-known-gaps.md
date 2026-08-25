@@ -77,8 +77,13 @@ whatever data the system holds, and they compound: an attacker needs only one of
 | GAP-008 | No brute-force protection or account lockout on login | Medium | Yes |
 | GAP-009 | Schema validation package is dead code with no importers | Medium | Yes |
 | GAP-010 | Session tokens are not invalidated server-side on logout | Low | No |
+| GAP-011 | Role-permission grants were defined three times and the copies disagreed | Medium | Yes — seeding fixed, residual items open |
 
-Counts: 3 Critical, 4 High, 2 Medium, 1 Low. Nine of ten findings block production.
+Counts: 3 Critical, 4 High, 3 Medium, 1 Low. Ten of eleven findings block production.
+
+GAP-011 was added on 25 August 2026 and is not part of the original 24 August review. Its
+seeding and vocabulary defects are fixed; the modelling gaps recorded under "Residual work"
+remain open and gate the correct closure of GAP-002.
 
 ---
 
@@ -558,6 +563,74 @@ injection vector.
 
 ---
 
+### GAP-011: Role-Permission Grants Were Defined Three Times and the Copies Disagreed
+
+| Attribute | Detail |
+|-----------|--------|
+| **Severity** | Medium |
+| **CWE** | CWE-1188 — Insecure Default Initialization of Resource |
+| **OWASP Category** | A01:2021 — Broken Access Control |
+| **Blocks production** | Yes — GAP-002 cannot be closed correctly on top of it |
+| **Status** | **Seeding and vocabulary fixed** (Sprint 30). Residual items below remain open. |
+
+**Finding.** The `role_permissions` table was populated by three independent hardcoded lists
+that had drifted apart, so the grants a role received depended on which code path created the
+database:
+
+| Seed path | Behaviour before fix |
+|-----------|---------------------|
+| `packages/database/src/seed.ts` | Correct — 8 roles against the 20-code vocabulary |
+| `packages/database/src/schema.ts` | Omitted `creditor`, `aib_readonly` and `supplier` entirely, and granted a six-code vocabulary (`application.read.all`, `application.write`, `user.manage`, …) that no other file in the repo recognised |
+| `packages/database/src/pg-seed.ts` | Seeded **no permissions at all**; `pg-schema.ts` never created the `permissions` or `role_permissions` tables, so on PostgreSQL every role held zero |
+
+`schema.ts` is the one that mattered most, because `initializeSchema()` is called by
+`createRepositories()` and therefore ran for every consumer, including those that never invoked
+the full seed.
+
+**Why it was invisible.** No deployed route checks a permission (GAP-002), and `hasPermission`
+is never consulted, so a role with zero grants was indistinguishable from a role with every
+grant. The defect had no observable symptom — which is precisely why it survived.
+
+**Exploit path.** Latent rather than live. Two failure modes on the day authorisation is
+switched on: on PostgreSQL (the production backend, per `render.yaml`) every role holds nothing,
+so default-deny locks out every user including `system_admin`; on SQLite the vocabulary mismatch
+means `requirePermission('applications.read')` denies a role whose seeded grant reads
+`application.read.all`. A deployment that responded by loosening the check to get users back in
+would arrive at a worse position than before.
+
+**Related live defect, now fixed.** `services/api-gateway/src/index.ts` — the only route in the
+repo that applied `requirePermission` asked for `reports.view`, a code absent from
+`permissions.json` and held by no role. That route returned 403 to every caller, `system_admin`
+included. Corrected to `reports.read`.
+
+**Fix applied.** `packages/database/src/rbac.ts` is now the single definition, reading
+`seed-data/roles.json` (10 roles), `permissions.json` (20 permissions) and
+`role-permissions.json` (68 grants), and exposing one seeding function per backend. `schema.ts`,
+`seed.ts` and `pg-seed.ts` all call it; the two missing PostgreSQL tables were added to
+`pg-schema.ts`. `pg-seed.ts` now seeds RBAC *before* its "already seeded" guard, because that
+guard counted `roles` — the one thing it did insert — so any database created before permissions
+existed would have skipped them on every subsequent run, permanently.
+`packages/database/src/__tests__/rbac.test.ts` asserts referential integrity, that no role
+resolves to zero permissions, that no code outside the canonical vocabulary is seeded, that both
+backends issue the full grant set, and that the `UserRole` union in `packages/shared-types` still
+matches `roles.json`.
+
+**Residual work.**
+
+1. `permissions.json` defines no `documents.*` or `credit_check.*` resources, though both
+   services exist and hold the most sensitive data in the system. GAP-002 cannot place a
+   meaningful check on those routes until the resources are modelled.
+   `services/user-service/src/__tests__/rbac.test.ts` unit-tests its helpers with invented codes
+   (`credit_check.run`, `document.delete`) that no role holds, which reads as coverage of grants
+   that do not exist.
+2. The RBAC matrix on `/admin/users` is a separate hardcoded illustration (9 role tiers × 11
+   capability groups) with no relationship to the seeded data. It should be driven by the API
+   before it is used to evidence an access-control claim.
+3. The permission matrix in `docs/security.md` §4 carries scoping qualifiers ("own", "assigned",
+   "relevant") that no seeded permission expresses — the same gap as GAP-005.
+
+---
+
 ## Low Findings
 
 ### GAP-010: Session Tokens Are Not Invalidated Server-Side on Logout
@@ -630,7 +703,7 @@ progress. The recommended order:
 | Stage | Findings | Rationale |
 |-------|----------|-----------|
 | 1 | GAP-001, GAP-003, GAP-007 | Establish a trustworthy identity: signed tokens verified against an IdP, real password verification, enforced MFA. Nothing downstream can be trusted until identity is. |
-| 2 | GAP-002 | Wire authentication and permission checks into every deployed route, defaulting to deny. Meaningful only once tokens are trustworthy (stage 1). |
+| 2 | GAP-011, GAP-002 | Model the missing permission resources and drive the admin matrix from real data, then wire authentication and permission checks into every deployed route, defaulting to deny. GAP-011 comes first within the stage: default-deny against grants that are wrong or absent is a lockout, and the natural response to a lockout is to weaken the check. Meaningful only once tokens are trustworthy (stage 1). |
 | 3 | GAP-005, GAP-006 | Add resource ownership checks and server-derived audit attribution. Both depend on an authenticated principal existing (stages 1-2). |
 | 4 | GAP-008, GAP-010 | Brute-force protection and session revocation. Both become materially important precisely because stage 1 made credentials and sessions meaningful. |
 | 5 | GAP-004, GAP-009 | Deploy real malware scanning with fail-closed handling; wire schema validation into the request path. Independent of the identity chain and may proceed in parallel. |

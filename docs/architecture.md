@@ -177,7 +177,7 @@ graph TB
         subgraph "Route Handlers"
             authRoutes["/api/auth<br/>POST /login — authenticate<br/>GET /me — token validation<br/>POST /logout — session termination<br/>POST /check-permission"]
             appRoutes["/api/applications<br/>POST / — create application<br/>GET /:id — retrieve by ID<br/>PUT /:id — update application<br/>POST /:id/submit — submit for review<br/>PATCH /:id/status — staff status change"]
-            reportRoutes["/api/reports<br/>Protected: authenticate + reports.view<br/>GET /summary — dashboard KPIs<br/>GET /applications — filtered list"]
+            reportRoutes["/api/reports<br/>Protected: authenticate + reports.read<br/>GET /summary — dashboard KPIs<br/>GET /applications — filtered list"]
             exportRoutes["/api/reports/export<br/>Public for POC demo<br/>GET /csv — export as CSV<br/>GET /pdf — export as PDF"]
             postcodeRoutes["/api/postcode<br/>GET /lookup?q= — address search<br/>OS Places API integration"]
             healthRoute["/api/health<br/>GET / — service health status<br/>Returns: status, service, timestamp"]
@@ -527,7 +527,7 @@ This pattern ensures:
 
 ### 8.1 Identity and Access Management
 
-IAAS implements a federated identity model supporting multiple identity providers through Keycloak 25.0 as the central identity broker. In the POC, Keycloak runs in Docker Compose with a pre-configured `aib-iaas` realm containing 10 users across 9 roles, MFA enforcement, and SAML/OIDC federation placeholders for ScotAccount and GOV.UK Login. Admin console available at `localhost:8080` (credentials: admin/admin).
+IAAS implements a federated identity model supporting multiple identity providers through Keycloak 25.0 as the central identity broker. In the POC, Keycloak runs in Docker Compose with a pre-configured `aib-iaas` realm containing 10 users across 10 roles, MFA enforcement, and SAML/OIDC federation placeholders for ScotAccount and GOV.UK Login. Admin console available at `localhost:8080` (credentials: admin/admin).
 
 ```mermaid
 sequenceDiagram
@@ -568,19 +568,22 @@ sequenceDiagram
 
 ### 8.2 Role-Based Access Control (RBAC)
 
-IAAS implements a 9-role hierarchy with fine-grained permission codes:
+IAAS implements a 10-role hierarchy with fine-grained permission codes:
 
 Levels and permission grants below are the seeded values, from
 `packages/database/src/seed-data/roles.json` and the role-permission mappings in
-`packages/database/src/seed.ts` (lines 47–90). Permission codes are those in
+`packages/database/src/seed-data/role-permissions.json` (applied by
+`packages/database/src/rbac.ts`). Permission codes are those in
 `packages/database/src/seed-data/permissions.json` — 20 codes, all unscoped.
 
 | Role | Level | Scope | Seeded Permissions |
 |------|-------|-------|---------------------|
 | `system_admin` | 100 | Full system | All 20 permissions |
-| `aib_senior_officer` | 80 | All applications | `applications.read`, `.update`, `.approve`, `.reject`, `.assign`, `.export`, `users.read`, `.create`, `.update`, `organisations.read`, `audit.read`, `.export`, `reports.read`, `.export`, `system.admin` |
+| `aib_senior_officer` | 80 | All applications | `applications.read`, `.update`, `.approve`, `.reject`, `.assign`, `.export`, `users.create`, `.read`, `.update`, `organisations.read`, `audit.read`, `.export`, `reports.read`, `.export` |
+| `cyberops_analyst` | 70 | Security monitoring | `users.read`, `organisations.read`, `audit.read`, `.export`, `reports.read` |
 | `aib_officer` | 60 | Assigned applications | `applications.read`, `.update`, `.assign`, `users.read`, `organisations.read`, `audit.read`, `reports.read` |
 | `money_adviser` | 50 | Own organisation cases | `applications.create`, `.read`, `.update`, `.submit`, `organisations.read`, `audit.read` |
+| `statistician` | 45 | Anonymised reporting | `organisations.read`, `reports.read`, `.export` |
 | `supplier` | 40 | Provider operations | `applications.read`, `.update`, `organisations.read` |
 | `creditor` | 30 | Relevant cases | `applications.read`, `organisations.read` |
 | `aib_readonly` | 20 | Read-only | `applications.read`, `organisations.read`, `audit.read`, `reports.read` |
@@ -894,7 +897,7 @@ All services emit structured JSON logs with consistent fields:
 | **HTTP Client** | Axios | 1 | Configurable timeouts, request/response interceptors, automatic JSON parsing |
 | **Security Headers** | Helmet | 7 | Best-practice security headers with single middleware call |
 | **Rate Limiting** | express-rate-limit | 7 | Configurable per-route, sliding window, custom key generation |
-| **Identity Broker** | Keycloak | 25.0 | OpenID Connect + SAML 2.0, social login, MFA, admin UI, Docker Compose with pre-configured realm (10 users, 9 roles) |
+| **Identity Broker** | Keycloak | 25.0 | OpenID Connect + SAML 2.0, social login, MFA, admin UI, Docker Compose with pre-configured realm (10 users, 10 roles) |
 | **Testing** | Vitest | 1 | ESM-native, Jest-compatible API, fast execution, built-in coverage |
 | **Containerisation** | Docker | 24+ | Multi-stage builds, distroless runtime images, consistent environments |
 | **Orchestration (Dev)** | Docker Compose | 2 | Single-command local environment, service dependency management |
@@ -1064,7 +1067,7 @@ All services emit structured JSON logs with consistent fields:
 | Process Payment | POST | /api/payments | Yes | `payment.initiate` |
 | Login | POST | /api/auth/login | No | — |
 | Validate Token | GET | /api/auth/me | Yes | — |
-| View Reports | GET | /api/reports | Yes | `reports.view` |
+| View Reports | GET | /api/reports | Yes | `reports.read` |
 | Export Reports | GET | /api/reports/export | Yes | `reports.export` |
 | Integration Health | GET | /api/integrations/health | No | — |
 | Service Health | GET | /api/health | No | — |

@@ -84,7 +84,7 @@ All services use SQLite with WAL mode. Database files are created automatically 
 | Audit | ./data/audit.db | None |
 | Credit Check | ./data/credit-check-cache.db | None (cache only) |
 | Organisation | ./data/organisations.db | Full org hierarchy |
-| User | ./data/users.db | 10 demo users, 8 roles, 23 permissions |
+| User | ./data/users.db | 10 demo users, 10 roles, 20 permissions |
 | Notification | ./data/notifications.db | None |
 
 ### Reset databases:
