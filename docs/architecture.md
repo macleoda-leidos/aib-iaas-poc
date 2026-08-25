@@ -747,7 +747,7 @@ graph LR
 
     subgraph "GitHub Actions Pipeline (Current POC)"
         lint["1. Lint<br/>ESLint + TypeScript"]
-        test["2. Unit + Integration Tests<br/>Vitest (659 tests, 39 files)"]
+        test["2. Unit + Integration Tests<br/>Vitest (822 tests, 46 files)"]
         build["3. Next.js Build<br/>Static export"]
         deploy["4. Deploy<br/>GitHub Pages"]
     end
@@ -765,7 +765,7 @@ graph LR
 ```
 
 **POC Deployment (Current):**
-- GitHub Actions runs Vitest (789 tests across 44 files — 584 backend under node, 205 frontend under jsdom)
+- GitHub Actions runs Vitest (822 tests across 46 files — 584 backend under node, 238 frontend under jsdom)
 - Next.js static export builds the web frontend
 - Deploys to GitHub Pages for stakeholder review
 - Full stack available via `docker-compose up` (PostgreSQL + Keycloak + ClamAV + all services)

@@ -165,7 +165,7 @@ Full endpoint reference following the OpenAPI 3.0 specification format. Document
 6. Predictive case outcomes
 7. AI quality check (6 automated checks)
 8. Digital Mailroom OCR/NER
-9. AI chatbot (12+ topics)
+9. Digital assistant — deterministic, answers cited to legislation (4 solutions x 8 question types)
 10. Recommendation explainability
 11. Policy simulation modelling
 12. AI governance and bias monitoring

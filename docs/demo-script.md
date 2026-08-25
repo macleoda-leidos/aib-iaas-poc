@@ -96,13 +96,15 @@
 ## Scene 4 — AI Features (1.5 minutes)
 
 ### What to show:
-1. **AI Chatbot** — Click the floating chat icon on any page, ask "What is DAS?", show suggested questions
+1. **Digital Assistant** — Click the floating chat icon on any page and ask "Am I eligible for MAP?".
+   Point at the provisions listed under the answer. Then ask "How much does a trust deed cost?" to
+   show it declining to quote a fee it does not hold
 2. **Explainability** (`/case/[ref]/recommendation`) — Confidence gauge, contributing factors, alternatives comparison chart
 3. **Predictive Outcomes** — Show the "87% likely approved" badge on a case, explain the basis
 
 ### Script:
 
-> "AI is woven throughout the platform, not bolted on. The chatbot widget appears on every page — citizens can ask questions in natural language and get immediate answers without waiting for an adviser.
+> "AI is woven throughout the platform, not bolted on — and where it is deliberately not AI, that is a decision too. The assistant widget appears on every page, so citizens get immediate answers without waiting for an adviser. It is a deterministic lookup, not a language model, and every figure it quotes is read from our statutory package with the provision shown underneath. That means an answer about the £25,000 MAP ceiling arrives with 's.2(2)(b)(ii)' attached, and where we do not hold a figure — application fees, for instance — it says so rather than guessing. For a service advising people in debt, an answer that can be checked is worth more than one that sounds fluent.
 
 > On the recommendation page, full explainability is provided. This confidence gauge shows 92% confidence in DAS. Below it, the contributing factors show exactly which inputs drove that recommendation — debt-to-income ratio, number of creditors, employment stability. And this alternatives chart shows why other products scored lower.
 
@@ -111,7 +113,9 @@
 ### Talking points:
 - 12+ distinct AI capabilities demonstrated across the platform
 - Explainability is not optional — it is built into every AI output
-- The chatbot handles 12+ topic areas with pattern matching
+- The assistant covers 4 debt solutions across 8 question types, and cites the provision behind
+  every figure it quotes — 13 provisions across its answers. It is deterministic by design, and
+  declines to state figures the service does not hold rather than inventing them
 - All AI features are auditable and governed via the AI Governance dashboard
 
 ---

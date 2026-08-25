@@ -9,7 +9,9 @@ const nextConfig = {
   // GitHub Pages serves from /repo-name/ subpath
   basePath: isGitHubPages ? `/${repoName}` : '',
   assetPrefix: isGitHubPages ? `/${repoName}/` : '',
-  transpilePackages: ['@aib-iaas/ui-components', '@aib-iaas/shared-types', '@aib-iaas/validation'],
+  // @aib-iaas/statutory is safe to pull into the browser bundle: it has zero runtime
+  // dependencies, unlike @aib-iaas/database which would drag better-sqlite3 in.
+  transpilePackages: ['@aib-iaas/ui-components', '@aib-iaas/shared-types', '@aib-iaas/validation', '@aib-iaas/statutory'],
   typescript: { ignoreBuildErrors: true },
   eslint: { ignoreDuringBuilds: true },
   // Performance optimizations

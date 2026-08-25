@@ -91,7 +91,7 @@ The POC demonstrates the following capabilities in working code — **50+ pages,
 23. **Case timeline audit trail** — Full chronological record of all actions against a case
 24. **Notification service** — Email/SMS notifications with role-specific subscription management
 25. **Rate limiting and abuse protection** — Defence against automated attacks and misuse
-26. **AI Chatbot** — Floating FAQ assistant with natural language pattern matching (12+ topics)
+26. **Digital Assistant** — Floating guidance assistant covering 4 debt solutions across 8 question types. Deliberately deterministic rather than generative: every figure is read from the legislation-cited statutory package and the provision is shown with the answer, so a citizen or adviser can check it. Where a figure is not held, it says so instead of guessing
 27. **AI Case Summary** — Auto-generated natural language synthesis from case data
 28. **Anomaly Detection** — Income discrepancies, duplicate applications, SLA warnings surfaced proactively
 29. **AI Quality Check** — 6 automated pre-decision checks (documents, income, conflicts, confidence, identity, credit)
