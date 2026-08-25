@@ -43,11 +43,28 @@ export default function NotificationBell() {
 
   return (
     <div className="relative">
-      <button ref={buttonRef} onClick={() => setOpen(!open)} className="relative p-1 text-white hover:text-yellow-200 transition-colors" aria-label="Notifications" aria-expanded={open} aria-haspopup="true">
+      <button
+        ref={buttonRef}
+        onClick={() => setOpen(!open)}
+        className="relative flex h-8 w-8 items-center justify-center text-white hover:text-yellow-200 transition-colors"
+        aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : 'Notifications'}
+        aria-expanded={open}
+        aria-haspopup="true"
+      >
         🔔
         {unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
-            {unreadCount}
+          // Inset, not the usual negative offset: the host nav is overflow-x-auto, which
+          // clips at its padding box on both axes and ignores z-index — the same trap the
+          // dropdown escapes via a portal. A 16px badge plus its 2px ring, inset by 2px,
+          // sits wholly inside this 32px button, so it cannot be cut off at any width.
+          // The ring is the nav's own red so the badge separates from the bell it overlaps;
+          // a bare red circle on the #a81b03 bar reads as a smudge. Counts cap at 9+ to
+          // keep it a circle rather than squashing into a pill.
+          <span
+            aria-hidden="true"
+            className="absolute right-0.5 top-0.5 z-10 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold leading-none text-white ring-2 ring-[#a81b03]"
+          >
+            {unreadCount > 9 ? '9+' : unreadCount}
           </span>
         )}
       </button>
