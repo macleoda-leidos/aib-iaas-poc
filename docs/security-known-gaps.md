@@ -628,6 +628,15 @@ matches `roles.json`.
    before it is used to evidence an access-control claim.
 3. The permission matrix in `docs/security.md` §4 carries scoping qualifiers ("own", "assigned",
    "relevant") that no seeded permission expresses — the same gap as GAP-005.
+4. **Existing databases are not migrated.** Seeding uses `INSERT OR IGNORE` (SQLite) and
+   `ON CONFLICT DO NOTHING` (PostgreSQL), which add missing rows but never delete obsolete ones.
+   A database created before this fix therefore retains the withdrawn permission codes and the
+   grants built on them; the fix corrects what a *new* database receives, not what an old one
+   holds. This was observed in practice: a local `data/iaas.db` predating the fix still contained
+   `application.read.all` and `audit.view` and failed a permission assertion that passes against
+   a clean database. Any environment with a persistent volume needs a migration that removes
+   codes no longer in `permissions.json`, and that migration must run before default-deny is
+   switched on.
 
 ---
 

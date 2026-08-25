@@ -79,7 +79,14 @@ npm workspaces monorepo with three workspace directories (`apps/*`, `services/*`
 
 ## Testing
 
-`npx vitest run` from the repo root runs everything: **659 tests across 39 files** (519 backend across 35 files, 140 frontend across 4 files).
+`npx vitest run` from the repo root runs everything: **679 tests across 40 files** (539 backend across 36 files, 140 frontend across 4 files).
+
+Backend suites read the SQLite database at `DATABASE_PATH`, defaulting to `data/iaas.db`
+(`packages/database/src/connection.ts:12`). Seeding is `INSERT OR IGNORE`, so it adds missing
+rows but never removes obsolete ones — a `data/` directory left over from before a seed-data
+change keeps the old rows and fails RBAC assertions that are correct against a clean tree. Run
+with `DATABASE_PATH="$(mktemp -d)/fresh.db"` to confirm whether a failure is real or a stale
+fixture. `data/` is gitignored, so CI always starts clean.
 
 The suite is one vitest config with two environments, because vitest 1.6 has no `test.projects` (that arrived in v3):
 
