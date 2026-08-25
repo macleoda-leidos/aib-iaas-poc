@@ -70,7 +70,18 @@ const corsOrigins = process.env.CORS_ORIGIN
 // nothing from the window. Moving the limiter above this line would roughly
 // halve the effective budget, because browsers preflight every cross-origin
 // request carrying Content-Type or Authorization, which is most of ours.
-app.use(cors({ origin: corsOrigins, methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'], allowedHeaders: ['Content-Type', 'Authorization'], credentials: true }));
+// exposedHeaders is required for the RateLimit-* headers to be readable by the
+// frontend. Browsers withhold every response header from script except seven
+// CORS-safelisted ones, so without this the limiter's headers reach the browser
+// but `res.headers.get('RateLimit-Limit')` returns null — the frontend then has
+// no way to show real usage and falls back to a local estimate.
+app.use(cors({
+  origin: corsOrigins,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  exposedHeaders: ['RateLimit-Limit', 'RateLimit-Remaining', 'RateLimit-Reset', 'RateLimit-Policy'],
+  credentials: true,
+}));
 
 // Render (and any other PaaS) terminates TLS at a proxy and forwards the real
 // client address in X-Forwarded-For. Without this, express-rate-limit keys every

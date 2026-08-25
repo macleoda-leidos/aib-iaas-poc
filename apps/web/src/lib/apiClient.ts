@@ -121,21 +121,42 @@ export function onRateLimitChange(callback: RateLimitCallback) {
   };
 }
 
-function readRateLimitHeaders(res: Response) {
-  const limit = Number(res.headers.get('RateLimit-Limit'));
-  const remaining = Number(res.headers.get('RateLimit-Remaining'));
-  // Seconds until the window resets, per the draft standard.
-  const reset = Number(res.headers.get('RateLimit-Reset'));
+/**
+ * Parse a header that must be present and numeric, or return null.
+ *
+ * The null check has to happen BEFORE Number(): `Number(null)` is 0, and
+ * `Number.isFinite(0)` is true, so coercing first makes an absent header
+ * indistinguishable from a genuine zero. That is precisely how a healthy API
+ * ended up reported as rate-limited — the browser withholds any response header
+ * not named in Access-Control-Expose-Headers, so these read as null in the
+ * browser even when the server sends them.
+ */
+function numericHeader(res: Response, name: string): number | null {
+  const raw = res.headers.get(name);
+  if (raw === null || raw.trim() === '') return null;
+  const value = Number(raw);
+  return Number.isFinite(value) ? value : null;
+}
 
-  // Absent or unparseable means the response did not come from the rate-limited
-  // API — a cached asset, a different host, or a proxy that stripped them.
-  // Keeping the previous reading beats overwriting it with NaN.
-  if (!Number.isFinite(limit) || !Number.isFinite(remaining)) return;
+function readRateLimitHeaders(res: Response) {
+  const limit = numericHeader(res, 'RateLimit-Limit');
+  const remaining = numericHeader(res, 'RateLimit-Remaining');
+  // Seconds until the window resets, per the draft standard.
+  const reset = numericHeader(res, 'RateLimit-Reset');
+
+  // Absent means the response did not come from the rate-limited API, or the
+  // headers are not exposed to script. Keeping the previous reading beats
+  // overwriting it with a fabricated one.
+  //
+  // limit <= 0 is rejected as well: a zero budget is not a state this API can
+  // legitimately report, and treating it as real renders the UI permanently
+  // "limited" while the server is happily serving requests.
+  if (limit === null || remaining === null || limit <= 0) return;
 
   rateLimitState = {
     limit,
     remaining,
-    resetAtMs: Date.now() + (Number.isFinite(reset) ? reset * 1000 : 15 * 60 * 1000),
+    resetAtMs: Date.now() + (reset !== null ? reset * 1000 : 15 * 60 * 1000),
   };
   rateLimitListeners.forEach((cb) => cb(rateLimitState!));
 }

@@ -65,8 +65,14 @@ export default function RateLimitBanner() {
   // no relation to the deployed limit of 500 (see consolidated-api/src/index.ts),
   // so this banner warned "rate limited" at a fifth of the real budget — in front
   // of whoever was watching the demo.
-  const limit = serverLimit?.limit ?? DEFAULT_LIMIT;
-  const used = serverLimit?.used ?? callCount;
+  //
+  // Tested for a positive limit rather than with `??`: a zero would pass a nullish
+  // check and then satisfy `used >= limit` as 0 >= 0, pinning the banner to "Rate
+  // limited" against a perfectly healthy API. apiClient now refuses to report a
+  // zero limit, so this is defence in depth on the display side.
+  const hasServerLimit = serverLimit !== null && serverLimit.limit > 0;
+  const limit = hasServerLimit ? serverLimit.limit : DEFAULT_LIMIT;
+  const used = hasServerLimit ? serverLimit.used : callCount;
   const warnThreshold = Math.floor(limit * 0.7);
 
   useEffect(() => {
@@ -172,7 +178,7 @@ export default function RateLimitBanner() {
 
           {/* Tier info */}
           <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
-            {serverLimit ? `Server limit: ${limit} requests per 15 minutes` : `Assumed limit: ${limit} requests per 15 minutes`}
+            {hasServerLimit ? `Server limit: ${limit} requests per 15 minutes` : `Assumed limit: ${limit} requests per 15 minutes`}
           </p>
 
           {/* Reset countdown */}
