@@ -80,6 +80,7 @@ export default function CaseTimeline({ events, compact = false, maxItems = 8, ca
           return (
             <button
               key={cat}
+              data-demo={`audit-filter-${cat}`}
               onClick={() => setActiveFilter(cat)}
               className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
                 isActive

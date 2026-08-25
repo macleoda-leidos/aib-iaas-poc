@@ -34,45 +34,96 @@ function buildDemoSteps(app: GeneratedApplication): DemoStep[] {
     // Staff demo
     {
       path: '/',
-      duration: 5,
+      duration: 13,
       title: '\u{1F3E0} Welcome',
-      narration: 'Welcome to IAAS — AiB\'s digital front door. Service status shows all systems operational.',
+      narration: 'Welcome to IAAS — AiB\'s digital front door. Service status shows all systems operational. Scrolling down: all six Scottish debt solutions, each linking to aib.gov.uk, and one green Start Application button.',
+      actions: [
+        // The solutions grid and the start button are below the fold, so the
+        // opening beat walks down to them rather than leaving the audience
+        // looking at the status banner for the whole step.
+        { delay: 3000, action: { type: 'SCROLL_TO', selector: '[data-demo="home-solutions"]', block: 'start' } },
+        { delay: 8500, action: { type: 'HIGHLIGHT', selector: '[data-demo="home-start"]', durationMs: 3500 } },
+      ],
     },
     {
       path: '/login',
-      duration: 5,
+      duration: 22,
       title: '\u{1F510} Staff Login',
-      narration: 'Staff authenticate via Keycloak with MFA. 4 demo accounts available.',
+      narration: 'Signing in as the Case Officer demo account against the live API, then the enforced second factor: choose delivery — authenticator app, text or email — and enter the 6-digit code. Five demo accounts are available, all with the password "demo".',
+      actions: [
+        // Drive the real controls rather than writing state: Sign In is a genuine
+        // POST to the API, so the audience sees the actual round trip. The delays
+        // after it are deliberately loose — on a cold free-tier instance the
+        // response can take seconds, and waitForElement absorbs the rest.
+        { delay: 1500, action: { type: 'CLICK', selector: '[data-demo="login-account-case-officer"]' } },
+        { delay: 4000, action: { type: 'CLICK', selector: '[data-demo="login-submit"]' } },
+        { delay: 9000, action: { type: 'CLICK', selector: '[data-demo="login-otp-sms"]' } },
+        { delay: 11500, action: { type: 'CLICK', selector: '[data-demo="login-send-code"]' } },
+        { delay: 14500, action: { type: 'FILL_MFA_CODE', code: '123456' } },
+        { delay: 17000, action: { type: 'CLICK', selector: '[data-demo="login-verify"]' } },
+      ],
     },
     {
       path: '/dashboard',
-      duration: 6,
+      duration: 14,
       title: '\u{1F4CA} Staff Dashboard',
-      narration: 'AI prioritisation, anomaly alerts, live notifications. Cases sorted by urgency.',
+      narration: 'AI prioritisation, anomaly alerts, live notifications. Cases sorted by urgency — scrolling the full dashboard so every panel gets seen.',
+      actions: [
+        { delay: 1500, action: { type: 'SLOW_SCROLL', durationMs: 10000 } },
+      ],
     },
     {
       path: '/case/IAAS-2026-00012',
-      duration: 7,
+      duration: 18,
       title: '\u{1F4CB} Case Detail',
-      narration: 'AI Summary auto-generated. Risk score: Low. Quality check: 5/6 passed. Predicted: 92% approved.',
+      narration: 'AI Summary auto-generated. Risk score: Low. Quality check: 5/6 passed. Predicted: 92% approved. Walking the whole case record — there is a lot here to review.',
+      actions: [
+        { delay: 1500, action: { type: 'SLOW_SCROLL', durationMs: 14000 } },
+      ],
     },
     {
       path: '/case/IAAS-2026-00012/recommendation',
-      duration: 6,
+      duration: 19,
       title: '✅ Recommendation',
-      narration: 'DAS at 94% confidence. Decision factors, alternatives chart, evidence from 6 systems.',
+      narration: 'DAS at 94% confidence. Scrolling through the decision factors, alternatives chart and evidence from 6 systems — then back up to the Download PDF Report button, which produces the formal recommendation document.',
+      actions: [
+        { delay: 1500, action: { type: 'SLOW_SCROLL', durationMs: 11000 } },
+        // HIGHLIGHT, not CLICK: the export opens a popup and calls print(), and a
+        // modal print dialog would stall the player. Ringing the button makes the
+        // point without leaving the page.
+        { delay: 14000, action: { type: 'HIGHLIGHT', selector: '[data-demo="recommendation-pdf"]', durationMs: 4000 } },
+      ],
     },
     {
       path: '/case/IAAS-2026-00012/audit',
-      duration: 5,
+      duration: 28,
       title: '\u{1F4DC} Audit Trail',
-      narration: '18 events permanently recorded. Full compliance. Every action traceable.',
+      narration: '18 events permanently recorded — 9 application, 5 checks, 2 decisions, 1 communication, 1 review. Every action traceable, and the whole trail filters by category.',
+      actions: [
+        { delay: 1500, action: { type: 'SLOW_SCROLL', durationMs: 10000 } },
+        // Each CLICK scrolls its pill into view first, so working through the
+        // filters walks the page back up to the top on its own.
+        { delay: 13000, action: { type: 'CLICK', selector: '[data-demo="audit-filter-check"]' } },
+        { delay: 16000, action: { type: 'CLICK', selector: '[data-demo="audit-filter-decision"]' } },
+        { delay: 19000, action: { type: 'CLICK', selector: '[data-demo="audit-filter-communication"]' } },
+        { delay: 22000, action: { type: 'CLICK', selector: '[data-demo="audit-filter-review"]' } },
+        // Leave the trail unfiltered so the page is in its default state.
+        { delay: 25000, action: { type: 'CLICK', selector: '[data-demo="audit-filter-all"]' } },
+      ],
     },
     {
       path: '/',
-      duration: 3,
+      duration: 8,
       title: '\u{1F464} Citizen Journey...',
-      narration: 'Now the citizen experience — applying for debt advice online.',
+      narration: 'Now the citizen experience. Back at the front door: six Scottish debt solutions to choose from, and the Start Application button that begins the journey.',
+      actions: [
+        // Opens framed on the solutions grid *and* the green call to action, rather
+        // than at the top of the page — this beat is the pivot into /apply, so the
+        // button the citizen presses should already be on screen. 'center' fits the
+        // whole block on a presenter's display and degrades to top-aligned if the
+        // viewport is too short for it.
+        { delay: 1200, action: { type: 'SCROLL_TO', selector: '[data-demo="home-solutions-cta"]', block: 'center' } },
+      ],
     },
 
     // Apply form interaction
@@ -487,6 +538,7 @@ export default function DemoMode() {
   const [demoApp, setDemoApp] = useState<GeneratedApplication | null>(null);
   const [demoSteps, setDemoSteps] = useState<DemoStep[]>([]);
   const actionTimersRef = useRef<NodeJS.Timeout[]>([]);
+  const barRef = useRef<HTMLDivElement>(null);
 
   const currentStep = demoSteps[step];
 
@@ -586,6 +638,30 @@ export default function DemoMode() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active, playing, step, speed]);
 
+  // Publish the narration bar's height as a CSS variable so the other fixed
+  // bottom chrome (the Ask AiB launcher) can sit clear of it. Measured rather
+  // than hardcoded: the narration line-clamps to two lines and the controls
+  // reflow on narrow viewports, so the height is not a constant.
+  useEffect(() => {
+    const root = document.documentElement;
+    const clear = () => root.style.removeProperty('--demo-bar-height');
+    const el = barRef.current;
+    if (!active || !el) {
+      clear();
+      return;
+    }
+
+    const publish = () => root.style.setProperty('--demo-bar-height', `${el.offsetHeight}px`);
+    publish();
+    const observer = new ResizeObserver(publish);
+    observer.observe(el);
+
+    return () => {
+      observer.disconnect();
+      clear();
+    };
+  }, [active]);
+
   // Floating start button
   if (!active) {
     return (
@@ -597,7 +673,7 @@ export default function DemoMode() {
 
   // Demo narration panel
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 print:hidden">
+    <div ref={barRef} className="fixed bottom-0 left-0 right-0 z-50 print:hidden">
       {/* Progress bar */}
       <div className="h-1 bg-gray-200 dark:bg-gray-700">
         <div className="h-full bg-purple-600 transition-all duration-100" style={{ width: `${(step / demoSteps.length) * 100 + (progress / demoSteps.length)}%` }} />

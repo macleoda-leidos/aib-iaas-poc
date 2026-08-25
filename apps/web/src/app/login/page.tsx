@@ -1,21 +1,42 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { setAuthToken } from '../../lib/apiClient';
 import { navigateTo } from '../../lib/navigation';
+import { onDemoAction } from '../../lib/demoEvents';
 import Link from 'next/link';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://iaas-api.onrender.com';
 
 const DEMO_ACCOUNTS = [
-  { email: 'admin@aib-poc.example.com', role: 'System Admin', description: 'Full system access' },
-  { email: 'demo@example.com', role: 'Case Officer', description: 'Case management & review' },
-  { email: 'adviser@cas.example.org', role: 'Money Adviser', description: 'Client applications & advice' },
+  { id: 'system-admin', email: 'admin@aib-poc.example.com', role: 'System Admin', description: 'Full system access' },
+  { id: 'case-officer', email: 'demo@example.com', role: 'Case Officer', description: 'Case management & review' },
+  { id: 'money-adviser', email: 'adviser@cas.example.org', role: 'Money Adviser', description: 'Client applications & advice' },
   // Seeded as user-creditor-01 / role-creditor in packages/database/src/seed-data/users.json —
   // without an entry here the creditor journey could not be reached through the UI at all.
-  { email: 'debt.recovery@rbs.co.uk', role: 'Creditor', description: 'Case visibility & claims' },
-  { email: 'john.testerton@example.com', role: 'Debtor', description: 'Applicant self-service' },
+  { id: 'creditor', email: 'debt.recovery@rbs.co.uk', role: 'Creditor', description: 'Case visibility & claims' },
+  { id: 'debtor', email: 'john.testerton@example.com', role: 'Debtor', description: 'Applicant self-service' },
 ];
+
+type OtpMethodId = 'app' | 'sms' | 'email';
+
+// Second-factor delivery options. Synthetic destinations — the POC has no SMS
+// gateway and no per-user phone number in the seed data, so the mobile is a
+// fixed masked placeholder rather than something pretending to be real.
+const DEMO_MOBILE_MASKED = '•••••• 7841';
+
+const OTP_METHODS: { id: OtpMethodId; icon: string; label: string; hint: (email: string) => string; sentCopy: string }[] = [
+  { id: 'app', icon: '📱', label: 'Authenticator app', hint: () => 'Microsoft Authenticator, Google Authenticator or similar', sentCopy: 'from your authenticator app' },
+  { id: 'sms', icon: '💬', label: 'Text message', hint: () => `Sent to the mobile ending ${DEMO_MOBILE_MASKED}`, sentCopy: `sent by text to ${DEMO_MOBILE_MASKED}` },
+  { id: 'email', icon: '✉️', label: 'Email', hint: email => `Sent to ${maskEmail(email)}`, sentCopy: 'sent to your email address' },
+];
+
+/** j•••@aib-poc.example.com — enough to recognise, not enough to read out on a call. */
+function maskEmail(email: string): string {
+  const [local, domain] = email.split('@');
+  if (!local || !domain) return 'your email address';
+  return `${local.slice(0, 1)}${'•'.repeat(Math.max(3, local.length - 1))}@${domain}`;
+}
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -23,12 +44,36 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
-  // MFA state
+  // MFA state. mfaStep means "credentials accepted"; the second factor then has
+  // two screens of its own — pick a delivery method, then enter the code.
   const [mfaStep, setMfaStep] = useState(false);
+  const [otpMethod, setOtpMethod] = useState<OtpMethodId | null>(null);
+  const [sendingCode, setSendingCode] = useState(false);
+  const [codeSent, setCodeSent] = useState(false);
   const [mfaCode, setMfaCode] = useState(['', '', '', '', '', '']);
   const [mfaVerifying, setMfaVerifying] = useState(false);
   const [rememberDevice, setRememberDevice] = useState(false);
   const mfaRefs = useRef<(HTMLInputElement | null)[]>([]);
+
+  // Demo mode types the code for us. This page owns the digit state, so it
+  // handles the action itself rather than going through DemoChoreographer.
+  //
+  // Deliberately not gated on the current screen: the sign-in call is a real
+  // request to a free-tier API, so this can arrive before the code boxes have
+  // rendered. Setting the state early means the digits are already there when
+  // they do, instead of the beat silently doing nothing.
+  useEffect(() =>
+    onDemoAction(action => {
+      if (action.type !== 'FILL_MFA_CODE') return;
+      const digits = action.code.replace(/\D/g, '').slice(0, 6).split('');
+      setMfaCode(['', '', '', '', '', ''].map((_, i) => digits[i] ?? ''));
+    }), []);
+
+  // Focus the first digit box once the code screen appears, so a presenter (or
+  // a real user) can type straight away without reaching for the mouse.
+  useEffect(() => {
+    if (codeSent) mfaRefs.current[0]?.focus();
+  }, [codeSent]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -102,6 +147,24 @@ export default function LoginPage() {
     }
   };
 
+  const handleSendCode = () => {
+    if (!otpMethod) return;
+    setError('');
+    setSendingCode(true);
+    // Simulated dispatch delay — no SMS gateway or mail relay in the POC.
+    setTimeout(() => {
+      setSendingCode(false);
+      setCodeSent(true);
+    }, 900);
+  };
+
+  const handleChangeMethod = () => {
+    setCodeSent(false);
+    setOtpMethod(null);
+    setMfaCode(['', '', '', '', '', '']);
+    setError('');
+  };
+
   const handleMfaVerify = () => {
     const code = mfaCode.join('');
     if (code.length !== 6) {
@@ -150,6 +213,7 @@ export default function LoginPage() {
           <div className="bg-gray-50 dark:bg-gray-750 border-b dark:border-gray-700 px-6 py-3 flex items-center justify-between">
             <span className="text-xs text-gray-500 dark:text-gray-400">
               {mfaStep ? 'Multi-Factor Authentication' : 'Authentication'}
+              {mfaStep && <span className="ml-1 text-gray-400">— step {codeSent ? '2 of 2' : '1 of 2'}</span>}
             </span>
             <span className="text-xs bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 px-2 py-0.5 rounded font-bold">Live API</span>
           </div>
@@ -166,12 +230,77 @@ export default function LoginPage() {
                   Session expires in 8 hours
                 </p>
               </div>
+            ) : mfaStep && !codeSent ? (
+              /* MFA step 1 — how should the second factor be delivered? */
+              <div>
+                <h1 className="text-xl font-bold text-center mb-2 text-gray-800 dark:text-gray-100">Verify your identity</h1>
+                <p className="text-sm text-gray-600 dark:text-gray-400 text-center mb-5">
+                  Choose how you would like to receive your 6-digit code
+                </p>
+
+                {error && (
+                  <div className="mb-4 p-3 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded text-sm text-red-800 dark:text-red-300">
+                    {error}
+                  </div>
+                )}
+
+                <div className="space-y-2 mb-5" role="radiogroup" aria-label="Verification method">
+                  {OTP_METHODS.map(m => {
+                    const chosen = otpMethod === m.id;
+                    return (
+                      <button
+                        key={m.id}
+                        type="button"
+                        role="radio"
+                        aria-checked={chosen}
+                        data-demo={`login-otp-${m.id}`}
+                        onClick={() => setOtpMethod(m.id)}
+                        className={`w-full flex items-start gap-3 p-3 border-2 rounded text-left transition-colors ${
+                          chosen
+                            ? 'border-blue-600 bg-blue-50 dark:bg-blue-950'
+                            : 'border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
+                        }`}
+                      >
+                        <span className="text-lg leading-none mt-0.5" aria-hidden="true">{m.icon}</span>
+                        <span className="flex-1 min-w-0">
+                          <span className="block text-sm font-medium text-gray-800 dark:text-gray-200">{m.label}</span>
+                          <span className="block text-xs text-gray-500 dark:text-gray-400">{m.hint(email)}</span>
+                        </span>
+                        <span
+                          className={`w-4 h-4 mt-0.5 rounded-full border-2 flex-shrink-0 ${
+                            chosen ? 'border-blue-600 bg-blue-600 ring-2 ring-inset ring-white dark:ring-gray-800' : 'border-gray-300 dark:border-gray-500'
+                          }`}
+                          aria-hidden="true"
+                        />
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <button
+                  onClick={handleSendCode}
+                  disabled={!otpMethod || sendingCode}
+                  data-demo="login-send-code"
+                  className="w-full bg-blue-600 text-white font-bold py-3 rounded hover:bg-blue-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {sendingCode ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <span className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></span>
+                      Sending code...
+                    </span>
+                  ) : 'Send code'}
+                </button>
+
+                <p className="text-xs text-center text-gray-500 dark:text-gray-400 mt-3">
+                  MFA is enforced for all staff accounts by Keycloak policy.
+                </p>
+              </div>
             ) : mfaStep ? (
-              /* MFA Step */
+              /* MFA step 2 — enter the code */
               <div>
                 <h1 className="text-xl font-bold text-center mb-2 text-gray-800 dark:text-gray-100">Two-Factor Authentication</h1>
                 <p className="text-sm text-gray-600 dark:text-gray-400 text-center mb-6">
-                  Enter the 6-digit code from your authenticator app
+                  Enter the 6-digit code {OTP_METHODS.find(m => m.id === otpMethod)?.sentCopy ?? 'from your authenticator app'}
                 </p>
 
                 {error && (
@@ -213,6 +342,7 @@ export default function LoginPage() {
                 <button
                   onClick={handleMfaVerify}
                   disabled={mfaVerifying || mfaCode.join('').length !== 6}
+                  data-demo="login-verify"
                   className="w-full bg-blue-600 text-white font-bold py-3 rounded hover:bg-blue-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed mb-4"
                 >
                   {mfaVerifying ? (
@@ -223,9 +353,13 @@ export default function LoginPage() {
                   ) : 'Verify'}
                 </button>
 
-                <p className="text-xs text-center text-gray-500 dark:text-gray-400">
-                  Lost access to your authenticator? <a href="#" className="text-blue-600 dark:text-blue-400 underline">Use a backup code</a>
-                </p>
+                <div className="flex items-center justify-center gap-3 text-xs text-gray-500 dark:text-gray-400">
+                  <button type="button" onClick={handleChangeMethod} className="text-blue-600 dark:text-blue-400 underline">
+                    Use a different method
+                  </button>
+                  <span aria-hidden="true">·</span>
+                  <a href="#" className="text-blue-600 dark:text-blue-400 underline">Use a backup code</a>
+                </div>
               </div>
             ) : (
               <>
@@ -269,6 +403,7 @@ export default function LoginPage() {
                   <button
                     type="submit"
                     disabled={loading}
+                    data-demo="login-submit"
                     className="w-full bg-blue-600 text-white font-bold py-3 rounded hover:bg-blue-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed mb-4"
                   >
                     {loading ? (
@@ -291,6 +426,7 @@ export default function LoginPage() {
                   {DEMO_ACCOUNTS.map((acc) => (
                     <button
                       key={acc.email}
+                      data-demo={`login-account-${acc.id}`}
                       onClick={() => fillDemoAccount(acc.email)}
                       className="w-full flex items-center justify-between p-2.5 border border-gray-200 dark:border-gray-600 rounded hover:bg-blue-50 dark:hover:bg-blue-950 transition-colors text-left"
                     >

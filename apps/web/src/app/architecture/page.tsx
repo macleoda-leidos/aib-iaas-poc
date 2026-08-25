@@ -57,6 +57,24 @@ const CATEGORIES = [
   { id: 'shared', label: '⚙️ Shared Platform Services & Packages', tiles: ['recommendation', 'notifications', 'audit', 'organisation', 'users', 'database', 'integrationContracts'] },
 ];
 
+// The twelve logical services, in port order. Rendered as a name/port grid rather
+// than a bullet list — two services per bullet made the ports hard to scan, which
+// is the one thing a presenter actually reads off this panel.
+const LOGICAL_SERVICES: { name: string; port: number }[] = [
+  { name: 'api-gateway', port: 3001 },
+  { name: 'recommendation-service', port: 3002 },
+  { name: 'document-service', port: 3003 },
+  { name: 'integration-orchestrator', port: 3004 },
+  { name: 'mock-integrations', port: 3005 },
+  { name: 'payment-service', port: 3006 },
+  { name: 'audit-service', port: 3007 },
+  { name: 'credit-check-service', port: 3008 },
+  { name: 'organisation-service', port: 3009 },
+  { name: 'user-service', port: 3011 },
+  { name: 'notification-service', port: 3012 },
+  { name: 'identity-service', port: 3013 },
+];
+
 // C4 levels — mirrors docs/architecture.md §2 (Context), §3 (Container), §4 (Component).
 // Presented as expandable tiles rather than rendered Mermaid so the page stays a
 // static export with no diagram runtime, and so the presenter can open exactly
@@ -187,42 +205,55 @@ export default function ArchitecturePage() {
         <p className="text-xs text-gray-500 mb-3">The microservice decomposition and the deployment topology are deliberately different things. Both numbers below are correct — they count different things.</p>
 
         <div className="grid md:grid-cols-2 gap-3">
-          <div className="p-3 bg-blue-50 border border-blue-200 rounded">
-            <h3 className="font-bold text-sm mb-1">📐 Logical: 12 services</h3>
-            <p className="text-xs text-gray-700 mb-2">Twelve bounded contexts, each with its own Express app, own port, own tests, own <span className="font-mono">package.json</span>. Run them all independently with <span className="font-mono">npm run dev:services</span> — that script starts exactly these twelve.</p>
-            <ul className="text-xs space-y-0.5 text-gray-700">
-              <li>• api-gateway (3001) · recommendation-service (3002)</li>
-              <li>• document-service (3003) · integration-orchestrator (3004)</li>
-              <li>• mock-integrations (3005) · payment-service (3006)</li>
-              <li>• audit-service (3007) · credit-check-service (3008)</li>
-              <li>• organisation-service (3009) · user-service (3011)</li>
-              <li>• notification-service (3012) · identity-service (3013)</li>
+          <div className="p-4 bg-white border border-gray-200 border-t-4 border-t-blue-600 rounded-lg shadow-sm">
+            <div className="flex items-baseline justify-between gap-2 mb-1.5">
+              <h3 className="font-bold text-sm text-gray-900">Logical decomposition</h3>
+              <span className="text-[11px] font-bold text-blue-700 bg-blue-50 border border-blue-200 rounded-full px-2 py-0.5 whitespace-nowrap">12 services</span>
+            </div>
+            <p className="text-xs text-gray-600 leading-relaxed mb-3">Twelve bounded contexts, each with its own Express app, own port, own tests, own <span className="font-mono text-gray-800">package.json</span>. Run them all independently with <span className="font-mono text-gray-800">npm run dev:services</span> — that script starts exactly these twelve.</p>
+            <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1">
+              {LOGICAL_SERVICES.map(s => (
+                <li key={s.name} className="flex items-baseline justify-between gap-2 border-b border-gray-100 pb-1">
+                  <span className="font-mono text-xs text-gray-800 truncate">{s.name}</span>
+                  <span className="font-mono text-[11px] text-gray-500 tabular-nums">{s.port}</span>
+                </li>
+              ))}
             </ul>
           </div>
-          <div className="p-3 bg-amber-50 border border-amber-200 rounded">
-            <h3 className="font-bold text-sm mb-1">📦 Physical: 1 container (POC)</h3>
-            <p className="text-xs text-gray-700 mb-2">The deployed POC runs <strong>one</strong> Render web service, <span className="font-mono">iaas-api</span>. <span className="font-mono">services/consolidated-api</span> imports the route modules from all twelve services and mounts them into a single Express app on port 3001. No business logic lives there — it is deployment wiring only, which is why it is excluded from coverage in <span className="font-mono">vitest.config.ts</span>.</p>
-            <ul className="text-xs space-y-0.5 text-gray-700">
-              <li>• <span className="font-mono">iaas-api</span> — Node, Docker, free plan, Frankfurt</li>
-              <li>• 1GB persistent disk mounted at <span className="font-mono">/data</span></li>
-              <li>• Health check: <span className="font-mono">/api/health</span></li>
-              <li>• 14 directories in <span className="font-mono">services/</span> = 12 logical + consolidated-api + dotnet-api</li>
-            </ul>
+          <div className="p-4 bg-white border border-gray-200 border-t-4 border-t-amber-500 rounded-lg shadow-sm">
+            <div className="flex items-baseline justify-between gap-2 mb-1.5">
+              <h3 className="font-bold text-sm text-gray-900">Physical deployment</h3>
+              <span className="text-[11px] font-bold text-amber-800 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5 whitespace-nowrap">1 container</span>
+            </div>
+            <p className="text-xs text-gray-600 leading-relaxed mb-3">The deployed POC runs <strong className="text-gray-900">one</strong> Render web service, <span className="font-mono text-gray-800">iaas-api</span>. <span className="font-mono text-gray-800">services/consolidated-api</span> imports the route modules from all twelve services and mounts them into a single Express app on port 3001. No business logic lives there — it is deployment wiring only, which is why it is excluded from coverage in <span className="font-mono text-gray-800">vitest.config.ts</span>.</p>
+            <dl className="space-y-1">
+              {[
+                { k: 'Service', v: <><span className="font-mono">iaas-api</span> — Node, Docker, free plan, Frankfurt</> },
+                { k: 'Disk', v: <>1GB persistent, mounted at <span className="font-mono">/data</span></> },
+                { k: 'Health', v: <span className="font-mono">/api/health</span> },
+                { k: 'Directories', v: <>14 in <span className="font-mono">services/</span> = 12 logical + consolidated-api + dotnet-api</> },
+              ].map(row => (
+                <div key={row.k} className="flex items-baseline gap-2 text-xs border-b border-gray-100 pb-1">
+                  <dt className="text-gray-500 w-20 flex-shrink-0">{row.k}</dt>
+                  <dd className="text-gray-800 min-w-0">{row.v}</dd>
+                </div>
+              ))}
+            </dl>
           </div>
         </div>
 
         <div className="mt-3 grid md:grid-cols-3 gap-3">
-          <div className="p-3 bg-gray-50 border border-gray-200 rounded">
-            <h3 className="font-bold text-sm mb-1">❓ Why consolidate for the POC?</h3>
-            <p className="text-xs text-gray-700">Render&apos;s free plan gives one 512MB instance per service and spins it down after 15 minutes idle. Twelve separate free services would mean twelve independent cold starts — a demo where the first click on each feature stalls for ~50 seconds. One container = one cold start, and £0 instead of 12 &times; £7/mo for always-on.</p>
+          <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
+            <h3 className="font-bold text-sm mb-1.5 text-gray-900">Why consolidate for the POC?</h3>
+            <p className="text-xs text-gray-600 leading-relaxed">Render&apos;s free plan gives one 512MB instance per service and spins it down after 15 minutes idle. Twelve separate free services would mean twelve independent cold starts — a demo where the first click on each feature stalls for ~50 seconds. One container = one cold start, and £0 instead of 12 &times; £7/mo for always-on.</p>
           </div>
-          <div className="p-3 bg-green-50 border border-green-200 rounded">
-            <h3 className="font-bold text-sm mb-1">✅ Why it is not a rewrite</h3>
-            <p className="text-xs text-gray-700">Each service exports its routers; <span className="font-mono">consolidated-api</span> only calls <span className="font-mono">app.use()</span> on them. Splitting back out is deleting that one file and pointing the gateway at service URLs instead of local mounts. The service boundaries, RBAC, orchestration and audit trail are all real and independently tested.</p>
+          <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
+            <h3 className="font-bold text-sm mb-1.5 text-gray-900">Why it is not a rewrite</h3>
+            <p className="text-xs text-gray-600 leading-relaxed">Each service exports its routers; <span className="font-mono">consolidated-api</span> only calls <span className="font-mono">app.use()</span> on them. Splitting back out is deleting that one file and pointing the gateway at service URLs instead of local mounts. The service boundaries, RBAC, orchestration and audit trail are all real and independently tested.</p>
           </div>
-          <div className="p-3 bg-orange-50 border border-orange-200 rounded">
-            <h3 className="font-bold text-sm mb-1">☁️ What production does instead</h3>
-            <p className="text-xs text-gray-700">One ECS Fargate service per logical service — 2&times; tasks each (3&times; for the API Gateway), 512MB&ndash;1GB per task, across two availability zones behind an ALB. Independent scaling and independent blast radius, which is the whole point of the decomposition.</p>
+          <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
+            <h3 className="font-bold text-sm mb-1.5 text-gray-900">What production does instead</h3>
+            <p className="text-xs text-gray-600 leading-relaxed">One ECS Fargate service per logical service — 2&times; tasks each (3&times; for the API Gateway), 512MB&ndash;1GB per task, across two availability zones behind an ALB. Independent scaling and independent blast radius, which is the whole point of the decomposition.</p>
           </div>
         </div>
 

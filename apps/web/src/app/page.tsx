@@ -65,33 +65,38 @@ export default function Home() {
         </ol>
       </div>
 
-      <div className="mb-8">
-        <h2>{t('home.solutions')}</h2>
-        <div className="grid md:grid-cols-2 gap-4">
-          {[
-            { name: 'Debt Arrangement Scheme (DAS)', desc: 'Repay debts in full over an extended period with statutory protection', url: 'https://www.aib.gov.uk/debt-solutions/debt-arrangement-scheme' },
-            { name: 'Minimal Asset Process (MAP)', desc: 'Simplified bankruptcy for people with low income and few assets', url: 'https://www.aib.gov.uk/debt-solutions/minimal-asset-process' },
-            { name: 'Sequestration (Bankruptcy)', desc: 'Formal debt relief for people who cannot repay their debts', url: 'https://www.aib.gov.uk/debt-solutions/sequestration' },
-            { name: 'Protected Trust Deed', desc: 'Voluntary agreement with creditors to repay over 4 years', url: 'https://www.aib.gov.uk/debt-solutions/protected-trust-deeds' },
-            { name: 'Moratorium', desc: '6-week breathing space from creditor action while you seek advice', url: 'https://www.aib.gov.uk/debt-solutions/moratorium' },
-            { name: 'Debt Payment Programme', desc: 'Structured repayment plan for manageable debt levels', url: 'https://www.aib.gov.uk/debt-solutions/debt-arrangement-scheme' },
-          ].map(product => (
-            <a key={product.name} href={product.url} target="_blank" rel="noopener noreferrer" className="border border-gray-300 dark:border-gray-600 p-4 no-underline hover:border-gov-blue hover:bg-blue-50 dark:hover:bg-blue-900 transition-colors block rounded">
-              <h3 className="text-base font-bold text-gray-900 dark:text-gray-100">{product.name}</h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400">{product.desc}</p>
-              <p className="text-xs text-gov-blue dark:text-blue-400 mt-2">Learn more on aib.gov.uk →</p>
-            </a>
-          ))}
+      {/* Solutions and the call to action are wrapped together so demo mode can
+          frame both in one shot — the citizen journey beat opens on this view. */}
+      <div data-demo="home-solutions-cta">
+        <div data-demo="home-solutions" className="mb-8">
+          <h2>{t('home.solutions')}</h2>
+          <div className="grid md:grid-cols-2 gap-4">
+            {[
+              { name: 'Debt Arrangement Scheme (DAS)', desc: 'Repay debts in full over an extended period with statutory protection', url: 'https://www.aib.gov.uk/debt-solutions/debt-arrangement-scheme' },
+              { name: 'Minimal Asset Process (MAP)', desc: 'Simplified bankruptcy for people with low income and few assets', url: 'https://www.aib.gov.uk/debt-solutions/minimal-asset-process' },
+              { name: 'Sequestration (Bankruptcy)', desc: 'Formal debt relief for people who cannot repay their debts', url: 'https://www.aib.gov.uk/debt-solutions/sequestration' },
+              { name: 'Protected Trust Deed', desc: 'Voluntary agreement with creditors to repay over 4 years', url: 'https://www.aib.gov.uk/debt-solutions/protected-trust-deeds' },
+              { name: 'Moratorium', desc: '6-week breathing space from creditor action while you seek advice', url: 'https://www.aib.gov.uk/debt-solutions/moratorium' },
+              { name: 'Debt Payment Programme', desc: 'Structured repayment plan for manageable debt levels', url: 'https://www.aib.gov.uk/debt-solutions/debt-arrangement-scheme' },
+            ].map(product => (
+              <a key={product.name} href={product.url} target="_blank" rel="noopener noreferrer" className="border border-gray-300 dark:border-gray-600 p-4 no-underline hover:border-gov-blue hover:bg-blue-50 dark:hover:bg-blue-900 transition-colors block rounded">
+                <h3 className="text-base font-bold text-gray-900 dark:text-gray-100">{product.name}</h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400">{product.desc}</p>
+                <p className="text-xs text-gov-blue dark:text-blue-400 mt-2">Learn more on aib.gov.uk →</p>
+              </a>
+            ))}
+          </div>
         </div>
-      </div>
 
-      <Link
-        href="/apply"
-        className="inline-block bg-gov-green text-white font-bold py-3 px-8 no-underline hover:bg-green-800 focus:outline-2 focus:outline-gov-yellow"
-        role="button"
-      >
-        {t('home.start')}
-      </Link>
+        <Link
+          href="/apply"
+          data-demo="home-start"
+          className="inline-block bg-gov-green text-white font-bold py-3 px-8 no-underline hover:bg-green-800 focus:outline-2 focus:outline-gov-yellow"
+          role="button"
+        >
+          {t('home.start')}
+        </Link>
+      </div>
 
       <div className="mt-8 gov-inset">
         <p className="text-sm text-gray-600 dark:text-gray-300">

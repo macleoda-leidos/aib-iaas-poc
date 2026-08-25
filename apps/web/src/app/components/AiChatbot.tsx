@@ -80,6 +80,14 @@ function matchResponse(input: string): string {
   return 'I can help with questions about Scottish debt solutions. Try asking about DAS (Debt Arrangement Scheme), MAP (Minimal Asset Process), PTD (Protected Trust Deed), or Sequestration. I can also explain eligibility criteria, required documents, the application process, or how the recommendation engine works.';
 }
 
+// The demo narration bar is fixed to the bottom of the viewport and was covering
+// the launcher, so both the button and the panel sit above whatever height
+// DemoMode publishes as --demo-bar-height (0 when no demo is running). The
+// z-index has to beat the bar's z-50 too: it is rendered after us in the layout,
+// so an equal z-index let it win on paint order.
+const LAUNCHER_BOTTOM = 'calc(1.5rem + var(--demo-bar-height, 0px))';
+const PANEL_BOTTOM = 'calc(6rem + var(--demo-bar-height, 0px))';
+
 export default function AiChatbot() {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -138,7 +146,8 @@ export default function AiChatbot() {
       {/* Floating chat button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full bg-[#d32205] hover:bg-[#a81b03] text-white shadow-lg flex items-center justify-center transition-all duration-200 hover:scale-110 group"
+        style={{ bottom: LAUNCHER_BOTTOM }}
+        className="fixed right-6 z-[60] w-14 h-14 rounded-full bg-[#d32205] hover:bg-[#a81b03] text-white shadow-lg flex items-center justify-center transition-all duration-200 hover:scale-110 group print:hidden"
         aria-label="Ask AiB AI"
         title="Ask AiB AI"
       >
@@ -158,7 +167,10 @@ export default function AiChatbot() {
 
       {/* Chat panel */}
       {isOpen && (
-        <div className="fixed bottom-24 right-6 z-50 w-[350px] h-[500px] bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-2xl flex flex-col overflow-hidden animate-[fadeIn_0.2s_ease-in]">
+        <div
+          style={{ bottom: PANEL_BOTTOM }}
+          className="fixed right-6 z-[60] w-[350px] h-[500px] max-h-[calc(100vh-8rem-var(--demo-bar-height,0px))] bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-2xl flex flex-col overflow-hidden animate-[fadeIn_0.2s_ease-in] print:hidden"
+        >
           {/* Header */}
           <div className="bg-[#d32205] text-white px-4 py-3 flex items-center gap-3">
             <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">

@@ -8,7 +8,7 @@ import { BANNER_HEIGHT, easeInOut, scrollToElement } from '../../lib/demoScroll'
  * Handles the generic DOM half of demo mode.
  *
  * Page-local actions (FILL_*, RUN_CHECKS, SUBMIT, ...) are owned by the page
- * that holds the state — currently only /apply. Everything that is pure DOM
+ * that holds the state — currently /apply and /login. Everything that is pure DOM
  * choreography lives here instead, so a new page can be added to the demo
  * script with no per-page listener code.
  *

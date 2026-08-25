@@ -2,7 +2,7 @@
 //
 // Two families of action:
 //  - Page-local actions (FILL_*, RUN_CHECKS, SUBMIT, ...) are handled by a
-//    listener inside the page that owns the state — currently only /apply.
+//    listener inside the page that owns the state — currently /apply and /login.
 //  - Generic DOM actions (SCROLL_TO, SLOW_SCROLL, CLICK, HIGHLIGHT) are handled
 //    centrally by DemoChoreographer, so any page can be driven from a step
 //    definition with no per-page listener code.
@@ -14,6 +14,7 @@ export type DemoAction =
   | { type: 'FILL_INCOME'; data: any }
   | { type: 'FILL_EXPENDITURE'; data: any }
   | { type: 'FILL_ASSETS'; data: any }
+  | { type: 'FILL_MFA_CODE'; code: string }
   | { type: 'RUN_CHECKS' }
   | { type: 'SUBMIT' }
   | { type: 'APPROVE_CASE' }

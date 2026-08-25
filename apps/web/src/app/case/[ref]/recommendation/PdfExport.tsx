@@ -84,7 +84,9 @@ export default function PdfExport({ caseRef, product, confidence }: { caseRef: s
   };
 
   return (
-    <button onClick={generatePdf} className="inline-flex items-center gap-2 bg-blue-700 hover:bg-blue-800 text-white font-bold px-4 py-2 rounded text-sm print:hidden">
+    // Demo mode highlights this button but never clicks it — generatePdf opens a
+    // popup and calls print(), and a modal print dialog stalls the demo player.
+    <button onClick={generatePdf} data-demo="recommendation-pdf" className="inline-flex items-center gap-2 bg-blue-700 hover:bg-blue-800 text-white font-bold px-4 py-2 rounded text-sm print:hidden">
       📄 Download PDF Report
     </button>
   );
