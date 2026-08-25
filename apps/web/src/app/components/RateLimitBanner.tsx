@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { getRateLimitState, onRateLimitChange, type RateLimitState } from '../../lib/apiClient';
 
 const WINDOW_MS = 15 * 60 * 1000; // 15 minutes
@@ -10,6 +10,16 @@ const WINDOW_START_KEY = 'iaas-rate-window-start';
 // Only used before the first API response reveals the real figure. Matches the
 // deployed `max` in services/consolidated-api/src/index.ts.
 const DEFAULT_LIMIT = 500;
+
+// Bottom-right is shared chrome: the demo narration bar is fixed to the bottom of
+// the viewport, this indicator sits above it, and the Ask AiB launcher sits above
+// that. Each element offsets by the measured height of what is below it rather
+// than a hardcoded gap, because both the bar and this card reflow — the bar
+// line-clamps to two lines, and this card switches between a compact indicator
+// and a taller warning banner. Same approach DemoMode already uses for
+// --demo-bar-height.
+const BOTTOM_OFFSET = 'calc(1rem + var(--demo-bar-height, 0px))';
+const HEIGHT_VAR = '--api-usage-height';
 
 /** Track an API call timestamp */
 export function trackApiCall() {
@@ -60,6 +70,7 @@ export default function RateLimitBanner() {
   const [dismissed, setDismissed] = useState(false);
   // Null until the first API response arrives; the local tally is the fallback.
   const [serverLimit, setServerLimit] = useState<{ limit: number; used: number } | null>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
 
   // The server's own figure when we have it. The previous hardcoded 100/200 bore
   // no relation to the deployed limit of 500 (see consolidated-api/src/index.ts),
@@ -113,11 +124,45 @@ export default function RateLimitBanner() {
   const isLimited = used >= limit;
   const isWarning = used >= warnThreshold;
 
+  // Publish this card's height so the Ask AiB launcher can sit clear of it.
+  // Declared before the early returns below: hooks cannot be conditional, and the
+  // card has three shapes (compact, warning banner, dismissed-to-nothing) that
+  // each need a different figure published. Measured via ResizeObserver rather
+  // than assumed, because the warning banner is roughly three times the height of
+  // the compact indicator.
+  useEffect(() => {
+    const root = document.documentElement;
+    const clear = () => root.style.removeProperty(HEIGHT_VAR);
+    const el = cardRef.current;
+    if (!el) {
+      // Dismissed: nothing is rendered, so the launcher returns to its own gap.
+      clear();
+      return;
+    }
+
+    const publish = () => root.style.setProperty(HEIGHT_VAR, `${el.offsetHeight}px`);
+    publish();
+
+    // ResizeObserver is absent in jsdom, and this component mounts in Providers
+    // on every page, so an unguarded constructor would throw in any test that
+    // renders a page. The publish above has already run; the observer only keeps
+    // the figure current as the card reflows.
+    if (typeof ResizeObserver === 'undefined') return clear;
+
+    const observer = new ResizeObserver(publish);
+    observer.observe(el);
+
+    return () => {
+      observer.disconnect();
+      clear();
+    };
+  }, [dismissed, isWarning]);
+
   // Full banner only shows at warning/limited
   if (!isWarning && !dismissed) {
     // Show compact mini indicator in bottom right
     return (
-      <div className="fixed bottom-4 right-4 z-50">
+      <div ref={cardRef} className="fixed right-4 z-50" style={{ bottom: BOTTOM_OFFSET }}>
         <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm p-3 min-w-[220px]">
           <div className="flex items-center justify-between mb-1.5">
             <span className="text-xs font-bold text-gray-600 dark:text-gray-400">API Usage</span>
@@ -149,11 +194,15 @@ export default function RateLimitBanner() {
   if (dismissed) return null;
 
   return (
-    <div className={`fixed bottom-4 right-4 z-50 max-w-sm rounded-lg shadow-lg border p-4 ${
-      isLimited
-        ? 'bg-red-50 dark:bg-red-950 border-red-300 dark:border-red-800'
-        : 'bg-amber-50 dark:bg-amber-950 border-amber-300 dark:border-amber-800'
-    }`}>
+    <div
+      ref={cardRef}
+      style={{ bottom: BOTTOM_OFFSET }}
+      className={`fixed right-4 z-50 max-w-sm rounded-lg shadow-lg border p-4 ${
+        isLimited
+          ? 'bg-red-50 dark:bg-red-950 border-red-300 dark:border-red-800'
+          : 'bg-amber-50 dark:bg-amber-950 border-amber-300 dark:border-amber-800'
+      }`}
+    >
       <div className="flex items-start gap-3">
         <span className="text-lg flex-shrink-0">{isLimited ? '⛔' : '⚠️'}</span>
         <div className="flex-1">

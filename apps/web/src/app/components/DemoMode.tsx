@@ -538,7 +538,7 @@ function buildDemoSteps(app: GeneratedApplication): DemoStep[] {
       path: '/',
       duration: 6,
       title: '\u{1F3C1} Demo Complete',
-      narration: 'Live API • 57+ pages • 892 tests • 12 AI capabilities • 32 admin features • £0/month. Questions?',
+      narration: 'Live API • 57+ pages • 900 tests • 12 AI capabilities • 32 admin features • £0/month. Questions?',
     },
   ];
 }

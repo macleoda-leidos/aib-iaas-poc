@@ -19,8 +19,16 @@ interface Message {
 // DemoMode publishes as --demo-bar-height (0 when no demo is running). The
 // z-index has to beat the bar's z-50 too: it is rendered after us in the layout,
 // so an equal z-index let it win on paint order.
-const LAUNCHER_BOTTOM = 'calc(1.5rem + var(--demo-bar-height, 0px))';
-const PANEL_BOTTOM = 'calc(6rem + var(--demo-bar-height, 0px))';
+//
+// The API usage indicator shares the same corner, so the launcher clears it as
+// well via --api-usage-height (0 when the card is dismissed). Ask AiB is the
+// control a user reaches for, so it takes the reachable position and the
+// diagnostic card sits below it. Both variables are measured by their owners
+// rather than hardcoded, since the bar line-clamps to two lines and the usage
+// card grows into a warning banner.
+const STACK_BELOW = 'var(--demo-bar-height, 0px) + var(--api-usage-height, 0px)';
+const LAUNCHER_BOTTOM = `calc(1.5rem + ${STACK_BELOW})`;
+const PANEL_BOTTOM = `calc(6rem + ${STACK_BELOW})`;
 
 const THINKING_PAUSE_MS = 350;
 
@@ -131,7 +139,7 @@ export default function AiChatbot() {
       {isOpen && (
         <div
           style={{ bottom: PANEL_BOTTOM }}
-          className="fixed right-6 z-[60] w-[350px] h-[500px] max-h-[calc(100vh-8rem-var(--demo-bar-height,0px))] bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-2xl flex flex-col overflow-hidden animate-[fadeIn_0.2s_ease-in] print:hidden"
+          className="fixed right-6 z-[60] w-[350px] h-[500px] max-h-[calc(100vh-8rem-var(--demo-bar-height,0px)-var(--api-usage-height,0px))] bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-2xl flex flex-col overflow-hidden animate-[fadeIn_0.2s_ease-in] print:hidden"
         >
           {/* Header */}
           <div className="bg-[#d32205] text-white px-4 py-3 flex items-center gap-3">
