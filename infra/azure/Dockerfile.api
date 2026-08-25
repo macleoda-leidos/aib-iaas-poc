@@ -22,7 +22,14 @@ COPY services/consolidated-api/package.json ./services/consolidated-api/
 # not enough — without the link, require('@aib-iaas/statutory') from a service
 # directory cannot resolve, which is exactly how this broke.
 COPY services/recommendation-service/package.json ./services/recommendation-service/
-RUN npm ci --workspace=packages/database --workspace=packages/integration-contracts --workspace=packages/statutory --workspace=services/recommendation-service --workspace=services/consolidated-api --include-workspace-root 2>/dev/null || npm install --omit=dev
+# Every manifest copied above is also named as a --workspace, deliberately: npm only
+# links the workspaces it is told to select, so a package can be copied and still have
+# no node_modules/@aib-iaas/<name> symlink. shared-types and validation were in exactly
+# that state and got away with it — tsx erases type-only imports without resolving
+# them, so the 81 `import type` sites never touched the missing link. shared-types also
+# exports runtime helpers (rbac.ts hasPermission), so the first value import would have
+# failed on boot the same way statutory did. Keep this list and the COPY list in step.
+RUN npm ci --workspace=packages/database --workspace=packages/integration-contracts --workspace=packages/shared-types --workspace=packages/statutory --workspace=packages/validation --workspace=services/recommendation-service --workspace=services/consolidated-api --include-workspace-root || npm install --omit=dev
 
 # Copy source and run
 FROM base AS runner
