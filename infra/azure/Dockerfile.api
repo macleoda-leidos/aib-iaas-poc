@@ -13,9 +13,16 @@ COPY package.json package-lock.json ./
 COPY packages/database/package.json ./packages/database/
 COPY packages/integration-contracts/package.json ./packages/integration-contracts/
 COPY packages/shared-types/package.json ./packages/shared-types/
+COPY packages/statutory/package.json ./packages/statutory/
 COPY packages/validation/package.json ./packages/validation/
 COPY services/consolidated-api/package.json ./services/consolidated-api/
-RUN npm ci --workspace=packages/database --workspace=packages/integration-contracts --workspace=services/consolidated-api --include-workspace-root 2>/dev/null || npm install --omit=dev
+# recommendation-service declares @aib-iaas/statutory and the consolidated API
+# imports its rules engine, so this manifest must be present for npm to create
+# the workspace symlink under node_modules. Copying the package source alone is
+# not enough — without the link, require('@aib-iaas/statutory') from a service
+# directory cannot resolve, which is exactly how this broke.
+COPY services/recommendation-service/package.json ./services/recommendation-service/
+RUN npm ci --workspace=packages/database --workspace=packages/integration-contracts --workspace=packages/statutory --workspace=services/recommendation-service --workspace=services/consolidated-api --include-workspace-root 2>/dev/null || npm install --omit=dev
 
 # Copy source and run
 FROM base AS runner

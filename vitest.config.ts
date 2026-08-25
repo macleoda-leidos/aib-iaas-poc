@@ -6,15 +6,6 @@ export default defineConfig({
   // src/ would shadow its own source and fail as CJS requiring an ESM package.
   resolve: {
     extensions: ['.ts', '.tsx', '.mts', '.mjs', '.js', '.jsx', '.json'],
-    alias: {
-      // Resolve the workspace package from source, not from its build output.
-      // packages/*/package.json points main at ./dist, but dist is gitignored —
-      // so on a clean checkout (or in CI) there is nothing to resolve and the
-      // suite fails to collect with "Failed to resolve entry for package".
-      // Aliasing to src also means a change to the package is picked up by tests
-      // without a rebuild step.
-      '@aib-iaas/statutory': new URL('./packages/statutory/src/index.ts', import.meta.url).pathname,
-    },
   },
   // apps/web sets jsx: "preserve" for Next to handle, so esbuild has no JSX
   // instruction of its own and falls back to the classic runtime — which fails

@@ -2,8 +2,9 @@
   "name": "@aib-iaas/statutory",
   "version": "0.1.0",
   "private": true,
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "_comment": "main/types point at TypeScript source, matching packages/database and packages/integration-contracts. The deployed API runs under tsx straight from source (see infra/azure/Dockerfile.api), and dist is gitignored — pointing at ./dist would resolve locally off a stale build and fail in the container.",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
