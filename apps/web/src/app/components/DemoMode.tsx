@@ -267,9 +267,22 @@ function buildDemoSteps(app: GeneratedApplication): DemoStep[] {
     },
     {
       path: '/search',
-      duration: 5,
+      duration: 19,
       title: '\u{1F50D} Cross-System Search',
-      narration: '100 applications searchable. Fuzzy matching finds "Jhon Smith" from "John Smith".',
+      narration: '110 applications searchable. Searching "John Smith" returns four records held across BASYS, eDEN, DAS and IAAS — scored 100%, 93.8%, 92.5% and 87.5%, each with the reason it differs: letters transposed, letter substituted, letter missing. Turning fuzzy matching off leaves the one exact match and hides the other three.',
+      actions: [
+        { delay: 1500, action: { type: 'CLICK', selector: '[data-demo="search-tile-john-smith"]' } },
+        // The search debounces for 300 ms and then waits on the API, which is
+        // capped at a 2.5 s deadline — so the cluster is on screen by ~4.3 s even
+        // on a cold instance.
+        { delay: 5000, action: { type: 'HIGHLIGHT', selector: '[data-demo="search-results"]', durationMs: 4000 } },
+        { delay: 9500, action: { type: 'CLICK', selector: '[data-demo="search-fuzzy-toggle"]' } },
+        // Re-filtering is derived from the stored candidates, so both toggles are
+        // instant — no second round trip to wait out.
+        { delay: 10200, action: { type: 'HIGHLIGHT', selector: '[data-demo="search-results"]', durationMs: 3000 } },
+        { delay: 13500, action: { type: 'CLICK', selector: '[data-demo="search-fuzzy-toggle"]' } },
+        { delay: 14200, action: { type: 'HIGHLIGHT', selector: '[data-demo="search-results"]', durationMs: 3000 } },
+      ],
     },
     {
       path: '/adviser-workspace',
@@ -433,7 +446,7 @@ function buildDemoSteps(app: GeneratedApplication): DemoStep[] {
       path: '/admin/reports',
       duration: 16,
       title: '\u{1F4CA} Report Builder',
-      narration: 'Six one-click report tiles over 100 applications, or filter by product, status, region and debt. Generate renders the table and status breakdown; CSV downloads it.',
+      narration: 'Six one-click report tiles over 110 applications, or filter by product, status, region and debt. Generate renders the table and status breakdown; CSV downloads it.',
       actions: [
         { delay: 1000, action: { type: 'CLICK', selector: '[data-demo="report-tile-approved"]' } },
         { delay: 3500, action: { type: 'CLICK', selector: '[data-demo="report-tile-high-debt"]' } },

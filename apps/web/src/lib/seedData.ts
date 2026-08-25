@@ -117,4 +117,28 @@ export const seedApplications: SeedApplication[] = [
   { ref: "IAAS-2026-00098", firstName: "Janet", lastName: "MacDonald", status: "approved", debt: 17500, product: "DAS", date: "2026-08-17", ni: "SC980130B", source: "DAS", postcode: "EH1 5CD", email: "janet.macdonald@email.co.uk", employment: "employed", confidence: 94, assignedTo: "James Wilson", city: "Edinburgh" },
   { ref: "IAAS-2026-00099", firstName: "Malcolm", lastName: "Henderson", status: "rejected", debt: 2900, product: "Signposting", date: "2026-08-18", ni: "SC091241C", source: "BASYS", postcode: "G2 6EF", email: "malcolm.henderson@email.co.uk", employment: "unemployed", confidence: 64, assignedTo: "Unassigned", city: "Glasgow" },
   { ref: "IAAS-2026-00100", firstName: "Eleanor", lastName: "Robertson", status: "draft", debt: 12200, product: "DAS", date: "2026-08-19", ni: "SC102353D", source: "IAAS", postcode: "PH1 7GH", email: "eleanor.robertson@email.co.uk", employment: "employed", confidence: 82, assignedTo: "Unassigned", city: "Perth" },
+
+  // The same ten people, misspelled the way four different AiB systems actually
+  // hold them, so /search can demonstrate cross-system identity matching against
+  // real records rather than describing it. They live in this array rather than a
+  // side list because caseStaticParams() derives the static routes from it — a
+  // record outside it would render a result row that 404s under output: 'export'.
+  //
+  // Every spelling here is one human slip from its query and scores 87.5% or
+  // better; see nameSimilarity.test.ts. Tempting near-misses were left out on
+  // purpose: "Brenda Cambell" and "Elenor Ross" are each two independent edits
+  // and land at 78.6%, below the 85% gate the page shows the audience.
+  //
+  // The Smith cluster carries transposed NI numbers as well as name variants, so
+  // the name tile and the NI tile return the same four people.
+  { ref: "IAAS-2026-00101", firstName: "John", lastName: "Smith", status: "submitted", debt: 11200, product: "DAS", date: "2026-08-20", ni: "SC129837A", source: "BASYS", postcode: "EH2 4JK", email: "john.smith@email.co.uk", employment: "employed", confidence: 88, assignedTo: "Karen MacLeod", city: "Edinburgh" },
+  { ref: "IAAS-2026-00102", firstName: "Jon", lastName: "Smith", status: "under_review", debt: 9400, product: "MAP", date: "2026-08-20", ni: "SC192837A", source: "eDEN", postcode: "G3 7LM", email: "jon.smith@email.co.uk", employment: "employed", confidence: 81, assignedTo: "Sarah Mitchell", city: "Glasgow" },
+  { ref: "IAAS-2026-00103", firstName: "John", lastName: "Smyth", status: "approved", debt: 16700, product: "DAS", date: "2026-08-21", ni: "SC129387A", source: "DAS", postcode: "AB11 6NP", email: "john.smyth@email.co.uk", employment: "self_employed", confidence: 79, assignedTo: "James Wilson", city: "Aberdeen" },
+  { ref: "IAAS-2026-00104", firstName: "Jhon", lastName: "Smith", status: "additional_info_required", debt: 7300, product: "MAP", date: "2026-08-21", ni: "SC129873A", source: "IAAS", postcode: "DD3 8QR", email: "jhon.smith@email.co.uk", employment: "unemployed", confidence: 68, assignedTo: "Unassigned", city: "Dundee" },
+  { ref: "IAAS-2026-00105", firstName: "Ronald", lastName: "Morison", status: "submitted", debt: 13600, product: "PTD", date: "2026-08-22", ni: "SC214968E", source: "eDEN", postcode: "EH4 3ST", email: "ronald.morison@email.co.uk", employment: "employed", confidence: 84, assignedTo: "Unassigned", city: "Edinburgh" },
+  { ref: "IAAS-2026-00106", firstName: "Elaine", lastName: "Morrisson", status: "approved", debt: 24800, product: "DAS", date: "2026-08-22", ni: "SC325079F", source: "DAS", postcode: "G5 9UV", email: "elaine.morrisson@email.co.uk", employment: "employed", confidence: 90, assignedTo: "Karen MacLeod", city: "Glasgow" },
+  { ref: "IAAS-2026-00107", firstName: "Sarah", lastName: "McDonald", status: "under_review", debt: 5900, product: "Signposting", date: "2026-08-23", ni: "SC436180G", source: "eDEN", postcode: "IV2 4WX", email: "sarah.mcdonald@email.co.uk", employment: "retired", confidence: 72, assignedTo: "Sarah Mitchell", city: "Inverness" },
+  { ref: "IAAS-2026-00108", firstName: "Iain", lastName: "MacDonnald", status: "draft", debt: 33400, product: "Sequestration", date: "2026-08-23", ni: "SC547291H", source: "DAS", postcode: "KA2 8YZ", email: "iain.macdonnald@email.co.uk", employment: "unemployed", confidence: 70, assignedTo: "Unassigned", city: "Kilmarnock" },
+  { ref: "IAAS-2026-00109", firstName: "Ian", lastName: "Campbel", status: "submitted", debt: 10300, product: "MAP", date: "2026-08-24", ni: "SC658302J", source: "DAS", postcode: "PA3 1AB", email: "ian.campbel@email.co.uk", employment: "employed", confidence: 86, assignedTo: "James Wilson", city: "Paisley" },
+  { ref: "IAAS-2026-00110", firstName: "Elleanor", lastName: "Ross", status: "rejected", debt: 2600, product: "DPP", date: "2026-08-24", ni: "SC769413K", source: "eDEN", postcode: "FK2 5CD", email: "elleanor.ross@email.co.uk", employment: "unemployed", confidence: 63, assignedTo: "Unassigned", city: "Falkirk" },
 ];

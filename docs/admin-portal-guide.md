@@ -29,7 +29,7 @@ All features accessible from the Admin hub page (`/admin`) as tiles. Each tile s
 
 ### Reporting & Analytics
 
-9. **Reports** (`/admin/reports`) — Report builder with 100 cases, quick-start tiles (Approved, DAS, High Debt), generated output with stats/table/CSV.
+9. **Reports** (`/admin/reports`) — Report builder with 110 cases, quick-start tiles (Approved, DAS, High Debt), generated output with stats/table/CSV.
 10. **Export** (`/admin/export`) — Data export with search (name, ref, status, date range), filter, sort, CSV download, Print/PDF.
 11. **MI Reports** (`/admin/mi-reports`) — Management information dashboards.
 12. **Statistics** (`/statistics`) — Live KPI dashboard with 7d/30d/90d/12m time periods that actually update charts and cards.

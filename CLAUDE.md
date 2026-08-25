@@ -79,7 +79,7 @@ npm workspaces monorepo with three workspace directories (`apps/*`, `services/*`
 
 ## Testing
 
-`npx vitest run` from the repo root runs everything: **688 tests across 41 files** (539 backend across 36 files, 149 frontend across 5 files).
+`npx vitest run` from the repo root runs everything: **789 tests across 44 files** (584 backend across 38 files, 205 frontend across 6 files).
 
 Backend suites read the SQLite database at `DATABASE_PATH`, defaulting to `data/iaas.db`
 (`packages/database/src/connection.ts:12`). Seeding is `INSERT OR IGNORE`, so it adds missing
@@ -105,7 +105,7 @@ If a run fails with `EBUSY: resource busy or locked` in the temp SSR cache on Wi
 `/architecture` is the final beat of a scripted client demo, so changes there affect the demo run.
 
 - `DemoMode.tsx` holds the step list (path, duration, narration, timed actions) and dispatches `DemoAction`s as `window` CustomEvents via `lib/demoEvents.ts`.
-- **Page-local actions** (`FILL_*`, `RUN_CHECKS`, `SUBMIT`, ...) are handled by a listener inside the page that owns the state — currently only `/apply`.
+- **Page-local actions** (`FILL_*`, `RUN_CHECKS`, `SUBMIT`, ...) are handled by a listener inside the page that owns the state — currently `/apply` and `/login` (`FILL_MFA_CODE`).
 - **Generic DOM actions** (`SCROLL_TO`, `SLOW_SCROLL`, `CLICK`, `HIGHLIGHT`, `APPROVE_CASE`) are handled centrally by `DemoChoreographer.tsx`, mounted once in the root layout. A new page can join the demo script with no per-page listener code.
 - `waitForElement()` resolves selectors via MutationObserver, because the player pushes a route and fires actions on a timer — an action often lands before React has committed the new page. It resolves `null` on timeout rather than throwing, so a missing selector degrades to "that beat did nothing".
 - **Demo selectors use `data-demo="..."` attributes**, never CSS classes or text. If you restructure a page, keep its `data-demo` hooks on sensible elements or the demo silently stops scrolling to them. Grep `data-demo` before moving markup.

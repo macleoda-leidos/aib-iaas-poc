@@ -5,14 +5,33 @@ test.describe('Global Search Page', () => {
     await page.goto('/search');
     await expect(page.locator('text=Search Cases')).toBeVisible();
     await expect(page.locator('input[placeholder*="Search"]')).toBeVisible();
-    await expect(page.locator('text=Quick searches')).toBeVisible();
+    await expect(page.locator('text=Try fuzzy search')).toBeVisible();
   });
 
   test('quick search buttons populate input', async ({ page }) => {
     await page.goto('/search');
-    await page.click('button:text("Morrison")');
+    await page.click('[data-demo="search-tile-morisson"]');
     const input = page.locator('input[placeholder*="Search"]');
-    await expect(input).toHaveValue('Morrison');
+    await expect(input).toHaveValue('Morisson');
+  });
+
+  test('fuzzy matching clusters the Smith variants and the switch collapses them', async ({ page }) => {
+    await page.goto('/search');
+    await page.click('[data-demo="search-tile-john-smith"]');
+    // 300 ms debounce plus the 2.5 s API deadline before results settle.
+    await page.waitForTimeout(3500);
+
+    const rows = page.locator('[data-demo="search-results"] a[href*="/case/IAAS-2026"]');
+    await expect(rows).toHaveCount(4);
+    await expect(page.locator('text=letters transposed').first()).toBeVisible();
+
+    // Off leaves only the record spelled exactly as typed.
+    await page.click('[data-demo="search-fuzzy-toggle"]');
+    await expect(rows).toHaveCount(1);
+    await expect(page.locator('text=near matches').first()).toBeVisible();
+
+    await page.click('[data-demo="search-fuzzy-toggle"]');
+    await expect(rows).toHaveCount(4);
   });
 
   test('searching by name returns results', async ({ page }) => {

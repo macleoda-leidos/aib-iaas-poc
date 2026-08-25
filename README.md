@@ -47,7 +47,7 @@ The POC implements a complete end-to-end journey: identity verification, multi-s
 | Sprint 20 | Live Deployment | .NET on Render (Docker), URI→ADO.NET, EF Core snake_case mapping | ✅ Complete |
 | Sprint 21 | Data Comes Alive | 100 apps seeded (SQLite + Neon), API-first search, case actions persist | ✅ Complete |
 | Sprint 22 | Demo Enhancement | Smart scroll, sequential debts/assets/docs, Apple Pay, PDF download | ✅ Complete |
-| Sprint 23 | Admin Functionality | Reports builder (100 cases), User CRUD to API, Data Retention editable | ✅ Complete |
+| Sprint 23 | Admin Functionality | Reports builder (110 cases), User CRUD to API, Data Retention editable | ✅ Complete |
 | Sprint 24 | Interactive Admin | GitHub heatmap, Digital Signature canvas, Statistics time periods | ✅ Complete |
 | Sprint 25 | Polish & Safety | Admin user fix, backend health checks, Data Export search/filter/sort | ✅ Complete |
 | Sprint 26 | Real-Time & Notifications | Toast system, notification bell + dropdown, dashboard auto-refresh 30s | ✅ Complete |

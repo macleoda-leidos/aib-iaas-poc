@@ -46,10 +46,11 @@ const REQUIRED_STRING_FIELDS: Array<keyof SeedApplication> = [
 ];
 
 describe('seedApplications (dashboard demo fallback dataset)', () => {
-  it('contains exactly 100 applications', () => {
+  it('contains exactly 110 applications', () => {
     // The KPI cards count over the whole array; the fallback table must be
-    // able to render the same population. 100 is the documented demo size.
-    expect(seedApplications).toHaveLength(100);
+    // able to render the same population. 110 is the documented demo size:
+    // 100 base records plus the ten cross-system name variants /search matches.
+    expect(seedApplications).toHaveLength(110);
   });
 
   it('has a unique reference for every application', () => {

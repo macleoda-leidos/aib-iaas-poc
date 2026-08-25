@@ -251,7 +251,7 @@
 - Audit trail records: user ID, search terms, systems queried, number of results, any records accessed in detail.
 
 ### Business Rules
-- Fuzzy matching uses Soundex and Levenshtein distance for name variations; threshold configurable (default: 70% match).
+- Fuzzy matching scores name variations with a weighted Damerau-Levenshtein alignment: a transposition or a doubled letter costs half an edit, a vowel-for-vowel substitution three quarters, and a leading `Mac`/`Mc` is treated as a house style rather than a typo. Identifiers (NINO, reference number) are scored against a fixed five-edit budget instead of proportionally, because every AiB reference shares a prefix. Records scoring 85% or better are offered as the same identity, and the search page exposes an on/off switch — see `apps/web/src/lib/nameSimilarity.ts`.
 - Search results must not display full NINO or sensitive data in the list view (masked: ***1234).
 - Users may only access detailed records for systems they are authorised for (role-based system access).
 - Bulk searches (>10 per hour by one user) trigger a security alert for review.

@@ -28,19 +28,21 @@ test.describe('Beta Application Flow', () => {
       await page.goto('/search');
       // Type a misspelled name
       await page.fill('input[type="text"]', 'Morisson');
-      // Should find Morrison via fuzzy match
-      await expect(page.getByText('Morrison')).toBeVisible({ timeout: 5000 });
+      // Should find Morrison via fuzzy match. There are six Morrison spellings in
+      // the corpus, so this has to be first() or strict mode rejects the locator.
+      await expect(page.getByText('Morrison').first()).toBeVisible({ timeout: 5000 });
       // Should show confidence badge
-      await expect(page.getByText(/match/i)).toBeVisible();
+      await expect(page.getByText(/match/i).first()).toBeVisible();
     });
 
     test('fuzzy search handles cross-system identity matching', async ({ page }) => {
       await page.goto('/search');
       await page.fill('input[type="text"]', 'John Smith');
-      // Should find multiple variants
-      await expect(page.getByText('John Smith')).toBeVisible({ timeout: 5000 });
+      // Should find all four variants held under different spellings
+      await expect(page.getByText('John Smith').first()).toBeVisible({ timeout: 5000 });
       await expect(page.getByText('Jhon Smith')).toBeVisible();
       await expect(page.getByText('Jon Smith')).toBeVisible();
+      await expect(page.getByText('John Smyth')).toBeVisible();
     });
   });
 
