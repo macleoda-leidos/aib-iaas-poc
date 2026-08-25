@@ -232,6 +232,40 @@ gantt
 
 ---
 
+## POC Hosting — Position and Evidence
+
+**Decision: stay on the Render free tier. No migration, no plan upgrade.**
+
+This was reviewed after the demo showed `⛔ Rate limited — 0 / 0 requests used`, which looked like the
+free tier's request budget had been exhausted. It had not. The API was answering normally and
+reporting 499 of its 500 requests still available for the window; the banner was a frontend CORS
+defect. The server sent `RateLimit-Limit` and `RateLimit-Remaining` but did not name them in
+`Access-Control-Expose-Headers`, so the browser withheld them from script, `Number(null)` produced 0,
+and a zero limit was recorded as a real reading. Fixed by adding `exposedHeaders` to the `cors()` call
+in `services/consolidated-api/src/index.ts`, with the frontend hardened to reject a non-positive
+limit. The trigger for considering a migration was therefore a bug, not a capacity limit.
+
+**The real free-tier constraint is different and worth stating plainly.** Render spins an idle service
+down after 15 minutes, so the first request of a demo pays a cold start. That is the constraint that
+shaped the architecture — it is why `services/consolidated-api` exists at all, collapsing 12 logical
+services into one container so a demo pays one cold start rather than twelve (see
+[Architecture](./architecture.md), deployment modes). It affects latency on the first request, not the
+request budget.
+
+- **Cheap mitigation:** warm the API with a single request immediately before a demo.
+- **A paid plan removes cold starts but buys nothing for rate limits** — the 500-per-15-minutes figure
+  is our own `express-rate-limit` configuration, not a Render quota, so it is changed by editing a
+  constant.
+
+**Figures to confirm before quoting.** Current Render and Oracle Cloud Free Tier pricing could not be
+verified at the time of writing, so no cost comparison is asserted here. Any figure used with a
+stakeholder needs checking against the providers first. An alternative-provider migration is not
+proposed for the same reason: it would rest on unverified numbers, and the constraint it would address
+(SQLite on a 1GB persistent disk) already has a documented PostgreSQL path in the Medium Term horizon
+above.
+
+---
+
 ## Related Documents
 
 - [Executive Summary](./executive-summary.md)

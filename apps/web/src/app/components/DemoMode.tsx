@@ -76,9 +76,14 @@ function buildDemoSteps(app: GeneratedApplication): DemoStep[] {
       path: '/case/IAAS-2026-00012',
       duration: 18,
       title: '\u{1F4CB} Case Detail',
-      narration: 'AI Summary auto-generated. Risk score: Low. Quality check: 5/6 passed. Predicted: 92% approved. Walking the whole case record — there is a lot here to review.',
+      narration: 'AI Summary auto-generated. Risk score: Low. Quality check: 5/6 passed. Predicted: 92% approved. Live statutory deadlines too — the 21-day DAS creditor objection window under reg.23(5), and with 4 debts in this programme non-responding creditors are deemed to consent when it expires.',
       actions: [
         { delay: 1500, action: { type: 'SLOW_SCROLL', durationMs: 14000 } },
+        // Fires after the slow scroll settles at 15500ms and finishes at 18000ms,
+        // exactly on the step boundary. Pushing this to the duration would make it
+        // a beat nobody sees, and outliving the step leaves a torn-down highlight
+        // ring — DemoChoreographer clears highlight timers on unmount.
+        { delay: 16000, action: { type: 'HIGHLIGHT', selector: '[data-demo="case-statutory-deadlines"]', durationMs: 2000 } },
       ],
     },
     {
@@ -533,7 +538,7 @@ function buildDemoSteps(app: GeneratedApplication): DemoStep[] {
       path: '/',
       duration: 6,
       title: '\u{1F3C1} Demo Complete',
-      narration: 'Live API • 57+ pages • 659 tests • 12 AI capabilities • 32 admin features • £0/month. Questions?',
+      narration: 'Live API • 57+ pages • 892 tests • 12 AI capabilities • 32 admin features • £0/month. Questions?',
     },
   ];
 }
