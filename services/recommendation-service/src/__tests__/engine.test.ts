@@ -3,14 +3,15 @@ import { describe, it, expect } from 'vitest';
 import { calculateRecommendation } from '../engine/rules';
 
 describe('Recommendation Engine — Full Coverage', () => {
-  it('recommends signposting for debt < £1,500', () => {
+  // No statutory minimum debt exists for MAP (SSI 2023/9 reg.2) or DAS
+  // (reg.21(1)), so a small debt with a surplus gets a programme, not a brush-off.
+  it('recommends a repayment programme for a small debt with surplus income', () => {
     const result = calculateRecommendation({
       totalDebt: 1200, numberOfCreditors: 1, monthlyIncome: 2000,
       monthlyExpenditure: 1800, employmentStatus: 'employed',
       hasAssets: false, totalAssetValue: 0, existingCases: [], hasMoratorium: false
     });
-    expect(result.recommendedProduct).toBe('signposting_advice');
-    expect(result.confidence).toBe('high');
+    expect(result.recommendedProduct).toBe('debt_payment_programme');
   });
 
   it('recommends DPP for debt £1,500-£5,000 with repayment capacity', () => {

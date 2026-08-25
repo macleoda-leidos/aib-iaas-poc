@@ -1,3 +1,5 @@
+import { MAP, SEQUESTRATION_MIN_DEBT, DCO } from '@aib-iaas/statutory';
+
 interface RecommendationInput {
   totalDebt: number;
   numberOfCreditors: number;
@@ -27,7 +29,7 @@ export function calculateRecommendation(input: RecommendationInput): Recommendat
   factors.push({
     factor: 'Total Debt',
     value: `£${input.totalDebt.toLocaleString()}`,
-    impact: input.totalDebt > 25000 ? 'negative' : input.totalDebt < 5000 ? 'positive' : 'neutral',
+    impact: input.totalDebt > MAP.maxDebt.value ? 'negative' : input.totalDebt < 5000 ? 'positive' : 'neutral',
   });
 
   factors.push({
@@ -88,25 +90,26 @@ export function calculateRecommendation(input: RecommendationInput): Recommendat
     };
   }
 
-  // Very low debt - signposting
-  if (input.totalDebt < 1500) {
-    reasoning.push('Total debt below £1,500 threshold');
-    reasoning.push('Formal insolvency solutions not typically appropriate');
-    reasoning.push('Debtor should seek free money advice for budgeting support');
-    return {
-      recommendedProduct: 'signposting_advice',
-      confidence: 'high',
-      reasoning,
-      alternativeProducts: ['debt_payment_programme'],
-      factors,
-    };
-  }
-
   // Calculate months to repay at current disposable income
   const monthsToRepay = disposableIncome > 0 ? input.totalDebt / disposableIncome : Infinity;
 
-  // Low-medium debt, can repay within 48 months
-  if (input.totalDebt >= 1500 && input.totalDebt <= 5000 && monthsToRepay <= 48) {
+  // ON THE REMOVED £1,500 FLOOR
+  //
+  // There was a "debt below £1,500 — not eligible for anything" branch here, and
+  // both MAP and DPP additionally required debt >= 1500. No such minimum exists.
+  // SSI 2023/9 reg.2 removed the £1,500 MAP minimum on 6 February 2023 and
+  // nothing was prescribed in its place, so s.2(2)(b)(i) reads "not less than
+  // such amount as may be prescribed" with no amount currently prescribed. DAS
+  // never had a monetary minimum: reg.21(1) permits a programme for "one or more
+  // debts". Turning a £900 debtor away from every statutory route was wrong on
+  // both counts, and it is a live error rather than a stale one — third-party
+  // summaries still quote £1,500.
+  //
+  // Thresholds now come from @aib-iaas/statutory, where each carries the
+  // provision it derives from and the SSI that last moved it.
+
+  // Low debt repayable within the default contribution period
+  if (input.totalDebt <= 5000 && monthsToRepay <= DCO.defaultPeriodMonths.value) {
     reasoning.push(`Total debt of £${input.totalDebt.toLocaleString()} within Debt Payment Programme range`);
     reasoning.push(`Can repay in approximately ${Math.ceil(monthsToRepay)} months`);
     reasoning.push('Disposable income sufficient for structured repayment');
@@ -125,7 +128,11 @@ export function calculateRecommendation(input: RecommendationInput): Recommendat
   // AND almost no ability to pay. DAS now accepts any surplus above zero (see
   // below), so leaving MAP later in the chain would let DAS capture debtors who
   // qualify for the cheaper, simpler route.
-  if (input.totalDebt >= 1500 && input.totalDebt <= 25000 && disposableIncome <= 50 && input.totalAssetValue < 2000) {
+  if (
+    input.totalDebt <= MAP.maxDebt.value &&
+    disposableIncome <= 50 &&
+    input.totalAssetValue < MAP.maxTotalAssets.value
+  ) {
     reasoning.push('Debtor has minimal assets and limited ability to pay');
     reasoning.push(`Total debt of £${input.totalDebt.toLocaleString()} with disposable income of £${disposableIncome.toFixed(0)}/month`);
     reasoning.push('Minimal Asset Process (MAP) provides route to debt relief without significant cost');
@@ -157,7 +164,12 @@ export function calculateRecommendation(input: RecommendationInput): Recommendat
   // gate exactly, so debt of precisely £5,000 is never deferred to a branch that
   // would then decline it and drop through to signposting.
   const deferToTrustDeed = disposableIncome <= 100 && input.totalAssetValue > 5000 && input.totalDebt > 5000;
-  if (input.totalDebt >= 5000 && input.totalDebt <= 25000 && disposableIncome > 0 && !deferToTrustDeed) {
+  if (
+    input.totalDebt >= 5000 &&
+    input.totalDebt <= MAP.maxDebt.value &&
+    disposableIncome > 0 &&
+    !deferToTrustDeed
+  ) {
     reasoning.push(`Total debt of £${input.totalDebt.toLocaleString()} falls within DAS eligibility`);
     reasoning.push(`Disposable income of £${disposableIncome.toFixed(0)}/month allows structured repayment`);
     reasoning.push('Debt Arrangement Scheme provides statutory protection from creditors');
@@ -207,7 +219,10 @@ export function calculateRecommendation(input: RecommendationInput): Recommendat
   // programme, so above that minimum sequestration is the applicable route.
   // Starting at £10,000 stranded £3,000-£10,000 no-surplus debtors whose assets
   // were too high for MAP (which caps at £2,000) on the signposting default.
-  if (input.totalDebt > 25000 || (input.totalDebt >= 3000 && disposableIncome <= 0)) {
+  if (
+    input.totalDebt > MAP.maxDebt.value ||
+    (input.totalDebt >= SEQUESTRATION_MIN_DEBT.value && disposableIncome <= 0)
+  ) {
     reasoning.push(`Total debt of £${input.totalDebt.toLocaleString()} exceeds thresholds for simpler solutions`);
     reasoning.push('Formal sequestration (bankruptcy) may be the most appropriate route');
     reasoning.push('Provides comprehensive debt relief but with significant consequences');

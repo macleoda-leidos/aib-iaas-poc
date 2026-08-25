@@ -75,10 +75,11 @@ describe('Recommendation Service - Routes', () => {
       expect(res.data.data.recommendedProduct).toBe('debt_arrangement_scheme');
     });
 
-    it('recommends signposting for very low debt', async () => {
+    it('recommends a repayment programme for very low debt', async () => {
+      // See rules.test.ts — the £1,500 floor this once asserted was abolished.
       const res = await request('POST', '/api/recommend', { ...baseInput, totalDebt: 800 });
       expect(res.status).toBe(200);
-      expect(res.data.data.recommendedProduct).toBe('signposting_advice');
+      expect(res.data.data.recommendedProduct).toBe('debt_payment_programme');
     });
 
     it('recommends moratorium when moratorium is active', async () => {

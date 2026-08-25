@@ -14,10 +14,13 @@ describe('Recommendation Rules Engine', () => {
     hasMoratorium: false,
   };
 
-  it('should recommend signposting for very low debt', () => {
+  it('offers a repayment programme even for a very small debt', () => {
+    // Was asserted as signposting on a £1,500 floor that no longer exists: SSI
+    // 2023/9 reg.2 removed the MAP minimum in Feb 2023 and DAS never had one
+    // (reg.21(1) — "one or more debts"). A debtor with £800 and £300 spare can
+    // clear it in three months, so a programme is the correct advice.
     const result = calculateRecommendation({ ...baseInput, totalDebt: 800 });
-    expect(result.recommendedProduct).toBe('signposting_advice');
-    expect(result.confidence).toBe('high');
+    expect(result.recommendedProduct).toBe('debt_payment_programme');
   });
 
   it('should recommend DPP for low debt with ability to pay', () => {
