@@ -79,7 +79,7 @@ npm workspaces monorepo with three workspace directories (`apps/*`, `services/*`
 
 ## Testing
 
-`npx vitest run` from the repo root runs everything: **679 tests across 40 files** (539 backend across 36 files, 140 frontend across 4 files).
+`npx vitest run` from the repo root runs everything: **688 tests across 41 files** (539 backend across 36 files, 149 frontend across 5 files).
 
 Backend suites read the SQLite database at `DATABASE_PATH`, defaulting to `data/iaas.db`
 (`packages/database/src/connection.ts:12`). Seeding is `INSERT OR IGNORE`, so it adds missing

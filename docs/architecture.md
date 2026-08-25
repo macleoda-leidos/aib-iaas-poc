@@ -765,7 +765,7 @@ graph LR
 ```
 
 **POC Deployment (Current):**
-- GitHub Actions runs Vitest (659 tests across 39 files — 519 backend under node, 140 frontend under jsdom)
+- GitHub Actions runs Vitest (688 tests across 41 files — 539 backend under node, 149 frontend under jsdom)
 - Next.js static export builds the web frontend
 - Deploys to GitHub Pages for stakeholder review
 - Full stack available via `docker-compose up` (PostgreSQL + Keycloak + ClamAV + all services)
