@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { apiGet } from './apiClient';
+import { useVisiblePolling } from './useVisiblePolling';
 
 export interface NotificationItem {
   id: string;
@@ -45,12 +46,10 @@ export function useNotifications() {
     setLastUpdated(new Date());
   }, []);
 
-  // Initial load + poll every 30 seconds
-  useEffect(() => {
-    refresh();
-    const interval = setInterval(refresh, 30000);
-    return () => clearInterval(interval);
-  }, [refresh]);
+  // Initial load + poll every 30 seconds while the tab is visible. This runs
+  // globally via the header's notification bell, so before the visibility guard
+  // every open tab polled whether or not anyone was watching it.
+  useVisiblePolling(refresh, 30000);
 
   const markRead = (id: string) => {
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));

@@ -26,11 +26,15 @@ export default function IntegrationMonitorPage() {
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold">Integration Health Monitor</h1>
-            <p className="text-gray-400 text-sm mt-1">Real-time status of AiB system connections</p>
+            <p className="text-gray-400 text-sm mt-1">Status of AiB system connections</p>
           </div>
+          {/* Said "Refreshing every 10 seconds", but this page holds no timer and
+              makes no request — the figures below are sample data. Polling every
+              10s would also cost 90 requests per 15 minutes per open tab against
+              a 500 budget, so the honest label is the cheap fix. */}
           <div className="flex items-center gap-2 text-sm text-gray-400">
-            <span className="inline-block w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
-            Refreshing every 10 seconds
+            <span className="inline-block w-2 h-2 bg-gray-500 rounded-full"></span>
+            Sample data — live polling in production
           </div>
         </div>
       </header>

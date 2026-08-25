@@ -73,15 +73,59 @@ export function ApiStatusProvider({ children }: { children: ReactNode }) {
         setStatus('offline');
         connectedSince.current = null;
       } else {
-        setStatus((prev) => (prev === 'connected' ? 'waking' : 'offline'));
+        // 'waking', not a prev-dependent choice. The initial state is already
+        // 'waking', so testing for 'connected' sent the very first failure
+        // straight to 'offline' — and a first failure is the normal case on
+        // Render's free tier, where the container has spun down and the cold
+        // start outlasts the 8s abort above. The sibling !res.ok branch already
+        // did this correctly.
+        setStatus('waking');
       }
     }
   }, []);
 
   useEffect(() => {
-    checkHealth();
-    const interval = setInterval(checkHealth, 30000);
-    return () => clearInterval(interval);
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let cancelled = false;
+
+    // Back off while the API is unreachable instead of retrying at a flat 30s
+    // forever. A sleeping free-tier instance can take a minute or more to wake,
+    // and hammering it neither speeds that up nor tells the user anything new.
+    // Reset to the base interval as soon as a probe succeeds.
+    const delayFor = (failures: number) => {
+      if (failures === 0) return 30000;
+      const backedOff = 30000 * 2 ** Math.min(failures, 4); // 60s, 120s, 240s, 480s
+      return Math.min(backedOff, 300000); // cap at 5 minutes
+    };
+
+    const scheduleNext = () => {
+      if (cancelled) return;
+      timer = setTimeout(run, delayFor(failCount.current));
+    };
+
+    const run = async () => {
+      // Skip the probe entirely in a hidden tab: nothing is rendering the status
+      // indicator, so the only effect would be keeping a sleeping instance awake.
+      if (!document.hidden) await checkHealth();
+      scheduleNext();
+    };
+
+    const onVisibilityChange = () => {
+      if (!document.hidden) {
+        // Re-probe immediately so a returning viewer sees the true state rather
+        // than whatever was left on screen.
+        void checkHealth();
+      }
+    };
+
+    void run();
+    document.addEventListener('visibilitychange', onVisibilityChange);
+
+    return () => {
+      cancelled = true;
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      if (timer !== null) clearTimeout(timer);
+    };
   }, [checkHealth]);
 
   return (

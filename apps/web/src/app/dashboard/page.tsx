@@ -239,11 +239,36 @@ function AibDashboard({ user }: { user: any }) {
         }
       }
     };
+    // Auto-refresh every 30 seconds, but only while the tab is visible — a
+    // dashboard left open in a background tab was spending rate-limit budget on
+    // rows nobody was reading. Not using useVisiblePolling here because this
+    // effect owns demoTimeout across invocations and the teardown has to clear
+    // both timers together.
+    let interval: ReturnType<typeof setInterval> | null = null;
+
+    const stopPolling = () => {
+      if (interval !== null) { clearInterval(interval); interval = null; }
+    };
+    const startPolling = () => {
+      if (interval === null) interval = setInterval(fetchApps, 30000);
+    };
+
+    const onVisibilityChange = () => {
+      if (document.hidden) {
+        stopPolling();
+      } else {
+        fetchApps();
+        startPolling();
+      }
+    };
+
     fetchApps();
-    // Auto-refresh every 30 seconds
-    const interval = setInterval(fetchApps, 30000);
+    if (!document.hidden) startPolling();
+    document.addEventListener('visibilitychange', onVisibilityChange);
+
     return () => {
-      clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      stopPolling();
       if (demoTimeout) clearTimeout(demoTimeout);
     };
     // Runs once on mount. Must NOT depend on lastRefreshed — fetchApps sets it on

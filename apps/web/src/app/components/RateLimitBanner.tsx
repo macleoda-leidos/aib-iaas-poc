@@ -1,10 +1,15 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { getRateLimitState, onRateLimitChange, type RateLimitState } from '../../lib/apiClient';
 
 const WINDOW_MS = 15 * 60 * 1000; // 15 minutes
 const STORAGE_KEY = 'iaas-api-call-log';
 const WINDOW_START_KEY = 'iaas-rate-window-start';
+
+// Only used before the first API response reveals the real figure. Matches the
+// deployed `max` in services/consolidated-api/src/index.ts.
+const DEFAULT_LIMIT = 500;
 
 /** Track an API call timestamp */
 export function trackApiCall() {
@@ -53,8 +58,15 @@ export default function RateLimitBanner() {
   const [timeUntilReset, setTimeUntilReset] = useState(WINDOW_MS);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [dismissed, setDismissed] = useState(false);
+  // Null until the first API response arrives; the local tally is the fallback.
+  const [serverLimit, setServerLimit] = useState<{ limit: number; used: number } | null>(null);
 
-  const limit = isAuthenticated ? 200 : 100;
+  // The server's own figure when we have it. The previous hardcoded 100/200 bore
+  // no relation to the deployed limit of 500 (see consolidated-api/src/index.ts),
+  // so this banner warned "rate limited" at a fifth of the real budget — in front
+  // of whoever was watching the demo.
+  const limit = serverLimit?.limit ?? DEFAULT_LIMIT;
+  const used = serverLimit?.used ?? callCount;
   const warnThreshold = Math.floor(limit * 0.7);
 
   useEffect(() => {
@@ -62,20 +74,38 @@ export default function RateLimitBanner() {
     const token = localStorage.getItem('iaas-auth-token');
     setIsAuthenticated(!!token);
 
-    // Check count on mount and periodically
+    const applyServerState = (state: RateLimitState) => {
+      setServerLimit({ limit: state.limit, used: state.limit - state.remaining });
+      setTimeUntilReset(Math.max(0, state.resetAtMs - Date.now()));
+    };
+
+    // Seed from whatever the client already knows, in case a request completed
+    // before this mounted.
+    const existing = getRateLimitState();
+    if (existing) applyServerState(existing);
+    const unsubscribe = onRateLimitChange(applyServerState);
+
+    // The local tally still drives the countdown between responses, and is the
+    // only source at all until the first API call completes.
     const check = () => {
       setCallCount(getApiCallCount());
-      setTimeUntilReset(getTimeUntilReset());
+      setServerLimit((current) => {
+        if (!current) setTimeUntilReset(getTimeUntilReset());
+        return current;
+      });
     };
     check();
     const interval = setInterval(check, 1000);
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      unsubscribe();
+    };
   }, []);
 
   // Always show the compact usage indicator
-  const percentage = Math.min(100, Math.round((callCount / limit) * 100));
-  const isLimited = callCount >= limit;
-  const isWarning = callCount >= warnThreshold;
+  const percentage = Math.min(100, Math.round((used / limit) * 100));
+  const isLimited = used >= limit;
+  const isWarning = used >= warnThreshold;
 
   // Full banner only shows at warning/limited
   if (!isWarning && !dismissed) {
@@ -99,11 +129,11 @@ export default function RateLimitBanner() {
               />
             </div>
             <span className="text-xs font-mono text-gray-600 dark:text-gray-400 min-w-[60px] text-right">
-              {callCount} / {limit}
+              {used} / {limit}
             </span>
           </div>
           <p className="text-[10px] text-gray-400 dark:text-gray-500">
-            Resets in {formatTime(timeUntilReset)} • {isAuthenticated ? '200' : '100'} req/15min
+            Resets in {formatTime(timeUntilReset)} • {limit} req/15min
           </p>
         </div>
       </div>
@@ -129,7 +159,7 @@ export default function RateLimitBanner() {
           <div className="mt-2 mb-1.5">
             <div className="flex items-center justify-between text-xs mb-1">
               <span className={isLimited ? 'text-red-700 dark:text-red-400' : 'text-amber-700 dark:text-amber-400'}>
-                {callCount} / {limit} requests used (15 min window)
+                {used} / {limit} requests used (15 min window)
               </span>
             </div>
             <div className="h-2.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
@@ -142,7 +172,7 @@ export default function RateLimitBanner() {
 
           {/* Tier info */}
           <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
-            {isAuthenticated ? 'Authenticated user: 200 requests' : 'Anonymous user: 100 requests'}
+            {serverLimit ? `Server limit: ${limit} requests per 15 minutes` : `Assumed limit: ${limit} requests per 15 minutes`}
           </p>
 
           {/* Reset countdown */}

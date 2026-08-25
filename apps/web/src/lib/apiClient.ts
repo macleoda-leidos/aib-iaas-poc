@@ -90,7 +90,60 @@ function getHeaders(): Record<string, string> {
   return headers;
 }
 
+/**
+ * Last rate-limit position reported by the server, from the RateLimit-* headers
+ * (the API sets `standardHeaders: true`).
+ *
+ * Read rather than guessed, because the client cannot know the budget: the limit
+ * lives in server config, /api/health is exempt from counting, and the window is
+ * keyed per IP. A browser-side tally of its own calls disagrees with the server
+ * on all three counts.
+ */
+export interface RateLimitState {
+  limit: number;
+  remaining: number;
+  resetAtMs: number;
+}
+
+let rateLimitState: RateLimitState | null = null;
+type RateLimitCallback = (state: RateLimitState) => void;
+const rateLimitListeners: RateLimitCallback[] = [];
+
+export function getRateLimitState(): RateLimitState | null {
+  return rateLimitState;
+}
+
+export function onRateLimitChange(callback: RateLimitCallback) {
+  rateLimitListeners.push(callback);
+  return () => {
+    const idx = rateLimitListeners.indexOf(callback);
+    if (idx >= 0) rateLimitListeners.splice(idx, 1);
+  };
+}
+
+function readRateLimitHeaders(res: Response) {
+  const limit = Number(res.headers.get('RateLimit-Limit'));
+  const remaining = Number(res.headers.get('RateLimit-Remaining'));
+  // Seconds until the window resets, per the draft standard.
+  const reset = Number(res.headers.get('RateLimit-Reset'));
+
+  // Absent or unparseable means the response did not come from the rate-limited
+  // API — a cached asset, a different host, or a proxy that stripped them.
+  // Keeping the previous reading beats overwriting it with NaN.
+  if (!Number.isFinite(limit) || !Number.isFinite(remaining)) return;
+
+  rateLimitState = {
+    limit,
+    remaining,
+    resetAtMs: Date.now() + (Number.isFinite(reset) ? reset * 1000 : 15 * 60 * 1000),
+  };
+  rateLimitListeners.forEach((cb) => cb(rateLimitState!));
+}
+
 async function handleResponse<T>(res: Response): Promise<ApiResponse<T>> {
+  // Before the ok check: a 429 carries the most important reading of all.
+  readRateLimitHeaders(res);
+
   if (!res.ok) {
     // Handle 401 — session expired
     if (res.status === 401) {

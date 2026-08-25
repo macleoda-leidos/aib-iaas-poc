@@ -64,6 +64,12 @@ app.use(helmet({ contentSecurityPolicy: false })); // Relaxed CSP for POC
 const corsOrigins = process.env.CORS_ORIGIN
   ? process.env.CORS_ORIGIN.split(',')
   : ['https://macleoda-leidos.github.io', 'http://localhost:3000', 'http://localhost:3010'];
+// Registered BEFORE the rate limiter on purpose. `cors` defaults to
+// preflightContinue: false, so it answers an OPTIONS preflight and ends the
+// response itself — preflights therefore never reach the limiter and cost
+// nothing from the window. Moving the limiter above this line would roughly
+// halve the effective budget, because browsers preflight every cross-origin
+// request carrying Content-Type or Authorization, which is most of ours.
 app.use(cors({ origin: corsOrigins, methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'], allowedHeaders: ['Content-Type', 'Authorization'], credentials: true }));
 
 // Render (and any other PaaS) terminates TLS at a proxy and forwards the real
