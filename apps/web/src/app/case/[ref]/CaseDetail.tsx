@@ -8,6 +8,7 @@ import { TIMELINE_DATA } from './data/timeline-data';
 import { RECOMMENDATION_DATA } from './data/recommendation-data';
 import NotificationPanel from './components/NotificationPanel';
 import EmailLog from './components/EmailLog';
+import StatutoryDeadlines from './components/StatutoryDeadlines';
 import { auditRepo } from '../../../lib/persistence';
 import { seedApplications } from '../../../lib/seedData';
 import { applications as applicationsApi, audit as auditApi } from '../../../lib/apiClient';
@@ -851,6 +852,27 @@ function CaseContent() {
         {/* Feature 4: Guided Decision Support */}
         <CollapsibleSection title="Suggested Actions" icon="📋" defaultOpen>
           <GuidedDecisionSupport caseData={c} />
+        </CollapsibleSection>
+
+        {/* Statutory deadlines — decision support, so it sits with the other
+            decision aids rather than in the timeline.
+
+            The 60-second timer lives inside StatutoryDeadlines, not here. Hooks
+            added to CaseContent around the `if (!c)` guard are what caused React
+            error #310 before (see the note above the derived totals), and this
+            child only mounts on the path where the case exists.
+
+            Not mirrored into SeedCaseView: a seed application carries a debt
+            total rather than a debt array, so debtCount is unavailable there and
+            DAS deemed consent under reg.23(5) could not be decided correctly. A
+            wrong consent position is worse than no panel. */}
+        <CollapsibleSection title="Statutory Deadlines" icon="⏳" defaultOpen>
+          <StatutoryDeadlines
+            product={c.product}
+            submittedAt={c.submittedAt}
+            debtCount={c.debts.length}
+            caseRef={c.ref}
+          />
         </CollapsibleSection>
 
         <CollapsibleSection title="Recommendation" icon="✅" defaultOpen>
