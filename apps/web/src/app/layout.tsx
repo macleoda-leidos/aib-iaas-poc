@@ -27,6 +27,7 @@ import AiChatbot from './components/AiChatbot';
 import DemoMode from './components/DemoMode';
 import DemoChoreographer from './components/DemoChoreographer';
 import { DemoToolsProvider, DemoToolsToggle } from './DemoTools';
+import RateLimitBanner from './components/RateLimitBanner';
 import { ToastProvider } from './components/Toast';
 import NotificationBell from './components/NotificationBell';
 import { OfflineBanner } from './components/ApiErrorBoundary';
@@ -153,6 +154,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <DemoMode />
       <DemoChoreographer />
       <DemoToolsToggle />
+      {/* Mounted here rather than in Providers because it reads useDemoTools() and
+          must therefore sit inside DemoToolsProvider. Providers wraps this layout
+          from the outside, so mounting it there silently disabled the gate. */}
+      <RateLimitBanner />
       </ApiStatusProvider>
       </ToastProvider>
       </DemoToolsProvider>

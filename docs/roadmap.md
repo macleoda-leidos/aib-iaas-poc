@@ -264,6 +264,66 @@ proposed for the same reason: it would rest on unverified numbers, and the const
 (SQLite on a 1GB persistent disk) already has a documented PostgreSQL path in the Medium Term horizon
 above.
 
+### The alternatives, and where they already exist in this repo
+
+Asked and answered from the repo rather than from memory. The platform question was settled in
+**ADR-008** (`docs/architecture-decisions.md`), and scaffolding for the alternatives is committed:
+
+| Tier | Option | Where | Status |
+|---|---|---|---|
+| POC, free | **Render** | `render.yaml` | **active** |
+| POC, free | Railway | `infra/deploy/railway.toml` | configured, unused |
+| POC, free | Vercel | `infra/deploy/vercel.json` | configured, unused |
+| Production | AWS ECS Fargate | `infra/terraform/` | scaffolded — the documented target |
+| Production | Azure Container Apps | `infra/azure/main.bicep` | scaffolded; workflow disabled pending OIDC |
+| Production | GCP | — | excluded (no Scot Gov relationship) |
+
+**Oracle Cloud and Fly.io are not part of this project's analysis** and appear nowhere in the repo.
+Cost figures in `docs/cost-model.md` derive from published provider tiers, not invoices, so they remain
+unverified for quoting.
+
+### Which backend the live site uses
+
+The deployed GitHub Pages site talks to the **Node** consolidated API. `NEXT_PUBLIC_API_URL` is baked
+in at build time as `https://iaas-api.onrender.com` (`.github/workflows/deploy-pages.yml`), and
+`apps/web/src/lib/apiClient.ts` resolves in the order: `localStorage['iaas-backend-url']` →
+`NEXT_PUBLIC_API_URL` → that same hardcoded default.
+
+The .NET 9 API (`services/dotnet-api/`, MediatR + CQS, endpoint parity) is deployed alongside it as
+`iaas-dotnet-api` and is only reached if someone switches backends at `/admin/feature-flags`, which
+writes that localStorage key and reloads.
+
+**The backend switch does not provision a database.** It only rewrites a URL in the browser. The .NET
+service's `DATABASE_URL` is left unset in `render.yaml` (`sync: false`), and `Program.cs` falls back to
+`Data Source=iaas.db` — a SQLite file on the container's ephemeral filesystem, with no persistent disk
+declared for that service. So writes against the .NET backend survive only until the container is
+recycled. Two consequences worth stating plainly:
+
+- Switching backends mid-demo can appear to lose data, because the two services do not share storage.
+- `services/dotnet-api/Program.cs` sets CORS without `exposedHeaders`, so it has the *same* defect the
+  Node service just had: the frontend cannot read `RateLimit-*` from it and falls back to an assumed
+  limit. Fixing it means adding `WithExposedHeaders` to the CORS policy there too.
+
+### Could the .NET API run on the existing Azure Container Apps environment?
+
+Yes in principle, and the environment and registry are the reusable parts. But `infra/azure/` currently
+deploys **only** the Node consolidated API: `modules/container-apps.bicep` defines a single
+`${environmentName}-api` container app on `infra/azure/Dockerfile.api`, and `deploy-azure.yml` builds
+just that one image. Adding the .NET service means a second `containerApps` resource pointing at
+`services/dotnet-api/Dockerfile`, plus a second build/push step. The environment, Log Analytics
+workspace and Azure Files mount are shared, so the marginal cost is container runtime only.
+
+On "free": Container Apps includes a monthly grant of 180,000 vCPU-seconds and 360,000 GiB-seconds per
+subscription (already noted at the top of `container-apps.bicep`). It is a *shared* grant, so a second
+app draws from the same allowance rather than getting its own. The existing app sets `minReplicas: 0`
+to scale to zero when idle, which is what keeps consumption near nil — and, as on Render, is also what
+reintroduces a cold start. **These figures need confirming against current Azure pricing before being
+quoted**; they are taken from the repo's own comments, not from a checked bill.
+
+Two blockers before any of this runs: `deploy-azure.yml` needs Azure AD OIDC secrets (client-id,
+tenant-id, subscription-id) that are not configured, and `corsPolicy.allowedOrigins` in the Bicep is
+`['*']`, which should be narrowed to the Pages origin before anything non-throwaway is deployed.
+
 ---
 
 ## Related Documents

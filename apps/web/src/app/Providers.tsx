@@ -3,7 +3,6 @@
 import { ReactNode, useEffect, useState } from 'react';
 import { ApplicationProvider } from '../lib/ApplicationContext';
 import { CookieBanner } from '../components/CookieBanner';
-import RateLimitBanner from './components/RateLimitBanner';
 import { onSessionExpired, logout } from '../lib/apiClient';
 import Link from 'next/link';
 
@@ -52,7 +51,10 @@ export function Providers({ children }: { children: ReactNode }) {
     <ApplicationProvider>
       <CookieBanner />
       {children}
-      <RateLimitBanner />
+      {/* RateLimitBanner is deliberately NOT here. It is gated behind Demo Tools,
+          and this component renders outside DemoToolsProvider, so useDemoTools()
+          would read the default context and the widget would never appear. It is
+          mounted in layout.tsx beside DemoToolsToggle instead. */}
       <SessionExpiredToast />
     </ApplicationProvider>
   );

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { getRateLimitState, onRateLimitChange, type RateLimitState } from '../../lib/apiClient';
+import { useDemoTools } from '../DemoTools';
 
 const WINDOW_MS = 15 * 60 * 1000; // 15 minutes
 const STORAGE_KEY = 'iaas-api-call-log';
@@ -64,6 +65,22 @@ function formatTime(ms: number): string {
 }
 
 export default function RateLimitBanner() {
+  // Developer diagnostics, so it is gated behind Demo Tools rather than shown to
+  // every visitor. A citizen has no use for a request budget, and when the figures
+  // are unavailable the widget's failure mode is actively alarming: it reported
+  // "Rate limited - 0 / 0 requests used" against an API that was either healthy or
+  // merely cold.
+  //
+  // Hiding it loses nothing, because a real outage is already reported
+  // independently by ApiStatusBar (ApiStatus.tsx) — "backend waking up..." during a
+  // cold start, "Service disruption detected" when offline. That is the signal a
+  // user needs; this is the one an engineer needs.
+  //
+  // This must be rendered INSIDE DemoToolsProvider. It is mounted from layout.tsx
+  // beside DemoToolsToggle for that reason: Providers sits outside the provider, so
+  // mounting there made useDemoTools() read the default context and the widget
+  // never appeared at all.
+  const { enabled } = useDemoTools();
   const [callCount, setCallCount] = useState(0);
   const [timeUntilReset, setTimeUntilReset] = useState(WINDOW_MS);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -156,7 +173,15 @@ export default function RateLimitBanner() {
       observer.disconnect();
       clear();
     };
-  }, [dismissed, isWarning]);
+    // `enabled` included so gating the widget off clears the variable via the
+    // null-ref path above, dropping the Ask AiB launcher back to its own offset.
+  }, [dismissed, isWarning, enabled]);
+
+  // Gated off: render nothing at all. Placed after every hook so hook order is
+  // identical on both paths — an early return above the effects would reorder them
+  // between renders, which is the React error #310 class of bug already documented
+  // in CaseDetail.tsx.
+  if (!enabled) return null;
 
   // Full banner only shows at warning/limited
   if (!isWarning && !dismissed) {
