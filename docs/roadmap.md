@@ -304,6 +304,56 @@ recycled. Two consequences worth stating plainly:
   Node service just had: the frontend cannot read `RateLimit-*` from it and falls back to an assumed
   limit. Fixing it means adding `WithExposedHeaders` to the CORS policy there too.
 
+### `DATABASE_URL` — what it is, where it goes, and what actually happens
+
+Asked directly: can the connection string be set up front and then selected by the persisted feature
+flag? **The value can be set in advance; the flag cannot select it.** Recorded here because the reason
+is structural rather than a missing feature.
+
+**Where it is read.** `DATABASE_URL` is a server-side environment variable, read *once at container
+boot*: `services/consolidated-api/src/index.ts:251` for Node, `services/dotnet-api/Program.cs:21` for
+.NET. The backend toggle at `/admin/feature-flags` writes `localStorage['iaas-backend-url']` in the
+browser. A browser key cannot reach an env var that a running container read at startup, so the toggle
+can only change *which service the browser calls* — never what either service is connected to. Both
+values are set per service in `render.yaml` (or the Render dashboard), and changing one restarts that
+service.
+
+**Where to set it.** `render.yaml` — `envVars` under `iaas-dotnet-api`, replacing the current
+`DATABASE_URL / sync: false` placeholder. The Node service currently uses `DATABASE_PATH=/data/iaas.db`
+against its 1GB persistent disk instead.
+
+**The value.** A Neon connection string, per `infra/deploy/README.md`:
+`postgresql://user:pass@ep-xxx.eu-central-1.aws.neon.tech/iaas?sslmode=require`. Free tier is 0.5GB
+with a compute unit that auto-suspends after 5 minutes idle — so Neon adds a second cold start on top
+of Render's. Treat it as a secret: set it in the Render dashboard rather than committing it.
+
+**What happens when it is set — and this is the part that matters:**
+
+| Service | Effect | Serves queries from Postgres? |
+|---|---|---|
+| **.NET** (`iaas-dotnet-api`) | Real. `Program.cs:24-36` converts the `postgresql://` URI to ADO.NET form and switches EF Core to `UseNpgsql`; `EnsureCreated()` + `SeedData.Initialize` run on boot. | **Yes** |
+| **Node** (`iaas-api`) | Schema and seed only. `index.ts:248-250` states it outright: *"SQLite remains the runtime query engine … Neon holds the schema + seed data for when async migration completes."* | **No** |
+
+So setting `DATABASE_URL` on the Node service today seeds a Neon database that nothing then reads.
+`isPostgresEnabled()` and `getPgPool()` are exported from `packages/database` and called by no service.
+The Sprint 19 and 21 entries near the top of this document describe the persistence layer as complete;
+that is true of the schema, seeding and pooled connection, but **not** of query serving.
+
+**What a genuinely shared database would take.** The blocker is synchronous SQLite. The repository
+layer is `better-sqlite3`, whose API is sync by design, and it is consumed synchronously — **57 call
+sites across 8 route files** (`applications.create(...)`, `applications.findById(...)` and so on, with
+no `await`), the largest being `api-gateway/src/routes/applications.ts` at 17. `pg` is async only, so
+switching the query engine means making every repository method async and threading `await` through each
+caller and its route handler. That is a bounded, mechanical change, but it touches the request path of
+the whole API and needs its own tests; it is not a config edit and should not be attempted alongside
+unrelated work.
+
+**Cheaper interim option, if the goal is just "the .NET backend stops losing data":** set
+`DATABASE_URL` on `iaas-dotnet-api` only. That is pure configuration, works today because the EF Core
+path is real, and fixes the ephemeral-SQLite problem on that service. The two backends still would not
+share data, so switching mid-demo would still show different records — but neither would lose writes on
+a container recycle.
+
 ### Could the .NET API run on the existing Azure Container Apps environment?
 
 Yes in principle, and the environment and registry are the reusable parts. But `infra/azure/` currently
