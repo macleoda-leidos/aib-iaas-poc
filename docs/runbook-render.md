@@ -90,9 +90,45 @@ To update environment variables:
 
 ## Database
 
-The POC uses SQLite stored at the path specified by `DATABASE_PATH`. On the Render free tier, the filesystem is **ephemeral** — data is lost on every deploy or restart. The application auto-seeds reference data on startup, so this is acceptable for the POC.
+The Node service (`iaas-api`) uses SQLite at `DATABASE_PATH`, backed by the 1GB persistent disk
+declared in `render.yaml` and mounted at `/data`, so it survives deploys and restarts. (An earlier
+version of this section called the filesystem ephemeral — true of a free service with no disk attached,
+but this one has one.) Reference data is auto-seeded on startup either way.
 
-For production, the recommendation is PostgreSQL with Render's managed database service, which provides persistent storage, point-in-time recovery, and automated backups.
+The .NET service (`iaas-dotnet-api`) has **no disk declared**, so its SQLite file really is ephemeral,
+lost on every deploy or restart. Pointing it at PostgreSQL is what fixes that.
+
+### Setting `DATABASE_URL` for the .NET service (Neon PostgreSQL)
+
+`DATABASE_URL` is declared in `render.yaml` as `sync: false`, meaning Render deliberately does **not**
+sync it from the blueprint — it has to be entered in the dashboard. That is the correct handling for a
+credential; it should never be committed to the repo.
+
+1. Render dashboard → **iaas-dotnet-api** → **Environment**
+2. `DATABASE_URL` will already be listed with no value. Add one.
+3. Paste the Neon connection string in this form:
+   `postgresql://user:password@ep-xxx-yyy.eu-central-1.aws.neon.tech/iaas?sslmode=require`
+   Prefer Neon's **pooled** string if offered: the service opens connections per request and Neon's
+   free compute has a low connection ceiling.
+4. **Save Changes** — this triggers a redeploy. The value only takes effect on the new container,
+   because it is read once at startup (`services/dotnet-api/Program.cs`).
+
+Confirm which store it settled on from the deploy logs. `Program.cs` probes the connection *before*
+registering the DbContext and logs the outcome:
+
+- `[IAAS.Api] Database ready (PostgreSQL)` — connected to Neon.
+- `[IAAS.Api] PostgreSQL unreachable, using SQLite instead: <reason>` — wrong string, stale
+  credentials, or Neon suspended. **The service still starts and serves from SQLite**, so a green
+  health check does not by itself prove Neon is in use. Read the log.
+
+Two things to expect. Neon's free compute auto-suspends after roughly 5 minutes idle, so the first
+request after a quiet spell pays a Neon cold start *on top of* Render's 15-minute spin-down — two in
+series. And the two backends still do not share a database: the Node service stays on its SQLite disk,
+so switching at `/admin/feature-flags` shows different records in each. The roadmap's hosting section
+records what a genuinely shared database would take.
+
+For production the recommendation remains managed PostgreSQL (Render's own service, Neon, or RDS on the
+documented AWS path), for persistent storage, point-in-time recovery and automated backups.
 
 ## Restart Procedure
 

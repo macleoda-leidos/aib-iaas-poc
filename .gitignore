@@ -4,6 +4,10 @@ dist/
 .env
 .env.local
 *.db
+# SQLite in WAL mode writes two sidecars beside the database, and *.db alone does
+# not match them — they linger after any local run of the .NET API.
+*.db-shm
+*.db-wal
 *.sqlite
 uploads/
 coverage/
