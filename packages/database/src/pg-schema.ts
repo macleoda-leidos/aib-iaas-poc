@@ -1,5 +1,27 @@
 import { Pool } from 'pg';
 
+/**
+ * The single source of truth for the shared PostgreSQL schema.
+ *
+ * Both backends read and write this database, and only this function creates it.
+ * The .NET service (services/dotnet-api) maps a 9-table subset of these 16 tables
+ * and deliberately does NOT call EnsureCreated() against PostgreSQL — see the
+ * comment in its Program.cs.
+ *
+ * That division matters because CREATE TABLE IF NOT EXISTS makes schema creation a
+ * race with a silent loser. EF's EnsureCreated() only acts on a database with no
+ * tables, so whichever service reached an empty database first decided the schema
+ * permanently. If .NET won, it created its subset without columns this package
+ * requires — applications.system_checks, applications.credit_check,
+ * recommendations.reasoning/factors/alternatives (NOT NULL below),
+ * audit_events.actor_id, users.password_hash, and most of organisations. The
+ * statements below would then skip those tables, never add the missing columns, and
+ * every insert touching them would fail or write wrong data. Nothing would have
+ * errored at boot.
+ *
+ * So: adding a column here is safe. Adding one to the EF model without adding it
+ * here is not.
+ */
 export async function initPgSchema(pool: Pool): Promise<void> {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS roles (id TEXT PRIMARY KEY, name TEXT UNIQUE NOT NULL, display_name TEXT NOT NULL, description TEXT, level INTEGER DEFAULT 0, created_at TIMESTAMPTZ DEFAULT NOW());

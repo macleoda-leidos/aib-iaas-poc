@@ -1,4 +1,6 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
+using Microsoft.Extensions.DependencyInjection;
 using IAAS.Api.Data;
 using IAAS.Api.Features.Applications;
 using IAAS.Api.Features.Auth;
@@ -84,21 +86,62 @@ builder.Services.AddCors(options => options.AddDefaultPolicy(policy =>
 
 var app = builder.Build();
 
-// Ensure DB created + seed. The store was probed above, so this is expected to
-// succeed; it is still guarded because schema creation can fail for reasons the
-// connection probe cannot see (permissions on a managed instance, a read-only
-// volume). Serving stale-but-present data beats refusing to start.
+// Database initialisation, and who is allowed to do it.
+//
+// On PostgreSQL this service creates NOTHING and seeds NOTHING. The Node package
+// @aib-iaas/database owns that schema (packages/database/src/pg-schema.ts) and its
+// 16 tables are a superset of the 9 mapped here. EnsureCreated() only acts when a
+// database has no tables at all, so whichever service reached an empty database
+// first used to decide the schema for good — and if this one won, it created its
+// subset WITHOUT columns Node requires (applications.system_checks,
+// applications.credit_check, recommendations.reasoning/factors/alternatives — all
+// NOT NULL on Node's side — audit_events.actor_id, users.password_hash, and most of
+// organisations). Node's CREATE TABLE IF NOT EXISTS would then skip those tables
+// and never add the missing columns, so Node would write to columns that did not
+// exist. Nothing would have failed loudly; the data would simply have been wrong.
+//
+// Seeding is skipped for the same reason. Node's dataset is canonical (10 roles, 20
+// permissions, 10 organisations, 10 users, 100+ applications across every product
+// and status). SeedData here defines only 5 roles and uses DIFFERENT ids
+// ('role-system_admin' where Node has 'role-sysadmin'), so running both would leave
+// two disjoint role sets and users pointing at neither.
+//
+// SQLite is the opposite case: nothing else touches that file, so this service is
+// the only thing that can create and seed it, and must.
 try
 {
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<IaasDbContext>();
-    db.Database.EnsureCreated();
-    await SeedData.Initialize(db);
-    Console.WriteLine($"[IAAS.Api] Database ready ({(usingPostgres ? "PostgreSQL" : "SQLite")})");
+
+    if (usingPostgres)
+    {
+        // Read-only check, so this service reports a missing schema instead of
+        // creating a partial one. HasTablesAsync is EF's own API for "does this
+        // database have anything in it" — preferred over raw SQL here because
+        // SqlQuery<T> with a scalar type requires the column to be aliased "Value",
+        // which is easy to get wrong and would only fail against PostgreSQL.
+        // Fully qualified: Microsoft.Extensions.DependencyInjection also defines a
+        // GetService extension, and it shadows EF's when both namespaces are in scope.
+        var creator = Microsoft.EntityFrameworkCore.Infrastructure.AccessorExtensions
+            .GetService<IRelationalDatabaseCreator>(db.Database);
+        var schemaExists = await creator.HasTablesAsync();
+
+        Console.WriteLine(schemaExists
+            ? "[IAAS.Api] Database ready (PostgreSQL, schema owned by @aib-iaas/database)"
+            : "[IAAS.Api] PostgreSQL has no IAAS schema yet — start the Node API once to create it. Requests will fail until then.");
+    }
+    else
+    {
+        db.Database.EnsureCreated();
+        await SeedData.Initialize(db);
+        Console.WriteLine("[IAAS.Api] Database ready (SQLite, schema owned by this service)");
+    }
 }
 catch (Exception ex)
 {
-    Console.WriteLine($"[IAAS.Api] Database init failed, continuing so /api/health stays reachable: {ex.Message}");
+    // Guarded so /api/health stays reachable and says so, rather than the container
+    // exiting before any endpoint is mapped.
+    Console.WriteLine($"[IAAS.Api] Database init check failed, continuing so /api/health stays reachable: {ex.Message}");
 }
 
 app.UseCors();
