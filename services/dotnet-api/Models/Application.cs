@@ -5,6 +5,18 @@ public class Application
     public string Id { get; set; } = Guid.NewGuid().ToString();
     public string ReferenceNumber { get; set; } = "";
     public string Status { get; set; } = "draft";
+
+    /// <summary>
+    /// The debtor this application is about, and what ownership checks compare
+    /// against. Distinct from <see cref="AssignedTo"/>, which is the member of staff
+    /// handling it. Null means no debtor owns it, so a debtor never matches it.
+    ///
+    /// Mapped here for endpoint parity: both backends read the same PostgreSQL
+    /// database, and omitting the column would make this API's application payload
+    /// differ from the Node one for the same row.
+    /// </summary>
+    public string? DebtorUserId { get; set; }
+
     public string? AssignedTo { get; set; }
     public DateTime? SubmittedAt { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

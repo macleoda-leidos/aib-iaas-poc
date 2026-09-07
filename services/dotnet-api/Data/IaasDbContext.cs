@@ -58,6 +58,7 @@ public class IaasDbContext : DbContext
             e.Property(a => a.Id).HasColumnName("id");
             e.Property(a => a.ReferenceNumber).HasColumnName("reference_number");
             e.Property(a => a.Status).HasColumnName("status");
+            e.Property(a => a.DebtorUserId).HasColumnName("debtor_user_id");
             e.Property(a => a.AssignedTo).HasColumnName("assigned_to");
             e.Property(a => a.SubmittedAt).HasColumnName("submitted_at");
             e.Property(a => a.CreatedAt).HasColumnName("created_at");

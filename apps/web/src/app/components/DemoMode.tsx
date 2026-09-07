@@ -538,7 +538,9 @@ function buildDemoSteps(app: GeneratedApplication): DemoStep[] {
       path: '/',
       duration: 6,
       title: '\u{1F3C1} Demo Complete',
-      narration: 'Live API • 57+ pages • 904 tests • 12 AI capabilities • 32 admin features • £0/month. Questions?',
+      // Spoken aloud, so it has to be true. 1,317 vitest across 66 files plus 57 xunit in
+      // tests/dotnet = 1,374. Per CLAUDE.md, re-check this whenever the suite total moves.
+      narration: 'Live API • 57+ pages • 1,374 tests • 12 AI capabilities • 32 admin features • £0/month. Questions?',
     },
   ];
 }

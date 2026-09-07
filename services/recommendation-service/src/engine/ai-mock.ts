@@ -16,7 +16,7 @@ const explanations: Record<string, string> = {
   bankruptcy: `Based on the information you've provided, sequestration (bankruptcy) may be the most suitable option for your situation.
 
 **What this means:**
-Sequestration is a formal legal process that can write off most of your debts. It lasts for one year, after which you are usually discharged and no longer liable for the debts included.
+Sequestration is a formal legal process that can write off most of your debts. You are usually discharged after 12 months and no longer liable for the debts included — but a contribution order, where one applies, runs for 48 months (Bankruptcy (Scotland) Act 2016 s.91(2)(a)), so payments can continue for three years after discharge.
 
 **Key considerations:**
 - Your assets may be sold to pay creditors
@@ -75,7 +75,7 @@ An approved money adviser will help you create a Debt Payment Programme. This se
   protected_trust_deed: `Based on the information you've provided, a Protected Trust Deed (PTD) may be suitable for your situation.
 
 **What this means:**
-A Trust Deed is a voluntary agreement with your creditors to repay what you can afford over 4 years. Once protected, creditors included in the deed cannot take separate action against you.
+A Trust Deed is a voluntary agreement with your creditors to repay what you can afford over a period agreed with the trustee. There is no statutory Trust Deed term, so no fixed duration is stated here — ask your trustee or adviser what period applies to you. Once protected, creditors included in the deed cannot take separate action against you.
 
 **Why a PTD may suit you:**
 - You have some assets and income available for creditors
@@ -83,7 +83,7 @@ A Trust Deed is a voluntary agreement with your creditors to repay what you can 
 - You want to avoid sequestration while providing a fair return to creditors
 
 **Key considerations:**
-- Typically lasts 4 years
+- Duration is set by the trust deed itself, not by statute
 - You may need to release equity from property
 - Affects your credit rating
 - A trustee manages the arrangement
@@ -117,7 +117,7 @@ Contact an approved money adviser who will help you set up the programme.
   moratorium: `You currently have an active moratorium (breathing space) in place.
 
 **What this means:**
-A moratorium gives you 6 weeks of legal protection from creditor action while you seek advice about your financial situation.
+A moratorium gives you 6 months of legal protection from creditor action while you seek advice about your financial situation (Bankruptcy (Scotland) Act 2016 s.198(1)(b)(i)).
 
 **During this period:**
 - Creditors cannot take enforcement action

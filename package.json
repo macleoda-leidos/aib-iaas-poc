@@ -10,6 +10,7 @@
   ],
   "scripts": {
     "dev": "docker compose -f infra/docker/docker-compose.yml up --build",
+    "auth:keygen": "tsx packages/auth/src/keygen.ts",
     "dev:services": "concurrently \"npm run dev -w services/mock-integrations\" \"npm run dev -w services/api-gateway\" \"npm run dev -w services/recommendation-service\" \"npm run dev -w services/document-service\" \"npm run dev -w services/integration-orchestrator\" \"npm run dev -w services/payment-service\" \"npm run dev -w services/audit-service\" \"npm run dev -w services/credit-check-service\" \"npm run dev -w services/organisation-service\" \"npm run dev -w services/user-service\" \"npm run dev -w services/notification-service\" \"npm run dev -w services/identity-service\"",
     "dev:all": "concurrently --kill-others-on-fail \"npm run dev -w services/mock-integrations\" \"npm run dev -w services/api-gateway\" \"npm run dev -w services/recommendation-service\" \"npm run dev -w services/document-service\" \"npm run dev -w services/integration-orchestrator\" \"npm run dev -w services/payment-service\" \"npm run dev -w services/audit-service\" \"npm run dev -w services/credit-check-service\" \"npm run dev -w services/organisation-service\" \"npm run dev -w services/user-service\" \"npm run dev -w services/notification-service\" \"npm run dev -w services/identity-service\" \"npm run dev -w apps/web\" \"npm run dev -w apps/admin\"",
     "dev:web": "npm run dev -w apps/web",

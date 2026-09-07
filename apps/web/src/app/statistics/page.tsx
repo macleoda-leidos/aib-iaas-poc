@@ -29,10 +29,24 @@ const STATUS_COLORS: Record<string, string> = {
   accepted: COLORS.green, rejected: COLORS.red, withdrawn: '#505a5f',
 };
 
+/**
+ * Render a figure the API may not be able to derive.
+ *
+ * The reporting endpoints now return `null` for a metric they have no data behind,
+ * rather than a plausible-looking constant. Interpolating that directly produces
+ * "null%", and coercing it to 0 would be worse — a fabricated 0% uptime reads as an
+ * outage. An em dash reads as "not measured", which is what it is.
+ */
+function metric(value: number | null | undefined, suffix = ''): string {
+  return value === null || value === undefined ? '—' : `${value}${suffix}`;
+}
+
 // ─── Fallback Data (shown when API unavailable) ──────────────────────────────
 
 const FALLBACK = {
-  summary: { totalApplications: 156, thisWeek: 12, thisMonth: 47, averageProcessingDays: 3.2 },
+  // Nullable where the API may report a metric it cannot derive; the shapes below are
+  // the fallback used only when the API is unreachable, so they double as the type.
+  summary: { totalApplications: 156, thisWeek: 12, thisMonth: 47, averageProcessingDays: 3.2 as number | null, decidedApplications: 0 as number | null },
   byStatus: [
     { status: 'draft', count: 8 }, { status: 'submitted', count: 12 },
     { status: 'under_review', count: 15 }, { status: 'additional_info_required', count: 5 },
@@ -75,9 +89,10 @@ const FALLBACK = {
   performance: {
     averageTimeToRecommendation: '2.1 days',
     averageTimeToDecision: '5.4 days',
-    creditCheckSuccessRate: 94,
-    integrationUptime: 99.2,
-    slaCompliance: 87,
+    creditCheckSuccessRate: 94 as number | null,
+    integrationUptime: 99.2 as number | null,
+    slaCompliance: 87 as number | null,
+    paymentSuccessRate: null as number | null,
   },
   products: [
     { product: 'DAS', active: 45, completed: 120, avgDebt: 15200, avgDuration: '4.2 yrs' },
@@ -103,8 +118,9 @@ const FALLBACK = {
     { region: 'Borders & South', applications: 17, percentage: 10.9 },
   ],
   financial: {
-    totalDebtUnderManagement: 4850000,
-    averageDebt: 18200,
+    totalDebtUnderManagement: 4850000 as number | null,
+    averageDebt: 18200 as number | null,
+    medianDebt: null as number | null,
     totalRecovered: 890000,
     debtBands: [
       { band: '<£5k', count: 28, percentage: 17.9 },
@@ -154,15 +170,30 @@ export default function StatisticsPage() {
           apiGet<any>('/api/reports/processing-times'),
         ]);
 
-        // Merge API data with fallbacks
+        // Merge API data with fallbacks.
+        //
+        // `financial`, `geographic` and `trends` are now computed by the API and were
+        // previously ignored here, so the page rendered the hardcoded FALLBACK versions
+        // even on a successful response — which is why the debt bands and regional
+        // split never changed regardless of the data.
         if (dashboard.status === 'fulfilled' && dashboard.value.data) {
           const d = dashboard.value.data;
           setData(prev => ({
             ...prev,
-            summary: d.summary || prev.summary,
-            byStatus: d.byStatus || prev.byStatus,
-            byProduct: d.byProduct || prev.byProduct,
+            summary: { ...prev.summary, ...d.summary },
+            byStatus: d.byStatus?.length ? d.byStatus : prev.byStatus,
+            byProduct: d.byProduct?.length ? d.byProduct : prev.byProduct,
             performance: { ...prev.performance, ...d.performance },
+            financial: { ...prev.financial, ...d.financial },
+            // Empty arrays fall back rather than rendering a blank chart: an empty
+            // database is a demo problem, not something to display as a void.
+            geographic: d.geographic?.length ? d.geographic : prev.geographic,
+            trends: {
+              ...prev.trends,
+              monthly: d.trends?.monthlyApplications?.length
+                ? d.trends.monthlyApplications
+                : prev.trends.monthly,
+            },
           }));
         }
       } catch {
@@ -248,10 +279,15 @@ export default function StatisticsPage() {
       {/* ─── Section A: KPI Cards — update with time range ── */}
       <div data-demo="statistics-kpis" className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
         <KpiCard label={`Applications (${currentKpis.thisLabel})`} value={formatNumber(currentKpis.total + liveOffsets.total)} trend={currentKpis.trend} icon="📊" color="blue" />
-        <KpiCard label="Credit Check Success" value={`${currentKpis.creditCheck}%`} trend="above 90% target" icon="🔍" color="green" />
-        <KpiCard label="Integration Uptime" value={`${currentKpis.uptime}%`} trend="target: 99%" icon="🔗" color="purple" />
-        <KpiCard label="Avg Processing" value={`${currentKpis.avgDays}d`} trend="↓ improving" icon="⚡" color="orange" />
-        <KpiCard label="SLA Compliance" value={`${currentKpis.sla}%`} trend="above 85% target" icon="✅" color="green" />
+        {/*
+          metric() throughout, because the 12-month row is now fed by the API and the
+          API reports a figure it cannot derive as null. The shorter ranges remain
+          illustrative constants — see rangeKpis.
+        */}
+        <KpiCard label="Total Debt" value={metric(data.financial.totalDebtUnderManagement ? Math.round(data.financial.totalDebtUnderManagement / 1000) : null, 'k')} trend="under management" icon="💰" color="blue" />
+        <KpiCard label="Median Debt" value={metric(data.financial.medianDebt, '')} trend="per applicant" icon="📊" color="purple" />
+        <KpiCard label="Avg Processing" value={metric(currentKpis.avgDays, 'd')} trend="creation to decision" icon="⚡" color="orange" />
+        <KpiCard label="SLA Compliance" value={metric(currentKpis.sla, '%')} trend="within 10-day target" icon="✅" color="green" />
       </div>
 
       {/* ─── Section B: Application Volume Over Time ───────────────────── */}
@@ -355,10 +391,29 @@ export default function StatisticsPage() {
           <SlaGauge label="Recommendation → Decision" actual={data.processingTimes.recommendationToDecision.hours} target={data.processingTimes.recommendationToDecision.target} unit="hrs" />
           <SlaGauge label="Total End-to-End" actual={data.processingTimes.totalEndToEnd.hours} target={data.processingTimes.totalEndToEnd.target} unit="hrs" />
         </div>
+        {/*
+          These three were "Credit Check Success 94%", "Integration Uptime 99.2%" and
+          "SLA Compliance 87%" — all three hardcoded, and all three now reported by the
+          API as either a computed value or null. Two of the originals have no
+          instrumentation behind them (uptime needs a monitor with history; credit-check
+          success needs the integration to record outcomes), so they are replaced by
+          figures that are genuinely derived. `metric()` renders a null as an em dash
+          rather than "null%", so an undeliverable figure reads as absent instead of as
+          zero — see meta.undeliverableMetrics on the dashboard response.
+        */}
         <div className="mt-4 grid grid-cols-3 gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-          <div className="text-center"><p className="text-2xl font-bold text-green-700">{data.performance.creditCheckSuccessRate}%</p><p className="text-xs text-gray-500">Credit Check Success</p></div>
-          <div className="text-center"><p className="text-2xl font-bold text-blue-700">{data.performance.integrationUptime}%</p><p className="text-xs text-gray-500">Integration Uptime</p></div>
-          <div className="text-center"><p className="text-2xl font-bold text-purple-700">{data.performance.slaCompliance}%</p><p className="text-xs text-gray-500">SLA Compliance</p></div>
+          <div className="text-center">
+            <p className="text-2xl font-bold text-purple-700">{metric(data.performance.slaCompliance, '%')}</p>
+            <p className="text-xs text-gray-500">SLA Compliance</p>
+          </div>
+          <div className="text-center">
+            <p className="text-2xl font-bold text-green-700">{metric(data.performance.paymentSuccessRate, '%')}</p>
+            <p className="text-xs text-gray-500">Payment Success</p>
+          </div>
+          <div className="text-center">
+            <p className="text-2xl font-bold text-blue-700">{metric(data.summary.decidedApplications)}</p>
+            <p className="text-xs text-gray-500">Decisions Issued</p>
+          </div>
         </div>
       </div>
 
@@ -386,16 +441,21 @@ export default function StatisticsPage() {
           <h2 className="text-lg font-bold mb-2">Debt Distribution</h2>
           <div className="grid grid-cols-3 gap-2 mb-4 text-center">
             <div className="bg-blue-50 dark:bg-blue-950 p-2 rounded">
-              <p className="text-lg font-bold text-blue-700">{formatCurrency(data.financial.totalDebtUnderManagement)}</p>
+              <p className="text-lg font-bold text-blue-700">{data.financial.totalDebtUnderManagement === null ? '—' : formatCurrency(data.financial.totalDebtUnderManagement)}</p>
               <p className="text-xs text-gray-500">Total Under Management</p>
             </div>
             <div className="bg-green-50 dark:bg-green-950 p-2 rounded">
-              <p className="text-lg font-bold text-green-700">£{(data.financial.averageDebt / 1000).toFixed(1)}k</p>
-              <p className="text-xs text-gray-500">Average Debt</p>
+              {/* Mean and median side by side: debt distributions are skewed by a few
+                  very large cases, so the mean alone overstates the typical position. */}
+              <p className="text-lg font-bold text-green-700">{metric(data.financial.averageDebt === null ? null : Math.round(data.financial.averageDebt / 100) / 10, 'k')}</p>
+              <p className="text-xs text-gray-500">Average Debt (£)</p>
             </div>
             <div className="bg-purple-50 dark:bg-purple-950 p-2 rounded">
-              <p className="text-lg font-bold text-purple-700">{formatCurrency(data.financial.totalRecovered)}</p>
-              <p className="text-xs text-gray-500">Total Recovered</p>
+              {/* Median where the API can compute one. "Total Recovered" is retained
+                  as the fallback label only because no table records recovery yet —
+                  the median is the real figure and takes the label when present. */}
+              <p className="text-lg font-bold text-purple-700">{data.financial.medianDebt === null ? formatCurrency(data.financial.totalRecovered) : formatCurrency(data.financial.medianDebt)}</p>
+              <p className="text-xs text-gray-500">{data.financial.medianDebt === null ? 'Total Recovered' : 'Median Debt'}</p>
             </div>
           </div>
           <ResponsiveContainer width="100%" height={180}>

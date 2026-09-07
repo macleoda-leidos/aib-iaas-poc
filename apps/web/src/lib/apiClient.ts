@@ -84,8 +84,15 @@ function getHeaders(): Record<string, string> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
-  if (authToken) {
-    headers['Authorization'] = `Bearer ${authToken}`;
+  // getAuthToken(), not the `authToken` module variable. The variable is only
+  // populated by setAuthToken() during a login, so after a page reload the token
+  // lived in localStorage while this read null — and the request went out
+  // unauthenticated. That was survivable while no route checked a token; now that
+  // ownership and permissions are enforced, it would present a logged-in user as
+  // anonymous and hide their own applications from them.
+  const token = getAuthToken();
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
   }
   return headers;
 }
@@ -322,10 +329,24 @@ export const applications = {
 
 export interface SystemCheckResult {
   system: string;
-  status: 'clear' | 'found' | 'error';
+  /**
+   * `unavailable` means the register could not be reached, so no search happened.
+   *
+   * Distinct from `clear`, which is a positive statement that nothing was found, and from
+   * `error`, which the backend returns when a register answered with a failure. The client
+   * used to substitute `clear` for a failed request — telling an applicant they had no
+   * existing case when the system was merely down, and feeding a false negative into the
+   * recommendation engine, which reads `existingCases` from these results. (GAP-023)
+   */
+  status: 'clear' | 'found' | 'error' | 'unavailable';
   responseTime: number;
   data?: any;
   error?: string;
+  /**
+   * Set only by the deliberate offline demo mode, so simulated output is never
+   * indistinguishable from a real check.
+   */
+  simulated?: boolean;
 }
 
 export const integrations = {
@@ -337,6 +358,56 @@ export const integrations = {
 
   health: () =>
     apiGet<any>('/api/integrations/health'),
+};
+
+// ─── Health and metrics ──────────────────────────────────────────────────────
+
+export interface ReadinessCheck {
+  ok: boolean;
+  ms: number;
+  optional?: boolean;
+  error?: string;
+  [detail: string]: unknown;
+}
+
+export interface Readiness {
+  status: 'ready' | 'ready_degraded' | 'degraded';
+  service: string;
+  checks: Record<string, ReadinessCheck>;
+  timestamp: string;
+}
+
+export interface MetricsSummary {
+  uptimeSeconds: number;
+  totalRequests: number;
+  errorRate: number;
+  routes: Array<{
+    method: string;
+    route: string;
+    count: number;
+    errors: number;
+    p50Ms: number;
+    p95Ms: number;
+    avgMs: number;
+  }>;
+}
+
+/**
+ * Readiness and metrics, for the admin monitoring pages.
+ *
+ * `readiness` is deliberately fetched raw rather than through `apiGet`: it answers 503 when a
+ * dependency is down, and `apiGet` throws on a non-2xx — but a 503 *body* is the entire point
+ * here, since it names which dependency failed. Throwing it away would leave the page unable to
+ * report the thing it exists to report.
+ */
+export const observability = {
+  readiness: async (): Promise<Readiness> => {
+    const res = await fetch(`${API_URL}/api/health/ready`, { headers: getHeaders() });
+    return res.json();
+  },
+
+  /** Requires `system.admin`. Throws for anyone else, which the page renders as "not permitted". */
+  metrics: () => apiGet<MetricsSummary>('/api/metrics/summary'),
 };
 
 // ─── Recommendation Engine ───────────────────────────────────────────────────
@@ -364,6 +435,8 @@ export interface CreditCheckResult {
   utilisation: number;
   provider: string;
   checkedAt: string;
+  /** Offline demo mode only — see SystemCheckResult.simulated. */
+  simulated?: boolean;
 }
 
 export const creditCheck = {

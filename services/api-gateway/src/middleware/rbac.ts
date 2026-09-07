@@ -1,161 +1,67 @@
-import { Request, Response, NextFunction } from 'express';
+import { Response } from 'express';
+import { createAuthGuards, isDebtor, DEBTOR_ROLE, type AuthenticatedRequest } from '@aib-iaas/auth';
+import { users } from '../db';
 
-export interface AuthenticatedRequest extends Request {
-  user?: {
-    userId: string;
-    email: string;
-    role: string;
-    roleLevel: number;
-    organisationId?: string;
-    permissions: string[];
-  };
+/**
+ * This service's binding of the shared Express guards.
+ *
+ * The implementation moved to `@aib-iaas/auth` because it living here was the reason
+ * every other service went unguarded — `POST /api/users` took an attacker-chosen
+ * `roleId` from an unauthenticated caller, so three requests produced a legitimately
+ * signed admin session and signing the tokens had bought nothing. One implementation,
+ * injected per service, is what stops that recurring.
+ *
+ * The export surface is unchanged so existing imports and tests are unaffected.
+ */
+const guards = createAuthGuards({
+  findSessionByToken: token => users.findSessionByToken(token),
+  getPermissionsForUser: userId => users.getPermissionsForUser(userId),
+});
+
+export const authenticate = guards.authenticate;
+export const optionalAuth = guards.optionalAuth;
+export const requirePermission = guards.requirePermission;
+export const requireAnyPermission = guards.requireAnyPermission;
+export const requireRoleLevel = guards.requireRoleLevel;
+export const clearPermissionCache = guards.clearPermissionCache;
+
+export { isDebtor, DEBTOR_ROLE };
+export type { AuthenticatedRequest };
+
+/**
+ * Whether `req` may act on an application owned by `debtorUserId`.
+ *
+ * The check a permission cannot express. `applications.read` answers "may this caller
+ * read applications", never "may this caller read *this* application", so a debtor
+ * holding it could read every other debtor's case by changing the id in the URL — an
+ * IDOR, and a UK GDPR Article 32 problem rather than a code-quality one.
+ *
+ * Ownership only constrains debtors. Staff and advisers work across cases by design and
+ * are governed by their permissions instead; an application with no `debtorUserId` is
+ * owned by nobody, so a debtor never matches it.
+ *
+ * Anonymous callers are not restricted here, because no deployed application route
+ * requires authentication yet (GAP-002) and pretending otherwise would give false
+ * assurance. This closes the authenticated half of the finding.
+ */
+export function ownsApplication(
+  req: AuthenticatedRequest,
+  application: { debtorUserId: string | null }
+): boolean {
+  if (!isDebtor(req)) return true;
+  return application.debtorUserId !== null && application.debtorUserId === req.user!.userId;
 }
 
 /**
- * Authentication middleware - validates bearer token and attaches user context.
- * In production: validates JWT signature, checks token expiry, verifies against revocation list.
- * POC: decodes base64 token from user-service.
+ * Deny with the same 404 an unknown id would produce.
+ *
+ * Deliberately not 403: answering "forbidden" for a case that exists and "not found"
+ * for one that does not turns the endpoint into an oracle for which reference numbers
+ * are real, which is worth more to an attacker than the refusal costs them.
  */
-export function authenticate(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
-  const authHeader = req.headers.authorization;
-
-  if (!authHeader?.startsWith('Bearer ')) {
-    res.status(401).json({
-      success: false,
-      error: { code: 'UNAUTHORIZED', message: 'Authentication required. Provide a Bearer token.' },
-    });
-    return;
-  }
-
-  try {
-    const token = authHeader.slice(7);
-    const payload = JSON.parse(Buffer.from(token, 'base64').toString());
-
-    if (payload.exp && payload.exp < Date.now()) {
-      res.status(401).json({
-        success: false,
-        error: { code: 'TOKEN_EXPIRED', message: 'Session expired. Please log in again.' },
-      });
-      return;
-    }
-
-    req.user = {
-      userId: payload.userId,
-      email: payload.email,
-      role: payload.role,
-      roleLevel: payload.roleLevel || 0,
-      organisationId: payload.organisationId,
-      permissions: payload.permissions || [],
-    };
-
-    next();
-  } catch {
-    res.status(401).json({
-      success: false,
-      error: { code: 'INVALID_TOKEN', message: 'Invalid authentication token.' },
-    });
-  }
-}
-
-/**
- * Require specific permission(s) - middleware factory.
- * Usage: router.get('/admin', authenticate, requirePermission('application.read.all'), handler)
- */
-export function requirePermission(...requiredPermissions: string[]) {
-  return (req: AuthenticatedRequest, res: Response, next: NextFunction): void => {
-    if (!req.user) {
-      res.status(401).json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Not authenticated' } });
-      return;
-    }
-
-    const hasAll = requiredPermissions.every(p => req.user!.permissions.includes(p));
-
-    if (!hasAll) {
-      res.status(403).json({
-        success: false,
-        error: {
-          code: 'FORBIDDEN',
-          message: 'You do not have permission to perform this action.',
-          details: { required: requiredPermissions, granted: req.user.permissions },
-        },
-      });
-      return;
-    }
-
-    next();
-  };
-}
-
-/**
- * Require ANY of the specified permissions (OR logic).
- */
-export function requireAnyPermission(...permissions: string[]) {
-  return (req: AuthenticatedRequest, res: Response, next: NextFunction): void => {
-    if (!req.user) {
-      res.status(401).json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Not authenticated' } });
-      return;
-    }
-
-    const hasAny = permissions.some(p => req.user!.permissions.includes(p));
-
-    if (!hasAny) {
-      res.status(403).json({
-        success: false,
-        error: { code: 'FORBIDDEN', message: 'Insufficient permissions.' },
-      });
-      return;
-    }
-
-    next();
-  };
-}
-
-/**
- * Require minimum role level (numeric hierarchy).
- * Higher level = more access. Useful for broad checks.
- */
-export function requireRoleLevel(minLevel: number) {
-  return (req: AuthenticatedRequest, res: Response, next: NextFunction): void => {
-    if (!req.user) {
-      res.status(401).json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Not authenticated' } });
-      return;
-    }
-
-    if (req.user.roleLevel < minLevel) {
-      res.status(403).json({
-        success: false,
-        error: { code: 'FORBIDDEN', message: 'Your role does not have sufficient access level.' },
-      });
-      return;
-    }
-
-    next();
-  };
-}
-
-/**
- * Optional authentication - attaches user if token present, but doesn't require it.
- * Useful for public endpoints that behave differently when authenticated.
- */
-export function optionalAuth(req: AuthenticatedRequest, _res: Response, next: NextFunction): void {
-  const authHeader = req.headers.authorization;
-
-  if (authHeader?.startsWith('Bearer ')) {
-    try {
-      const token = authHeader.slice(7);
-      const payload = JSON.parse(Buffer.from(token, 'base64').toString());
-      if (!payload.exp || payload.exp >= Date.now()) {
-        req.user = {
-          userId: payload.userId,
-          email: payload.email,
-          role: payload.role,
-          roleLevel: payload.roleLevel || 0,
-          organisationId: payload.organisationId,
-          permissions: payload.permissions || [],
-        };
-      }
-    } catch { /* ignore invalid token for optional auth */ }
-  }
-
-  next();
+export function denyApplicationAccess(res: Response): void {
+  res.status(404).json({
+    success: false,
+    error: { code: 'NOT_FOUND', message: 'Application not found' },
+  });
 }

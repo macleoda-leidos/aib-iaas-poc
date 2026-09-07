@@ -85,10 +85,20 @@ export function initializeSchema(db: Database.Database): void {
 
     -- ─── Applications (Core Domain) ────────────
 
+    -- debtor_user_id is the debtor this application is *about*, and is what
+    -- ownership checks compare against — distinct from assigned_to, which is the
+    -- member of staff handling it. Without it there was no way to answer "is this
+    -- application yours?", so every authenticated debtor could read every other
+    -- debtor's case.
+    --
+    -- Nullable, and that is the safe default: an application with no debtor user
+    -- belongs to no debtor, so a debtor can never match it. Staff-created cases and
+    -- the anonymous public journey both legitimately leave it unset.
     CREATE TABLE IF NOT EXISTS applications (
       id TEXT PRIMARY KEY,
       reference_number TEXT UNIQUE NOT NULL,
       status TEXT NOT NULL DEFAULT 'draft',
+      debtor_user_id TEXT REFERENCES users(id),
       system_checks TEXT,
       credit_check TEXT,
       assigned_to TEXT,
@@ -189,6 +199,36 @@ export function initializeSchema(db: Database.Database): void {
       FOREIGN KEY (application_id) REFERENCES applications(id) ON DELETE CASCADE
     );
 
+    -- ─── Consent ───────────────────────────────
+    --
+    -- Declared here as well as in migration 003-consents, because this file is what a
+    -- fresh database gets: createRepositories() runs it synchronously, which is how every
+    -- service test obtains a schema, while migrations run from the async
+    -- initialiseDatabase(). A new table declared only in the migration would be absent
+    -- from every test.
+    --
+    -- No FOREIGN KEY on application_id, deliberately. A consent is a record of something a
+    -- person did, and it must outlive the application it was given for — an ON DELETE
+    -- CASCADE here would destroy the evidence that consent was obtained at the moment the
+    -- case was cleaned up. Withdrawal is likewise a timestamp rather than a deletion.
+    CREATE TABLE IF NOT EXISTS consents (
+      id TEXT PRIMARY KEY,
+      application_id TEXT NOT NULL,
+      debtor_id TEXT,
+      consent_type TEXT NOT NULL,
+      consent_given INTEGER NOT NULL,
+      recorded_at TEXT NOT NULL DEFAULT (datetime('now')),
+      expires_at TEXT NOT NULL,
+      recorded_by TEXT,
+      ip_address TEXT,
+      user_agent TEXT,
+      withdrawn_at TEXT
+    );
+
+    -- Every read is "is there a live consent of this type for this application", so the
+    -- index matches that question rather than being one column per line.
+    CREATE INDEX IF NOT EXISTS idx_consents_application ON consents(application_id, consent_type);
+
     -- ─── Audit ─────────────────────────────────
 
     CREATE TABLE IF NOT EXISTS audit_events (
@@ -238,6 +278,9 @@ export function initializeSchema(db: Database.Database): void {
     CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON audit_events(timestamp);
     CREATE INDEX IF NOT EXISTS idx_payments_app ON payments(application_id);
   `);
+
+  // Schema *changes* to an existing database are not made here — `CREATE TABLE IF
+  // NOT EXISTS` cannot make them. See ./migrations.ts, run from initialiseDatabase().
 
   // Roles, permissions and grants come from ./rbac so that SQLite and PostgreSQL
   // grant identical access. This used to be a hand-maintained list here, which

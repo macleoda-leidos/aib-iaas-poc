@@ -97,44 +97,48 @@ describe('RBAC seeding — SQLite', () => {
     closeDatabase();
   });
 
-  it('seeds every canonical role', () => {
-    const seeded = repos.users.listRoles().map(r => r.id).sort();
+  it('seeds every canonical role', async () => {
+    const seeded = (await repos.users.listRoles()).map(r => r.id).sort();
     expect(seeded).toEqual(ROLES.map(r => r.id).sort());
   });
 
-  it('gives every seeded role the grants the reference data specifies', () => {
+  it('gives every seeded role the grants the reference data specifies', async () => {
     const expected = new Map(ROLE_GRANTS.map(g => [g.roleId, [...g.permissions].sort()]));
 
     for (const role of ROLES) {
-      const actual = repos.users
-        .getPermissionsForRole(role.id)
+      const actual = (await repos.users.getPermissionsForRole(role.id))
         .map(p => p.code)
         .sort();
       expect(actual, `grants for ${role.id}`).toEqual(expected.get(role.id));
     }
   });
 
-  it('leaves no role with zero permissions', () => {
-    const empty = ROLES.filter(r => repos.users.getPermissionsForRole(r.id).length === 0).map(
-      r => r.id
+  it('leaves no role with zero permissions', async () => {
+    // Resolved up front rather than inside a filter callback: the repositories are
+    // async now, and an `await` cannot be smuggled into a synchronous predicate.
+    const counts = await Promise.all(
+      ROLES.map(async r => ({ id: r.id, count: (await repos.users.getPermissionsForRole(r.id)).length }))
     );
-    expect(empty).toEqual([]);
+    expect(counts.filter(c => c.count === 0).map(c => c.id)).toEqual([]);
   });
 
-  it('seeds no permission outside the canonical vocabulary', () => {
+  it('seeds no permission outside the canonical vocabulary', async () => {
     // schema.ts used to add application.read.all, application.write and four
     // others that nothing else in the repo recognised.
     const codes = new Set(PERMISSIONS.map(p => p.code));
-    const seeded = ROLES.flatMap(r => repos.users.getPermissionsForRole(r.id).map(p => p.code));
+    const perRole = await Promise.all(
+      ROLES.map(r => repos.users.getPermissionsForRole(r.id))
+    );
+    const seeded = perRole.flat().map(p => p.code);
     expect([...new Set(seeded.filter(c => !codes.has(c)))]).toEqual([]);
   });
 
-  it('answers hasPermission from the seeded grants', () => {
+  it('answers hasPermission from the seeded grants', async () => {
     // reports.read is the code the one authorised route in the repo requires.
-    expect(repos.users.hasPermission('user-admin', 'reports.read')).toBe(true);
-    expect(repos.users.hasPermission('user-debtor', 'reports.read')).toBe(false);
-    expect(repos.users.hasPermission('user-debtor', 'applications.submit')).toBe(true);
-    expect(repos.users.hasPermission('user-admin', 'no.such.permission')).toBe(false);
+    expect(await repos.users.hasPermission('user-admin', 'reports.read')).toBe(true);
+    expect(await repos.users.hasPermission('user-debtor', 'reports.read')).toBe(false);
+    expect(await repos.users.hasPermission('user-debtor', 'applications.submit')).toBe(true);
+    expect(await repos.users.hasPermission('user-admin', 'no.such.permission')).toBe(false);
   });
 });
 

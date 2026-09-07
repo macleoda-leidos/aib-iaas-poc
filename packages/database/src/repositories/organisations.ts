@@ -1,4 +1,4 @@
-import type Database from 'better-sqlite3';
+import type { DbDriver } from '../driver';
 import { randomUUID } from 'crypto';
 
 // ─── Types ─────────────────────────────────────
@@ -45,7 +45,7 @@ export interface ListOrganisationsParams {
 // ─── Repository ────────────────────────────────
 
 export class OrganisationRepository {
-  constructor(private db: Database.Database) {}
+  constructor(private driver: DbDriver) {}
 
   private mapRow(row: any): Organisation {
     return {
@@ -66,17 +66,17 @@ export class OrganisationRepository {
     };
   }
 
-  findById(id: string): Organisation | null {
-    const row = this.db.prepare('SELECT * FROM organisations WHERE id = ?').get(id) as any;
+  async findById(id: string): Promise<Organisation | null> {
+    const row = await this.driver.get('SELECT * FROM organisations WHERE id = ?', [id]);
     return row ? this.mapRow(row) : null;
   }
 
-  findByName(name: string): Organisation | null {
-    const row = this.db.prepare('SELECT * FROM organisations WHERE name = ?').get(name) as any;
+  async findByName(name: string): Promise<Organisation | null> {
+    const row = await this.driver.get('SELECT * FROM organisations WHERE name = ?', [name]);
     return row ? this.mapRow(row) : null;
   }
 
-  list(params: ListOrganisationsParams = {}): { data: Organisation[]; total: number } {
+  async list(params: ListOrganisationsParams = {}): Promise<{ data: Organisation[]; total: number }> {
     const { type, status, parentId, page = 1, pageSize = 50 } = params;
     const conditions: string[] = [];
     const values: any[] = [];
@@ -100,13 +100,16 @@ export class OrganisationRepository {
 
     const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
-    const countRow = this.db.prepare(`SELECT COUNT(*) as count FROM organisations ${where}`).get(...values) as any;
-    const total = countRow.count;
+    const countRow = await this.driver.get(`SELECT COUNT(*) as count FROM organisations ${where}`, values);
+    // Number(): PostgreSQL returns COUNT(*) as a bigint, which `pg` hands back as
+    // a string. `total` is declared a number and callers do arithmetic on it.
+    const total = Number(countRow.count);
 
     const offset = (page - 1) * pageSize;
-    const rows = this.db.prepare(
-      `SELECT * FROM organisations ${where} ORDER BY name ASC LIMIT ? OFFSET ?`
-    ).all(...values, pageSize, offset) as any[];
+    const rows = await this.driver.all(
+      `SELECT * FROM organisations ${where} ORDER BY name ASC LIMIT ? OFFSET ?`,
+      [...values, pageSize, offset]
+    );
 
     return {
       data: rows.map(row => this.mapRow(row)),
@@ -114,14 +117,14 @@ export class OrganisationRepository {
     };
   }
 
-  create(input: CreateOrganisationInput): Organisation {
+  async create(input: CreateOrganisationInput): Promise<Organisation> {
     const id = randomUUID();
     const now = new Date().toISOString();
 
-    this.db.prepare(`
+    await this.driver.run(`
       INSERT INTO organisations (id, name, type, parent_id, status, registration_number, contact_email, contact_phone, address_line1, address_city, address_postcode, metadata, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
+    `, [
       id,
       input.name,
       input.type,
@@ -135,13 +138,13 @@ export class OrganisationRepository {
       input.addressPostcode || null,
       input.metadata ? JSON.stringify(input.metadata) : null,
       now,
-      now
-    );
+      now,
+    ]);
 
-    return this.findById(id)!;
+    return (await this.findById(id))!;
   }
 
-  update(id: string, data: Partial<CreateOrganisationInput>): Organisation {
+  async update(id: string, data: Partial<CreateOrganisationInput>): Promise<Organisation> {
     const now = new Date().toISOString();
     const sets: string[] = ['updated_at = ?'];
     const values: any[] = [now];
@@ -159,17 +162,17 @@ export class OrganisationRepository {
     if (data.metadata !== undefined) { sets.push('metadata = ?'); values.push(data.metadata ? JSON.stringify(data.metadata) : null); }
 
     values.push(id);
-    this.db.prepare(`UPDATE organisations SET ${sets.join(', ')} WHERE id = ?`).run(...values);
+    await this.driver.run(`UPDATE organisations SET ${sets.join(', ')} WHERE id = ?`, values);
 
-    return this.findById(id)!;
+    return (await this.findById(id))!;
   }
 
-  delete(id: string): void {
-    this.db.prepare('DELETE FROM organisations WHERE id = ?').run(id);
+  async delete(id: string): Promise<void> {
+    await this.driver.run('DELETE FROM organisations WHERE id = ?', [id]);
   }
 
-  getChildren(parentId: string): Organisation[] {
-    const rows = this.db.prepare('SELECT * FROM organisations WHERE parent_id = ? ORDER BY name').all(parentId) as any[];
+  async getChildren(parentId: string): Promise<Organisation[]> {
+    const rows = await this.driver.all('SELECT * FROM organisations WHERE parent_id = ? ORDER BY name', [parentId]);
     return rows.map(r => this.mapRow(r));
   }
 }

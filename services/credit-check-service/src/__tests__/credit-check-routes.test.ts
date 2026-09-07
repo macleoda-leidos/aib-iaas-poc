@@ -2,8 +2,14 @@
 process.env.CREDIT_CHECK_DB_PATH = ':memory:';
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { adminHeaders } from '../../../../tests/helpers/authHeaders';
 import { app } from '../index';
 import http from 'http';
+
+// Populated in beforeAll. These routes now require an authenticated caller, so every
+// request() below carries it. The anonymous assertions this replaces were the
+// finding, not the baseline — see tests/helpers/authHeaders.ts.
+let auth: Record<string, string> = {};
 
 let server: http.Server;
 let baseUrl: string;
@@ -16,7 +22,7 @@ function request(method: string, path: string, body?: any): Promise<{ status: nu
       port: url.port,
       path: url.pathname + url.search,
       method,
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...auth },
     };
     const req = http.request(opts, (res) => {
       let d = '';
@@ -34,6 +40,7 @@ function request(method: string, path: string, body?: any): Promise<{ status: nu
 
 describe('Credit Check Service - Routes', () => {
   beforeAll(async () => {
+    auth = await adminHeaders();
     await new Promise<void>((resolve) => {
       server = app.listen(0, () => {
         baseUrl = `http://localhost:${(server.address() as any).port}`;

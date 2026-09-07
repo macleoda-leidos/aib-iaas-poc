@@ -1,4 +1,4 @@
-import type Database from 'better-sqlite3';
+import type { DbDriver } from '../driver';
 import { randomUUID } from 'crypto';
 
 // ─── Types ─────────────────────────────────────
@@ -31,7 +31,7 @@ export interface CreateRecommendationInput {
 // ─── Repository ────────────────────────────────
 
 export class RecommendationRepository {
-  constructor(private db: Database.Database) {}
+  constructor(private driver: DbDriver) {}
 
   private mapRow(row: any): Recommendation {
     return {
@@ -48,17 +48,17 @@ export class RecommendationRepository {
     };
   }
 
-  create(input: CreateRecommendationInput): Recommendation {
+  async create(input: CreateRecommendationInput): Promise<Recommendation> {
     const id = randomUUID();
     const generatedAt = input.generatedAt || new Date().toISOString();
 
     // Remove existing recommendation for this application (one-to-one)
-    this.db.prepare('DELETE FROM recommendations WHERE application_id = ?').run(input.applicationId);
+    await this.driver.run('DELETE FROM recommendations WHERE application_id = ?', [input.applicationId]);
 
-    this.db.prepare(`
+    await this.driver.run(`
       INSERT INTO recommendations (id, application_id, product, confidence, confidence_pct, reasoning, factors, alternatives, engine_version, generated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
+    `, [
       id,
       input.applicationId,
       input.product,
@@ -68,8 +68,8 @@ export class RecommendationRepository {
       JSON.stringify(input.factors),
       JSON.stringify(input.alternatives),
       input.engineVersion,
-      generatedAt
-    );
+      generatedAt,
+    ]);
 
     return {
       id,
@@ -85,19 +85,20 @@ export class RecommendationRepository {
     };
   }
 
-  findByApplication(applicationId: string): Recommendation | null {
-    const row = this.db.prepare(
-      'SELECT * FROM recommendations WHERE application_id = ?'
-    ).get(applicationId) as any;
+  async findByApplication(applicationId: string): Promise<Recommendation | null> {
+    const row = await this.driver.get(
+      'SELECT * FROM recommendations WHERE application_id = ?',
+      [applicationId]
+    );
     return row ? this.mapRow(row) : null;
   }
 
-  findById(id: string): Recommendation | null {
-    const row = this.db.prepare('SELECT * FROM recommendations WHERE id = ?').get(id) as any;
+  async findById(id: string): Promise<Recommendation | null> {
+    const row = await this.driver.get('SELECT * FROM recommendations WHERE id = ?', [id]);
     return row ? this.mapRow(row) : null;
   }
 
-  deleteByApplication(applicationId: string): void {
-    this.db.prepare('DELETE FROM recommendations WHERE application_id = ?').run(applicationId);
+  async deleteByApplication(applicationId: string): Promise<void> {
+    await this.driver.run('DELETE FROM recommendations WHERE application_id = ?', [applicationId]);
   }
 }

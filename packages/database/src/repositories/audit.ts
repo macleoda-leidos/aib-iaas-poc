@@ -1,4 +1,4 @@
-import type Database from 'better-sqlite3';
+import type { DbDriver } from '../driver';
 import { randomUUID } from 'crypto';
 
 // ─── Types ─────────────────────────────────────
@@ -38,7 +38,7 @@ export interface ListAuditEventsParams {
 // ─── Repository ────────────────────────────────
 
 export class AuditRepository {
-  constructor(private db: Database.Database) {}
+  constructor(private driver: DbDriver) {}
 
   private mapRow(row: any): AuditEvent {
     return {
@@ -53,14 +53,14 @@ export class AuditRepository {
     };
   }
 
-  create(input: CreateAuditEventInput): AuditEvent {
+  async create(input: CreateAuditEventInput): Promise<AuditEvent> {
     const id = randomUUID();
     const timestamp = input.timestamp || new Date().toISOString();
 
-    this.db.prepare(`
+    await this.driver.run(`
       INSERT INTO audit_events (id, application_id, action, actor_id, actor_name, actor_type, details, timestamp)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
+    `, [
       id,
       input.applicationId || null,
       input.action,
@@ -68,8 +68,8 @@ export class AuditRepository {
       input.actorName || null,
       input.actorType,
       input.details ? JSON.stringify(input.details) : null,
-      timestamp
-    );
+      timestamp,
+    ]);
 
     return {
       id,
@@ -83,19 +83,20 @@ export class AuditRepository {
     };
   }
 
-  findById(id: string): AuditEvent | null {
-    const row = this.db.prepare('SELECT * FROM audit_events WHERE id = ?').get(id) as any;
+  async findById(id: string): Promise<AuditEvent | null> {
+    const row = await this.driver.get('SELECT * FROM audit_events WHERE id = ?', [id]);
     return row ? this.mapRow(row) : null;
   }
 
-  findByApplication(applicationId: string): AuditEvent[] {
-    const rows = this.db.prepare(
-      'SELECT * FROM audit_events WHERE application_id = ? ORDER BY timestamp ASC'
-    ).all(applicationId) as any[];
+  async findByApplication(applicationId: string): Promise<AuditEvent[]> {
+    const rows = await this.driver.all(
+      'SELECT * FROM audit_events WHERE application_id = ? ORDER BY timestamp ASC',
+      [applicationId]
+    );
     return rows.map(r => this.mapRow(r));
   }
 
-  findAll(params: ListAuditEventsParams = {}): AuditEvent[] {
+  async findAll(params: ListAuditEventsParams = {}): Promise<AuditEvent[]> {
     const { action, actorType, actorId, applicationId, limit = 100, offset = 0, from, to } = params;
     const conditions: string[] = [];
     const values: any[] = [];
@@ -127,14 +128,15 @@ export class AuditRepository {
 
     const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
-    const rows = this.db.prepare(
-      `SELECT * FROM audit_events ${where} ORDER BY timestamp DESC LIMIT ? OFFSET ?`
-    ).all(...values, limit, offset) as any[];
+    const rows = await this.driver.all(
+      `SELECT * FROM audit_events ${where} ORDER BY timestamp DESC LIMIT ? OFFSET ?`,
+      [...values, limit, offset]
+    );
 
     return rows.map(r => this.mapRow(r));
   }
 
-  count(params: Omit<ListAuditEventsParams, 'limit' | 'offset'> = {}): number {
+  async count(params: Omit<ListAuditEventsParams, 'limit' | 'offset'> = {}): Promise<number> {
     const { action, actorType, actorId, applicationId, from, to } = params;
     const conditions: string[] = [];
     const values: any[] = [];
@@ -165,7 +167,11 @@ export class AuditRepository {
     }
 
     const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
-    const row = this.db.prepare(`SELECT COUNT(*) as count FROM audit_events ${where}`).get(...values) as any;
-    return row.count;
+    const row = await this.driver.get(`SELECT COUNT(*) as count FROM audit_events ${where}`, values);
+    // Number(), not the raw value: COUNT(*) is int8 in PostgreSQL and `pg` hands
+    // back bigints as strings rather than lose precision. Left alone this would
+    // return "5" where the signature promises 5, and callers doing arithmetic on
+    // it — pagination's totalPages — would concatenate instead of add.
+    return Number(row.count);
   }
 }

@@ -23,8 +23,15 @@ Thumbs.db
 services/*/data/
 
 # .NET build artifacts
+#
+# Path-scoped rather than a bare `bin/`, which would also match anything named bin under
+# apps/ or packages/. These two patterns cover every .NET project in the repo — the API and
+# its test project — and a new one needs adding here, because `dotnet test` writes ~180 files
+# into bin/ and obj/ that will otherwise be picked up by `git add -A`.
 services/dotnet-api/bin/
 services/dotnet-api/obj/
+tests/dotnet/**/bin/
+tests/dotnet/**/obj/
 
 # Build artifacts
 apps/web/out/

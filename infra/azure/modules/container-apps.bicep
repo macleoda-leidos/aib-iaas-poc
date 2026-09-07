@@ -101,6 +101,14 @@ resource apiApp 'Microsoft.App/containerApps@2023-05-01' = {
             { name: 'MOCK_FAILURE_RATE', value: '0' }
             { name: 'UPLOAD_PATH', value: '/data/uploads' }
             { name: 'SCANNER_MODE', value: 'placeholder' }
+            // The two auxiliary SQLite stores. Absent here as they were in render.yaml,
+            // so they fell back to relative paths under the container's working
+            // directory rather than the volume mounted below — case correspondence and
+            // the credit-check cache were discarded on every restart (GAP-019).
+            { name: 'NOTIFICATION_DB_PATH', value: '/data/notifications.db' }
+            { name: 'CREDIT_CHECK_DB_PATH', value: '/data/credit-check-cache.db' }
+            { name: 'LOG_LEVEL', value: 'info' }
+            { name: 'SERVICE_NAME', value: 'iaas-api' }
           ]
           volumeMounts: [
             {

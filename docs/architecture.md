@@ -574,11 +574,14 @@ Levels and permission grants below are the seeded values, from
 `packages/database/src/seed-data/roles.json` and the role-permission mappings in
 `packages/database/src/seed-data/role-permissions.json` (applied by
 `packages/database/src/rbac.ts`). Permission codes are those in
-`packages/database/src/seed-data/permissions.json` — 20 codes, all unscoped.
+`packages/database/src/seed-data/permissions.json` — 21 codes, all unscoped. (`notifications.send`
+was the twenty-first, added by migration `002-notifications-send-permission`: sending case
+correspondence needed a permission of its own, because authentication alone still let any logged-in
+caller write an arbitrary message to any user, attributed to the service.)
 
 | Role | Level | Scope | Seeded Permissions |
 |------|-------|-------|---------------------|
-| `system_admin` | 100 | Full system | All 20 permissions |
+| `system_admin` | 100 | Full system | All 21 permissions |
 | `aib_senior_officer` | 80 | All applications | `applications.read`, `.update`, `.approve`, `.reject`, `.assign`, `.export`, `users.create`, `.read`, `.update`, `organisations.read`, `audit.read`, `.export`, `reports.read`, `.export` |
 | `cyberops_analyst` | 70 | Security monitoring | `users.read`, `organisations.read`, `audit.read`, `.export`, `reports.read` |
 | `aib_officer` | 60 | Assigned applications | `applications.read`, `.update`, `.assign`, `users.read`, `organisations.read`, `audit.read`, `reports.read` |
@@ -820,6 +823,14 @@ graph LR
 
 ### 11.1 Monitoring and Observability
 
+> **The table below is the target production design, not what the POC runs.** What is
+> implemented today is set out in §11.2–§11.4: structured JSON logging, correlation IDs, a
+> readiness endpoint and in-process request metrics, all in `packages/observability` with zero
+> runtime dependencies. There is **no** CloudWatch, X-Ray, PagerDuty or OpenTelemetry
+> instrumentation — the POC deploys to Render's free tier, which ingests stdout. Distinguishing
+> the two matters: an earlier version of `/admin/monitoring` displayed a trace table attributed
+> to "OpenTelemetry → Grafana Cloud" that had no basis in anything deployed.
+
 | Pillar | Tool | Configuration |
 |--------|------|---------------|
 | Metrics | CloudWatch Metrics | CPU, memory, request count, error rate, latency (p50/p95/p99) per service |
@@ -829,38 +840,96 @@ graph LR
 | Dashboards | CloudWatch Dashboards | Service health, integration status, application throughput, error budgets |
 | Uptime | Route 53 Health Checks | External monitoring from multiple regions |
 
-### 11.2 Health Checks
+### 11.2 Health Checks — implemented
 
-Every service exposes `GET /api/health` returning a standard response:
+**Two endpoints, answering different questions.** Conflating them is what made the deployed
+service unmonitorable: `/api/health` was a static object literal, and `render.yaml` names it as
+`healthCheckPath`, so the only available signal was "the process is listening". A container whose
+database was unreachable — answering 500 to every request — was indistinguishable from a healthy
+one and was never restarted.
 
-```json
-{
-  "status": "healthy",
-  "service": "api-gateway",
-  "timestamp": "2026-08-21T10:30:00.000Z"
-}
-```
-
-The ALB performs health checks every 30 seconds with a 5-second timeout. Two consecutive failures mark a task unhealthy; ECS drains connections and launches a replacement task. The Integration Orchestrator additionally exposes `GET /api/integrations/health` which aggregates the health status of all downstream systems.
-
-### 11.3 Structured Logging
-
-All services emit structured JSON logs with consistent fields:
+**Liveness — `GET /api/health`.** Cheap, and deliberately cannot fail.
 
 ```json
-{
-  "timestamp": "2026-08-21T10:30:00.000Z",
-  "level": "info",
-  "service": "api-gateway",
-  "requestId": "550e8400-e29b-41d4-a716-446655440000",
-  "method": "POST",
-  "path": "/api/applications",
-  "statusCode": 201,
-  "duration": 142,
-  "userId": "usr-001",
-  "message": "Application created successfully"
-}
+{ "status": "healthy", "liveness": true, "readiness": "/api/health/ready",
+  "service": "aib-iaas-consolidated-api", "timestamp": "2026-09-07T10:30:00.000Z" }
 ```
+
+It is *not* made to probe the database, and that is a design decision rather than an omission: on
+Render's free plan a failing health check fails the **deploy**, and a Neon instance waking from
+idle takes several seconds — so a database-probing liveness endpoint would convert an ordinary cold
+start into a failed deployment.
+
+**Readiness — `GET /api/health/ready`.** Probes the shared driver (`SELECT 1`, reporting dialect
+and latency), the notification store, the credit-check cache (marked `optional` — a cold cache
+costs a provider call, not a case) and whether `UPLOAD_PATH` is genuinely writable, by writing and
+deleting a probe file rather than trusting `fs.access(W_OK)`, which passes on a read-only bind
+mount. 200 when every required check passes, **503** with per-dependency detail otherwise. Each
+probe has a 3-second ceiling, so an unroutable host cannot make this endpoint the outage it exists
+to report.
+
+```json
+{ "status": "degraded", "service": "aib-iaas-consolidated-api",
+  "checks": {
+    "database":      { "ok": true,  "ms": 14, "dialect": "postgres" },
+    "notifications": { "ok": true,  "ms": 1,  "path": "/data/notifications.db" },
+    "creditCache":   { "ok": false, "ms": 0,  "optional": true, "error": "cache database not present" },
+    "uploads":       { "ok": true,  "ms": 3,  "writable": true, "absolute": true }
+  },
+  "timestamp": "2026-09-07T10:30:00.000Z" }
+```
+
+Unauthenticated so an external prober can poll it, which is why it returns no stack trace and no
+connection string. **Monitoring and alerting should target readiness, not liveness.** The .NET API
+implements the same split. The Integration Orchestrator additionally exposes
+`GET /api/integrations/health`, which aggregates the mock upstream systems.
+
+### 11.3 Structured Logging — implemented
+
+`packages/observability`. One JSON object per line on stdout, which Render and Azure both ingest
+and index — the transport was never the missing piece, the shape was. Zero runtime dependencies,
+matching the precedent set by `packages/auth`.
+
+```json
+{ "level": "info", "msg": "request", "time": "2026-09-07T10:30:00.000Z", "service": "iaas-api",
+  "method": "POST", "route": "/api/applications", "status": 201, "durationMs": 142,
+  "requestId": "550e8400-e29b-41d4-a716-446655440000", "userId": "user-demo" }
+```
+
+Four properties are load-bearing:
+
+- **`route` is the route pattern, never the resolved path.** A URL carries application ids and
+  reference numbers, and the same string is used as a metrics label — so a resolved path would make
+  both the log and the metrics endpoint a case-reference oracle. A 404 reports `unmatched` rather
+  than having the path substituted.
+- **Redaction lives in the serialiser, not at the call sites.** National Insurance numbers, dates
+  of birth, postcodes, `authorization` headers and similar are replaced at any depth, so the rule
+  covers call sites nobody has written yet. This is a system whose entire subject matter is people
+  in financial difficulty; a logger that can be made to emit their details by one careless `log()`
+  call is a GDPR incident waiting for a bug report.
+- **`requestId` is accepted from the client, generated when absent, and echoed on the response.**
+  So a user who reports "it failed" can be asked for the id from their network tab, and it will
+  match a log line. It is length-capped and character-filtered first: an unfiltered
+  attacker-controlled string in a log aggregator is a log injection primitive.
+- **The middleware is mounted in `consolidated-api` as well as in each service.** The consolidation
+  layer imports the services' *routers*, not their apps, so anything mounted only in a service's
+  own `index.ts` has never run in a deployed environment. That divergence has caused four defects
+  here, and `observabilityParity.test.ts` now fails if any of the thirteen Express apps is missing
+  the middleware or has it in the wrong order.
+
+### 11.3.1 Metrics — implemented
+
+`GET /api/metrics` in Prometheus exposition format and `GET /api/metrics/summary` as JSON, both
+behind the `system.admin` permission, because per-route volumes and error rates tell an attacker
+which endpoints exist and which are currently failing. Counters, a latency histogram with the
+default Prometheus bucket set, and process uptime.
+
+In-process and reset on restart, which on the free tier means the current wake period and nothing
+longer — stated plainly in the module rather than implied. That is still the difference between
+"somebody is getting 500s on `POST /api/applications`" and no information at all; a durable time
+series needs a scraper pointed at the endpoint, which is what the target design in §11.1 provides.
+`/admin/monitoring` and `/admin/system-health` render these two endpoints and say explicitly which
+signals do not exist, rather than filling the gaps with figures nothing measured.
 
 ### 11.4 Incident Response
 

@@ -1,8 +1,15 @@
 import { Router, Request, Response } from 'express';
 import axios from 'axios';
+import { authenticate } from '../middleware/rbac';
 import { v4 as uuid } from 'uuid';
 
 export const orchestrateRouter = Router();
+
+/**
+ * Fans out to six upstream systems on the caller's behalf, so it requires an
+ * authenticated caller — otherwise it is an open proxy for identity lookups.
+ */
+orchestrateRouter.use(authenticate);
 
 const MOCK_URL = process.env.MOCK_INTEGRATIONS_URL || 'http://localhost:3005';
 

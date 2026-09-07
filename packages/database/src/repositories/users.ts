@@ -1,5 +1,29 @@
-import type Database from 'better-sqlite3';
+import type { DbDriver } from '../driver';
 import { randomUUID } from 'crypto';
+
+/**
+ * The session handle for a token: its `jti` claim.
+ *
+ * Read without verifying, deliberately. This is an *index lookup key*, not a trust
+ * decision — the caller has already verified the signature before asking (see
+ * `authenticate` in `@aib-iaas/auth`), and a forged token simply yields a `jti` that
+ * matches no row. Verifying here too would make this package depend on the signing keys
+ * for no gain.
+ *
+ * Falls back to the whole token when there is no parseable `jti`, so a caller passing
+ * something that is not a JWT still gets a stable, non-matching key rather than a crash.
+ */
+function extractJti(token: string): string {
+  const parts = token.split('.');
+  if (parts.length !== 3) return token;
+
+  try {
+    const claims = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'));
+    return typeof claims?.jti === 'string' ? claims.jti : token;
+  } catch {
+    return token;
+  }
+}
 
 // ─── Types ─────────────────────────────────────
 
@@ -74,7 +98,7 @@ export interface ListUsersParams {
 // ─── Repository ────────────────────────────────
 
 export class UserRepository {
-  constructor(private db: Database.Database) {}
+  constructor(private driver: DbDriver) {}
 
   private mapRow(row: any): User {
     return {
@@ -104,23 +128,23 @@ export class UserRepository {
     };
   }
 
-  findByEmail(email: string): User | null {
-    const row = this.db.prepare('SELECT * FROM users WHERE email = ?').get(email) as any;
+  async findByEmail(email: string): Promise<User | null> {
+    const row = await this.driver.get('SELECT * FROM users WHERE email = ?', [email]);
     return row ? this.mapRow(row) : null;
   }
 
-  findById(id: string): User | null {
-    const row = this.db.prepare('SELECT * FROM users WHERE id = ?').get(id) as any;
+  async findById(id: string): Promise<User | null> {
+    const row = await this.driver.get('SELECT * FROM users WHERE id = ?', [id]);
     return row ? this.mapRow(row) : null;
   }
 
-  findByIdWithRole(id: string): UserWithRole | null {
-    const row = this.db.prepare(`
+  async findByIdWithRole(id: string): Promise<UserWithRole | null> {
+    const row = await this.driver.get(`
       SELECT u.*, r.name as role_name, r.display_name as role_display_name, r.level as role_level
       FROM users u
       JOIN roles r ON u.role_id = r.id
       WHERE u.id = ?
-    `).get(id) as any;
+    `, [id]);
 
     if (!row) return null;
     return {
@@ -131,7 +155,7 @@ export class UserRepository {
     };
   }
 
-  list(params: ListUsersParams = {}): { data: User[]; total: number } {
+  async list(params: ListUsersParams = {}): Promise<{ data: User[]; total: number }> {
     const { role, roleId, organisationId, status, page = 1, pageSize = 50 } = params;
     const conditions: string[] = [];
     const values: any[] = [];
@@ -156,15 +180,19 @@ export class UserRepository {
 
     const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
-    const countRow = this.db.prepare(
-      `SELECT COUNT(*) as count FROM users u LEFT JOIN roles r ON u.role_id = r.id ${where}`
-    ).get(...values) as any;
-    const total = countRow.count;
+    const countRow = await this.driver.get(
+      `SELECT COUNT(*) as count FROM users u LEFT JOIN roles r ON u.role_id = r.id ${where}`,
+      values
+    );
+    // Number(): PostgreSQL returns COUNT(*) as a bigint, which `pg` hands back as
+    // a string. `total` is declared a number and callers do arithmetic on it.
+    const total = Number(countRow.count);
 
     const offset = (page - 1) * pageSize;
-    const rows = this.db.prepare(
-      `SELECT u.* FROM users u LEFT JOIN roles r ON u.role_id = r.id ${where} ORDER BY u.created_at DESC LIMIT ? OFFSET ?`
-    ).all(...values, pageSize, offset) as any[];
+    const rows = await this.driver.all(
+      `SELECT u.* FROM users u LEFT JOIN roles r ON u.role_id = r.id ${where} ORDER BY u.created_at DESC LIMIT ? OFFSET ?`,
+      [...values, pageSize, offset]
+    );
 
     return {
       data: rows.map(row => this.mapRow(row)),
@@ -172,14 +200,14 @@ export class UserRepository {
     };
   }
 
-  create(input: CreateUserInput): User {
+  async create(input: CreateUserInput): Promise<User> {
     const id = randomUUID();
     const now = new Date().toISOString();
 
-    this.db.prepare(`
+    await this.driver.run(`
       INSERT INTO users (id, email, first_name, last_name, display_name, role_id, organisation_id, status, password_hash, mfa_enabled, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
+    `, [
       id,
       input.email,
       input.firstName,
@@ -189,15 +217,18 @@ export class UserRepository {
       input.organisationId || null,
       input.status || 'active',
       input.passwordHash || null,
-      input.mfaEnabled ? 1 : 0,
+      // A real boolean, not 1/0. mfa_enabled is BOOLEAN in PostgreSQL, which
+      // rejects an integer outright; the SQLite adapter converts for its own
+      // INTEGER column.
+      input.mfaEnabled ?? false,
       now,
-      now
-    );
+      now,
+    ]);
 
-    return this.findById(id)!;
+    return (await this.findById(id))!;
   }
 
-  update(id: string, data: Partial<CreateUserInput>): User {
+  async update(id: string, data: Partial<CreateUserInput>): Promise<User> {
     const now = new Date().toISOString();
     const sets: string[] = ['updated_at = ?'];
     const values: any[] = [now];
@@ -210,44 +241,45 @@ export class UserRepository {
     if (data.organisationId !== undefined) { sets.push('organisation_id = ?'); values.push(data.organisationId); }
     if (data.status !== undefined) { sets.push('status = ?'); values.push(data.status); }
     if (data.passwordHash !== undefined) { sets.push('password_hash = ?'); values.push(data.passwordHash); }
-    if (data.mfaEnabled !== undefined) { sets.push('mfa_enabled = ?'); values.push(data.mfaEnabled ? 1 : 0); }
+    // Bound as a boolean for the same reason as create() above.
+    if (data.mfaEnabled !== undefined) { sets.push('mfa_enabled = ?'); values.push(data.mfaEnabled); }
 
     values.push(id);
-    this.db.prepare(`UPDATE users SET ${sets.join(', ')} WHERE id = ?`).run(...values);
+    await this.driver.run(`UPDATE users SET ${sets.join(', ')} WHERE id = ?`, values);
 
-    return this.findById(id)!;
+    return (await this.findById(id))!;
   }
 
-  delete(id: string): void {
-    this.db.prepare('DELETE FROM users WHERE id = ?').run(id);
+  async delete(id: string): Promise<void> {
+    await this.driver.run('DELETE FROM users WHERE id = ?', [id]);
   }
 
   // ─── Roles ──────────────────────────────────
 
-  findRoleById(id: string): Role | null {
-    const row = this.db.prepare('SELECT * FROM roles WHERE id = ?').get(id) as any;
+  async findRoleById(id: string): Promise<Role | null> {
+    const row = await this.driver.get('SELECT * FROM roles WHERE id = ?', [id]);
     return row ? this.mapRoleRow(row) : null;
   }
 
-  findRoleByName(name: string): Role | null {
-    const row = this.db.prepare('SELECT * FROM roles WHERE name = ?').get(name) as any;
+  async findRoleByName(name: string): Promise<Role | null> {
+    const row = await this.driver.get('SELECT * FROM roles WHERE name = ?', [name]);
     return row ? this.mapRoleRow(row) : null;
   }
 
-  listRoles(): Role[] {
-    const rows = this.db.prepare('SELECT * FROM roles ORDER BY level DESC').all() as any[];
+  async listRoles(): Promise<Role[]> {
+    const rows = await this.driver.all('SELECT * FROM roles ORDER BY level DESC');
     return rows.map(r => this.mapRoleRow(r));
   }
 
   // ─── Permissions ────────────────────────────
 
-  getPermissionsForRole(roleId: string): Permission[] {
-    const rows = this.db.prepare(`
+  async getPermissionsForRole(roleId: string): Promise<Permission[]> {
+    const rows = await this.driver.all(`
       SELECT p.* FROM permissions p
       JOIN role_permissions rp ON rp.permission_id = p.id
       WHERE rp.role_id = ?
       ORDER BY p.resource, p.action
-    `).all(roleId) as any[];
+    `, [roleId]);
 
     return rows.map(r => ({
       id: r.id,
@@ -259,38 +291,57 @@ export class UserRepository {
     }));
   }
 
-  getPermissionsForUser(userId: string): Permission[] {
-    const user = this.findById(userId);
+  async getPermissionsForUser(userId: string): Promise<Permission[]> {
+    const user = await this.findById(userId);
     if (!user) return [];
     return this.getPermissionsForRole(user.roleId);
   }
 
-  hasPermission(userId: string, permissionCode: string): boolean {
-    const row = this.db.prepare(`
+  async hasPermission(userId: string, permissionCode: string): Promise<boolean> {
+    const row = await this.driver.get(`
       SELECT 1 FROM users u
       JOIN role_permissions rp ON rp.role_id = u.role_id
       JOIN permissions p ON p.id = rp.permission_id
       WHERE u.id = ? AND p.code = ?
-    `).get(userId, permissionCode) as any;
+    `, [userId, permissionCode]);
     return !!row;
   }
 
   // ─── Sessions ───────────────────────────────
 
-  createSession(userId: string, token: string, expiresAt: string): Session {
+  /**
+   * Record a session for a token.
+   *
+   * Stores the token's `jti` claim, **not the token**. The `sessions` table used to hold
+   * whole bearer tokens in plaintext, which made it a store of live, directly replayable
+   * credentials for the length of their eight-hour life: any read of it — a backup, a
+   * read replica, a debug `SELECT *`, an operator with database access — was immediate
+   * session hijack for every logged-in user, with no cracking step in between.
+   *
+   * The `jti` is a random UUID that identifies the session without being usable as one,
+   * so the table becomes useless to a reader while revocation still works. `jwt.ts`
+   * always intended this: "Callers must check the `jti` against stored sessions."
+   *
+   * The column keeps its name for compatibility; what changed is what goes in it.
+   */
+  async createSession(userId: string, token: string, expiresAt: string): Promise<Session> {
     const id = randomUUID();
     const now = new Date().toISOString();
+    const jti = extractJti(token);
 
-    this.db.prepare(`
+    await this.driver.run(`
       INSERT INTO sessions (id, user_id, token, expires_at, created_at)
       VALUES (?, ?, ?, ?, ?)
-    `).run(id, userId, token, expiresAt, now);
+    `, [id, userId, jti, expiresAt, now]);
 
+    // The token is returned to the caller, which is where it belongs; only the handle
+    // was persisted.
     return { id, userId, token, expiresAt, createdAt: now };
   }
 
-  findSessionByToken(token: string): Session | null {
-    const row = this.db.prepare('SELECT * FROM sessions WHERE token = ?').get(token) as any;
+  /** Look a session up from a presented token, by the token's `jti`. */
+  async findSessionByToken(token: string): Promise<Session | null> {
+    const row = await this.driver.get('SELECT * FROM sessions WHERE token = ?', [extractJti(token)]);
     if (!row) return null;
     return {
       id: row.id,
@@ -301,13 +352,13 @@ export class UserRepository {
     };
   }
 
-  deleteSession(token: string): void {
-    this.db.prepare('DELETE FROM sessions WHERE token = ?').run(token);
+  async deleteSession(token: string): Promise<void> {
+    await this.driver.run('DELETE FROM sessions WHERE token = ?', [extractJti(token)]);
   }
 
-  deleteExpiredSessions(): number {
+  async deleteExpiredSessions(): Promise<number> {
     const now = new Date().toISOString();
-    const result = this.db.prepare('DELETE FROM sessions WHERE expires_at < ?').run(now);
+    const result = await this.driver.run('DELETE FROM sessions WHERE expires_at < ?', [now]);
     return result.changes;
   }
 }

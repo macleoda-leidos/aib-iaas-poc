@@ -128,8 +128,8 @@ describe('SQLite driver', () => {
 
   it('commits a successful transaction', async () => {
     const { calls, driver } = fakeSqlite();
-    const result = await driver.transaction(async () => {
-      await driver.run('INSERT INTO t VALUES (?)', ['a']);
+    const result = await driver.transaction(async tx => {
+      await tx.run('INSERT INTO t VALUES (?)', ['a']);
       return 'done';
     });
 
@@ -152,14 +152,60 @@ describe('SQLite driver', () => {
     // ROLLBACK, and no COMMIT — a half-applied write would be worse than a failure.
     expect(calls.map(c => c.sql)).toEqual(['BEGIN', 'ROLLBACK']);
   });
+
+  it('hands the work its own driver, which is this one', async () => {
+    // SQLite holds a single connection, so there is no second connection to bind
+    // a transaction to — but `work` must still receive a driver, or the callers
+    // written against the PostgreSQL contract would pass `undefined` around.
+    const { driver } = fakeSqlite();
+    let received: unknown;
+    await driver.transaction(async tx => {
+      received = tx;
+    });
+    expect(received).toBe(driver);
+  });
+
+  describe('boolean parameters', () => {
+    it('binds true as 1 and false as 0', async () => {
+      // better-sqlite3 refuses booleans outright ("can only bind numbers, strings,
+      // bigints, buffers, and null"), so an uncoerced flag is a hard failure on
+      // every write touching is_current, is_essential or mfa_enabled.
+      const { calls, driver } = fakeSqlite();
+      await driver.run('INSERT INTO addresses (is_current) VALUES (?)', [true]);
+      await driver.run('INSERT INTO addresses (is_current) VALUES (?)', [false]);
+      expect(calls.map(c => c.params)).toEqual([[1], [0]]);
+    });
+
+    it('coerces on reads as well as writes', async () => {
+      const { calls, driver } = fakeSqlite();
+      await driver.get('SELECT * FROM assets WHERE is_essential = ?', [true]);
+      await driver.all('SELECT * FROM assets WHERE is_essential = ?', [false]);
+      expect(calls.map(c => c.params)).toEqual([[1], [0]]);
+    });
+
+    it('leaves every other parameter type alone', async () => {
+      // Notably null and 0 — a blanket truthiness check would turn both into
+      // something else.
+      const { calls, driver } = fakeSqlite();
+      await driver.run('INSERT INTO t VALUES (?, ?, ?, ?)', ['a', 0, null, 12.5]);
+      expect(calls[0].params).toEqual(['a', 0, null, 12.5]);
+    });
+  });
 });
 
 describe('PostgreSQL driver', () => {
+  /**
+   * Pool and client statements are recorded separately on purpose. Which of the
+   * two ran a given statement is the whole question for transactions, and a single
+   * combined log cannot answer it — which is exactly why the original suite passed
+   * against a `transaction()` that bracketed an empty transaction.
+   */
   function fakePool(rows: any[] = [{ id: 'row-1' }]) {
     const queries: Array<{ sql: string; params: any[] }> = [];
+    const clientQueries: Array<{ sql: string; params: any[] }> = [];
     const client = {
       query: vi.fn(async (sql: string, params: any[] = []) => {
-        queries.push({ sql, params });
+        clientQueries.push({ sql, params });
         return { rows, rowCount: rows.length };
       }),
       release: vi.fn(),
@@ -171,7 +217,7 @@ describe('PostgreSQL driver', () => {
       },
       connect: async () => client,
     } as never;
-    return { queries, client, driver: createPostgresDriver(pool) };
+    return { queries, clientQueries, client, driver: createPostgresDriver(pool) };
   }
 
   it('rewrites placeholders before querying', async () => {
@@ -271,6 +317,143 @@ describe('PostgreSQL driver', () => {
       const { queries, driver } = fakePool();
       await driver.all('SELECT * FROM roles');
       expect(queries[0].params).toEqual([]);
+    });
+
+    it('issues the work’s statements on the transaction’s own connection', async () => {
+      // The defect this replaces: `work` took no argument, so every statement
+      // inside it went back through `pool.query` — a different connection from the
+      // one holding the BEGIN. The writes autocommitted individually and the
+      // COMMIT/ROLLBACK applied to an empty transaction. Asserting on BEGIN and
+      // COMMIT alone cannot see that; asserting *where* the write went can.
+      const { queries, clientQueries, driver } = fakePool();
+      await driver.transaction(async tx => {
+        await tx.run('INSERT INTO debts (id) VALUES (?)', ['d-1']);
+        await tx.get('SELECT * FROM debts WHERE id = ?', ['d-1']);
+      });
+
+      expect(clientQueries.map(q => q.sql)).toEqual([
+        'BEGIN',
+        'INSERT INTO debts (id) VALUES ($1)',
+        'SELECT * FROM debts WHERE id = $1',
+        'COMMIT',
+      ]);
+      // Nothing escaped to the pool, where it would have committed on its own.
+      expect(queries).toEqual([]);
+    });
+
+    it('rolls back the work’s statements, which never reached the pool', async () => {
+      const { queries, clientQueries, driver } = fakePool();
+      await expect(
+        driver.transaction(async tx => {
+          await tx.run('INSERT INTO debts (id) VALUES (?)', ['d-1']);
+          throw new Error('duplicate reference number');
+        })
+      ).rejects.toThrow('duplicate reference number');
+
+      expect(clientQueries.map(q => q.sql)).toEqual([
+        'BEGIN',
+        'INSERT INTO debts (id) VALUES ($1)',
+        'ROLLBACK',
+      ]);
+      // The insert is inside the rolled-back transaction, so it leaves nothing
+      // behind. Had it gone via the pool it would have survived the rollback.
+      expect(queries).toEqual([]);
+    });
+
+    it('keeps a nested transaction on the same connection', async () => {
+      // PostgreSQL has no nested BEGIN. A repository helper that opens its own
+      // transaction while already inside one must join the outer one, not start a
+      // second that the driver would have to fake.
+      const { clientQueries, driver } = fakePool();
+      await driver.transaction(async tx =>
+        tx.transaction(async inner => {
+          await inner.run('INSERT INTO assets (id) VALUES (?)', ['a-1']);
+        })
+      );
+
+      expect(clientQueries.map(q => q.sql)).toEqual([
+        'BEGIN',
+        'INSERT INTO assets (id) VALUES ($1)',
+        'COMMIT',
+      ]);
+    });
+  });
+
+  describe('timestamp normalisation', () => {
+    // `pg` hydrates TIMESTAMPTZ into a JS Date; better-sqlite3 returns the stored
+    // string. Passed through, the same endpoint would serialise a different
+    // timestamp format per backend — no error, just a changed response shape.
+    const created = new Date('2026-06-02T10:00:00.000Z');
+
+    it('converts Date values to ISO strings on get', async () => {
+      const { driver } = fakePool([{ id: 'a', created_at: created }]);
+      await expect(driver.get('SELECT * FROM applications')).resolves.toEqual({
+        id: 'a',
+        created_at: '2026-06-02T10:00:00.000Z',
+      });
+    });
+
+    it('converts them on all, for every row', async () => {
+      const { driver } = fakePool([
+        { id: 'a', created_at: created },
+        { id: 'b', created_at: new Date('2026-07-01T00:00:00.000Z') },
+      ]);
+      const rows = await driver.all('SELECT * FROM applications');
+      expect(rows.map(r => r.created_at)).toEqual([
+        '2026-06-02T10:00:00.000Z',
+        '2026-07-01T00:00:00.000Z',
+      ]);
+    });
+
+    it('leaves nulls, strings and numbers as they are', async () => {
+      // A nullable timestamp such as submitted_at must stay null, not become the
+      // epoch or the string "null".
+      const { driver } = fakePool([
+        { id: 'a', submitted_at: null, status: 'draft', dependants: 0 },
+      ]);
+      await expect(driver.get('SELECT * FROM applications')).resolves.toEqual({
+        id: 'a',
+        submitted_at: null,
+        status: 'draft',
+        dependants: 0,
+      });
+    });
+
+    it('does not walk into JSON held in a TEXT column', async () => {
+      // system_checks and details are JSON strings the repositories parse
+      // themselves. Normalising must stay shallow or it would have to guess which
+      // strings are structured.
+      const { driver } = fakePool([
+        { id: 'a', system_checks: '{"basys":{"checkedAt":"2026-06-02"}}' },
+      ]);
+      await expect(driver.get('SELECT * FROM applications')).resolves.toEqual({
+        id: 'a',
+        system_checks: '{"basys":{"checkedAt":"2026-06-02"}}',
+      });
+    });
+
+    it('passes booleans through untouched', async () => {
+      // PostgreSQL returns real booleans, which the row mappers already handle.
+      const { driver } = fakePool([{ id: 'a', is_current: true, is_essential: false }]);
+      await expect(driver.get('SELECT * FROM addresses')).resolves.toEqual({
+        id: 'a',
+        is_current: true,
+        is_essential: false,
+      });
+    });
+
+    it('normalises inside a transaction too', async () => {
+      const { driver } = fakePool([{ id: 'a', created_at: created }]);
+      const row = await driver.transaction(tx => tx.get('SELECT * FROM applications'));
+      expect(row).toEqual({ id: 'a', created_at: '2026-06-02T10:00:00.000Z' });
+    });
+
+    it('returns a row that is not an object unchanged', async () => {
+      // Defensive: `pg` returns objects for every query this codebase makes, but
+      // normalising walks Object.keys() and a null row would throw on the way in —
+      // turning an empty result into a crash rather than an empty result.
+      const { driver } = fakePool([null, 'scalar']);
+      await expect(driver.all('SELECT 1')).resolves.toEqual([null, 'scalar']);
     });
   });
 });

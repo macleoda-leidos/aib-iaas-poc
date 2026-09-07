@@ -16,8 +16,39 @@ services:
         value: production
       - key: PORT
         value: "3001"
+      # ===== PERSISTENT STORES =====
+      #
+      # All four must point at the disk mounted below. Only DATABASE_PATH did, and the
+      # other three fell back to relative paths (./uploads, ./data/notifications.db,
+      # ./data/credit-check-cache.db) that resolve under the container's working
+      # directory — which is ephemeral. On the free plan the container spins down after
+      # 15 minutes idle, so every uploaded bank statement, payslip and identity document
+      # and all case correspondence was destroyed several times a day.
+      #
+      # The worst part was not the loss but its shape: the `documents` rows live in
+      # iaas.db on this disk while the files they pointed at did not, so the case list
+      # kept offering downloads that 404'd. resolveStorePath() now logs an error at boot
+      # if any of these is relative in production, and /api/health/ready reports whether
+      # the uploads directory is genuinely writable. (GAP-019)
       - key: DATABASE_PATH
         value: /data/iaas.db
+      - key: UPLOAD_PATH
+        value: /data/uploads
+      - key: NOTIFICATION_DB_PATH
+        value: /data/notifications.db
+      - key: CREDIT_CHECK_DB_PATH
+        value: /data/credit-check-cache.db
+      # Stated rather than left to `auto`, which resolved to whatever it could find in a
+      # container that has never had ClamAV installed. A scanner mode nobody chose is a
+      # scanner nobody can describe in a security review.
+      - key: SCANNER_MODE
+        value: placeholder
+      # Structured JSON request logs on stdout, which Render ingests and indexes.
+      # `debug` would include the health-check polling; `info` is the operational level.
+      - key: LOG_LEVEL
+        value: info
+      - key: SERVICE_NAME
+        value: iaas-api
       - key: INTEGRATION_MODE
         value: mock
       - key: MOCK_FAILURE_RATE
@@ -28,6 +59,17 @@ services:
         value: "200"
       - key: CORS_ORIGIN
         value: "https://macleoda-leidos.github.io"
+      # Ed25519 private key that signs access tokens (PEM or base64-wrapped PEM).
+      # Generate with `npm run auth:keygen` and set the value in the Render
+      # dashboard — sync: false keeps it out of the repository, because this key can
+      # mint a session for any user.
+      #
+      # If left unset the service still signs tokens, using a keypair generated at
+      # boot, so it fails safe rather than open. The cost is that every deploy and
+      # every spin-up-from-idle invalidates all existing sessions — which on the free
+      # plan (15-minute idle shutdown) means users are logged out several times a day.
+      - key: JWT_PRIVATE_KEY
+        sync: false
     disk:
       name: iaas-data
       mountPath: /data

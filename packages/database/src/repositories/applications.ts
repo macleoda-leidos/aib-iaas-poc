@@ -1,4 +1,4 @@
-import type Database from 'better-sqlite3';
+import type { DbDriver } from '../driver';
 import { randomUUID } from 'crypto';
 
 // ─── Types ─────────────────────────────────────
@@ -61,6 +61,13 @@ export interface Application {
   id: string;
   referenceNumber: string;
   status: string;
+  /**
+   * The debtor this application is about, and what ownership checks compare
+   * against. Distinct from `assignedTo`, which is the member of staff handling it.
+   * Null means no debtor owns it — a staff-created case, or one begun anonymously —
+   * which a debtor can therefore never match.
+   */
+  debtorUserId: string | null;
   systemChecks: any | null;
   creditCheck: any | null;
   assignedTo: string | null;
@@ -126,6 +133,7 @@ export interface CreateIncomeExpenditureInput {
 export interface CreateApplicationInput {
   referenceNumber?: string;
   status?: string;
+  debtorUserId?: string | null;
   applicant?: CreateApplicantInput;
   addresses?: CreateAddressInput[];
   debts?: CreateDebtInput[];
@@ -140,6 +148,12 @@ export interface CreateApplicationInput {
 export interface ListApplicationsParams {
   status?: string;
   assignedTo?: string;
+  /**
+   * Restrict to one debtor's applications. The route layer sets this from the
+   * authenticated user rather than from the query string when the caller is a
+   * debtor, so the filter cannot be widened by the client.
+   */
+  debtorUserId?: string;
   page?: number;
   pageSize?: number;
 }
@@ -147,8 +161,9 @@ export interface ListApplicationsParams {
 // ─── Repository ────────────────────────────────
 
 export class ApplicationRepository {
-  constructor(private db: Database.Database) {}
+  constructor(private driver: DbDriver) {}
 
+  /** Purely local — no query, so it needs no driver and cannot fail mid-transaction. */
   private generateReferenceNumber(): string {
     const year = new Date().getFullYear();
     const seq = Math.floor(Math.random() * 99999).toString().padStart(5, '0');
@@ -160,6 +175,7 @@ export class ApplicationRepository {
       id: row.id,
       referenceNumber: row.reference_number,
       status: row.status,
+      debtorUserId: row.debtor_user_id ?? null,
       systemChecks: row.system_checks ? JSON.parse(row.system_checks) : null,
       creditCheck: row.credit_check ? JSON.parse(row.credit_check) : null,
       assignedTo: row.assigned_to,
@@ -233,73 +249,82 @@ export class ApplicationRepository {
     };
   }
 
-  create(input: CreateApplicationInput): Application {
+  async create(input: CreateApplicationInput): Promise<Application> {
     const id = randomUUID();
     const now = new Date().toISOString();
     const referenceNumber = input.referenceNumber || this.generateReferenceNumber();
 
-    const insertApp = this.db.prepare(`
-      INSERT INTO applications (id, reference_number, status, system_checks, credit_check, assigned_to, submitted_at, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-
-    const transaction = this.db.transaction(() => {
-      insertApp.run(
+    // An application and its applicant, addresses, debts, assets and income
+    // together are one record as far as a caller is concerned — a half-written one
+    // is worse than none. `tx` is threaded into every helper below rather than
+    // reaching for `this.driver`, because under PostgreSQL only `tx` is bound to
+    // the connection holding the transaction; anything else autocommits outside it
+    // and survives the rollback.
+    await this.driver.transaction(async tx => {
+      await tx.run(`
+        INSERT INTO applications (id, reference_number, status, debtor_user_id, system_checks, credit_check, assigned_to, submitted_at, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `, [
         id,
         referenceNumber,
         input.status || 'draft',
+        input.debtorUserId ?? null,
         input.systemChecks ? JSON.stringify(input.systemChecks) : null,
         input.creditCheck ? JSON.stringify(input.creditCheck) : null,
         input.assignedTo || null,
         input.submittedAt || null,
         now,
-        now
-      );
+        now,
+      ]);
 
       if (input.applicant) {
-        this.insertApplicant(id, input.applicant);
+        await this.insertApplicant(tx, id, input.applicant);
       }
 
-      if (input.addresses) {
+      // Array.isArray, not truthiness. These come from a request body, and a JSON
+      // object is truthy but not iterable — `for...of` over `{}` throws a TypeError,
+      // which surfaced as a 500 rather than a 400. The `/apply` auto-save sends
+      // `assets: {}` when the applicant has entered none, so this was reachable from
+      // the real client; it only stayed hidden because the journey sends that field
+      // on update (where it is ignored) rather than on create.
+      if (Array.isArray(input.addresses)) {
         for (const addr of input.addresses) {
-          this.insertAddress(id, addr);
+          await this.insertAddress(tx, id, addr);
         }
       }
 
-      if (input.debts) {
+      if (Array.isArray(input.debts)) {
         for (const debt of input.debts) {
-          this.insertDebt(id, debt);
+          await this.insertDebt(tx, id, debt);
         }
       }
 
-      if (input.assets) {
+      if (Array.isArray(input.assets)) {
         for (const asset of input.assets) {
-          this.insertAsset(id, asset);
+          await this.insertAsset(tx, id, asset);
         }
       }
 
       if (input.incomeExpenditure) {
-        this.insertIncomeExpenditure(id, input.incomeExpenditure);
+        await this.insertIncomeExpenditure(tx, id, input.incomeExpenditure);
       }
     });
 
-    transaction();
-
-    return this.findById(id)!;
+    return (await this.findById(id))!;
   }
 
-  findById(id: string): Application | null {
-    const row = this.db.prepare('SELECT * FROM applications WHERE id = ?').get(id) as any;
+  async findById(id: string): Promise<Application | null> {
+    const row = await this.driver.get('SELECT * FROM applications WHERE id = ?', [id]);
     return row ? this.mapApplicationRow(row) : null;
   }
 
-  findByReference(ref: string): Application | null {
-    const row = this.db.prepare('SELECT * FROM applications WHERE reference_number = ?').get(ref) as any;
+  async findByReference(ref: string): Promise<Application | null> {
+    const row = await this.driver.get('SELECT * FROM applications WHERE reference_number = ?', [ref]);
     return row ? this.mapApplicationRow(row) : null;
   }
 
-  list(params: ListApplicationsParams = {}): { data: Application[]; total: number } {
-    const { status, assignedTo, page = 1, pageSize = 20 } = params;
+  async list(params: ListApplicationsParams = {}): Promise<{ data: Application[]; total: number }> {
+    const { status, assignedTo, debtorUserId, page = 1, pageSize = 20 } = params;
     const conditions: string[] = [];
     const values: any[] = [];
 
@@ -313,15 +338,23 @@ export class ApplicationRepository {
       values.push(assignedTo);
     }
 
+    if (debtorUserId) {
+      conditions.push('debtor_user_id = ?');
+      values.push(debtorUserId);
+    }
+
     const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
-    const countRow = this.db.prepare(`SELECT COUNT(*) as count FROM applications ${where}`).get(...values) as any;
-    const total = countRow.count;
+    const countRow = await this.driver.get(`SELECT COUNT(*) as count FROM applications ${where}`, values);
+    // Number(): PostgreSQL returns COUNT(*) as a bigint, which `pg` hands back as
+    // a string. The route layer divides `total` by pageSize to get totalPages.
+    const total = Number(countRow.count);
 
     const offset = (page - 1) * pageSize;
-    const rows = this.db.prepare(
-      `SELECT * FROM applications ${where} ORDER BY created_at DESC LIMIT ? OFFSET ?`
-    ).all(...values, pageSize, offset) as any[];
+    const rows = await this.driver.all(
+      `SELECT * FROM applications ${where} ORDER BY created_at DESC LIMIT ? OFFSET ?`,
+      [...values, pageSize, offset]
+    );
 
     return {
       data: rows.map(row => this.mapApplicationRow(row)),
@@ -329,7 +362,7 @@ export class ApplicationRepository {
     };
   }
 
-  update(id: string, data: Partial<CreateApplicationInput>): Application {
+  async update(id: string, data: Partial<CreateApplicationInput>): Promise<Application> {
     const now = new Date().toISOString();
     const sets: string[] = ['updated_at = ?'];
     const values: any[] = [now];
@@ -341,6 +374,13 @@ export class ApplicationRepository {
     if (data.assignedTo !== undefined) {
       sets.push('assigned_to = ?');
       values.push(data.assignedTo);
+    }
+    if (data.debtorUserId !== undefined) {
+      // Reassignable, so that an application begun anonymously can be claimed by
+      // the debtor once they authenticate. The route layer decides who may set it;
+      // the repository only records it.
+      sets.push('debtor_user_id = ?');
+      values.push(data.debtorUserId || null);
     }
     if (data.submittedAt !== undefined) {
       sets.push('submitted_at = ?');
@@ -356,100 +396,153 @@ export class ApplicationRepository {
     }
 
     values.push(id);
-    this.db.prepare(`UPDATE applications SET ${sets.join(', ')} WHERE id = ?`).run(...values);
+    await this.driver.run(`UPDATE applications SET ${sets.join(', ')} WHERE id = ?`, values);
 
     // Update related entities if provided
     if (data.applicant) {
-      const existing = this.db.prepare('SELECT id FROM applicants WHERE application_id = ?').get(id) as any;
+      const existing = await this.driver.get('SELECT id FROM applicants WHERE application_id = ?', [id]);
       if (existing) {
-        this.updateApplicant(existing.id, data.applicant);
+        await this.updateApplicant(this.driver, existing.id, data.applicant);
       } else {
-        this.insertApplicant(id, data.applicant);
+        await this.insertApplicant(this.driver, id, data.applicant);
       }
     }
 
     if (data.incomeExpenditure) {
-      const existing = this.db.prepare('SELECT id FROM income_expenditure WHERE application_id = ?').get(id) as any;
+      const existing = await this.driver.get('SELECT id FROM income_expenditure WHERE application_id = ?', [id]);
       if (existing) {
-        this.db.prepare('UPDATE income_expenditure SET income = ?, expenditure = ? WHERE id = ?').run(
+        await this.driver.run('UPDATE income_expenditure SET income = ?, expenditure = ? WHERE id = ?', [
           JSON.stringify(data.incomeExpenditure.income),
           JSON.stringify(data.incomeExpenditure.expenditure),
-          existing.id
-        );
+          existing.id,
+        ]);
       } else {
-        this.insertIncomeExpenditure(id, data.incomeExpenditure);
+        await this.insertIncomeExpenditure(this.driver, id, data.incomeExpenditure);
       }
     }
 
-    return this.findById(id)!;
+    // Addresses, debts and assets are *replaced* rather than merged, because the
+    // client that sends them is an auto-saving form which posts the whole current
+    // list on every save — so the list it sends is the complete intended state, and
+    // appending would duplicate every row on each keystroke.
+    //
+    // These were previously not handled here at all, so an applicant's addresses,
+    // debts and assets were accepted by the endpoint and silently dropped.
+    if (Array.isArray(data.addresses)) {
+      await this.replaceAddresses(id, data.addresses);
+    }
+    if (Array.isArray(data.debts)) {
+      await this.replaceDebts(id, data.debts);
+    }
+    if (Array.isArray(data.assets)) {
+      await this.replaceAssets(id, data.assets);
+    }
+
+    return (await this.findById(id))!;
   }
 
-  updateStatus(id: string, status: string): void {
+  /**
+   * Replace an application's addresses with exactly this list.
+   *
+   * Delete-then-insert inside one transaction: a failure part-way through must not
+   * leave the application with no addresses, which is what a delete outside a
+   * transaction would risk.
+   */
+  async replaceAddresses(applicationId: string, addresses: CreateAddressInput[]): Promise<void> {
+    await this.driver.transaction(async tx => {
+      await tx.run('DELETE FROM addresses WHERE application_id = ?', [applicationId]);
+      for (const address of addresses) {
+        await this.insertAddress(tx, applicationId, address);
+      }
+    });
+  }
+
+  /** Replace an application's debts with exactly this list. See `replaceAddresses`. */
+  async replaceDebts(applicationId: string, debts: CreateDebtInput[]): Promise<void> {
+    await this.driver.transaction(async tx => {
+      await tx.run('DELETE FROM debts WHERE application_id = ?', [applicationId]);
+      for (const debt of debts) {
+        await this.insertDebt(tx, applicationId, debt);
+      }
+    });
+  }
+
+  /** Replace an application's assets with exactly this list. See `replaceAddresses`. */
+  async replaceAssets(applicationId: string, assets: CreateAssetInput[]): Promise<void> {
+    await this.driver.transaction(async tx => {
+      await tx.run('DELETE FROM assets WHERE application_id = ?', [applicationId]);
+      for (const asset of assets) {
+        await this.insertAsset(tx, applicationId, asset);
+      }
+    });
+  }
+
+  async updateStatus(id: string, status: string): Promise<void> {
     const now = new Date().toISOString();
-    this.db.prepare('UPDATE applications SET status = ?, updated_at = ? WHERE id = ?').run(status, now, id);
+    await this.driver.run('UPDATE applications SET status = ?, updated_at = ? WHERE id = ?', [status, now, id]);
   }
 
-  delete(id: string): void {
-    this.db.prepare('DELETE FROM applications WHERE id = ?').run(id);
+  async delete(id: string): Promise<void> {
+    await this.driver.run('DELETE FROM applications WHERE id = ?', [id]);
   }
 
   // ─── Related entities ────────────────────────
 
-  addDebt(applicationId: string, debt: CreateDebtInput): Debt {
-    const id = this.insertDebt(applicationId, debt);
-    const row = this.db.prepare('SELECT * FROM debts WHERE id = ?').get(id) as any;
+  async addDebt(applicationId: string, debt: CreateDebtInput): Promise<Debt> {
+    const id = await this.insertDebt(this.driver, applicationId, debt);
+    const row = await this.driver.get('SELECT * FROM debts WHERE id = ?', [id]);
     return this.mapDebtRow(row);
   }
 
-  addAsset(applicationId: string, asset: CreateAssetInput): Asset {
-    const id = this.insertAsset(applicationId, asset);
-    const row = this.db.prepare('SELECT * FROM assets WHERE id = ?').get(id) as any;
+  async addAsset(applicationId: string, asset: CreateAssetInput): Promise<Asset> {
+    const id = await this.insertAsset(this.driver, applicationId, asset);
+    const row = await this.driver.get('SELECT * FROM assets WHERE id = ?', [id]);
     return this.mapAssetRow(row);
   }
 
-  addAddress(applicationId: string, address: CreateAddressInput): Address {
-    const id = this.insertAddress(applicationId, address);
-    const row = this.db.prepare('SELECT * FROM addresses WHERE id = ?').get(id) as any;
+  async addAddress(applicationId: string, address: CreateAddressInput): Promise<Address> {
+    const id = await this.insertAddress(this.driver, applicationId, address);
+    const row = await this.driver.get('SELECT * FROM addresses WHERE id = ?', [id]);
     return this.mapAddressRow(row);
   }
 
-  setApplicant(applicationId: string, applicant: CreateApplicantInput): Applicant {
-    const existing = this.db.prepare('SELECT id FROM applicants WHERE application_id = ?').get(applicationId) as any;
+  async setApplicant(applicationId: string, applicant: CreateApplicantInput): Promise<Applicant> {
+    const existing = await this.driver.get('SELECT id FROM applicants WHERE application_id = ?', [applicationId]);
     if (existing) {
-      this.updateApplicant(existing.id, applicant);
-      const row = this.db.prepare('SELECT * FROM applicants WHERE id = ?').get(existing.id) as any;
+      await this.updateApplicant(this.driver, existing.id, applicant);
+      const row = await this.driver.get('SELECT * FROM applicants WHERE id = ?', [existing.id]);
       return this.mapApplicantRow(row);
     }
-    const id = this.insertApplicant(applicationId, applicant);
-    const row = this.db.prepare('SELECT * FROM applicants WHERE id = ?').get(id) as any;
+    const id = await this.insertApplicant(this.driver, applicationId, applicant);
+    const row = await this.driver.get('SELECT * FROM applicants WHERE id = ?', [id]);
     return this.mapApplicantRow(row);
   }
 
-  setIncomeExpenditure(applicationId: string, ie: CreateIncomeExpenditureInput): IncomeExpenditure {
-    const existing = this.db.prepare('SELECT id FROM income_expenditure WHERE application_id = ?').get(applicationId) as any;
+  async setIncomeExpenditure(applicationId: string, ie: CreateIncomeExpenditureInput): Promise<IncomeExpenditure> {
+    const existing = await this.driver.get('SELECT id FROM income_expenditure WHERE application_id = ?', [applicationId]);
     if (existing) {
-      this.db.prepare('UPDATE income_expenditure SET income = ?, expenditure = ? WHERE id = ?').run(
+      await this.driver.run('UPDATE income_expenditure SET income = ?, expenditure = ? WHERE id = ?', [
         JSON.stringify(ie.income),
         JSON.stringify(ie.expenditure),
-        existing.id
-      );
-      const row = this.db.prepare('SELECT * FROM income_expenditure WHERE id = ?').get(existing.id) as any;
+        existing.id,
+      ]);
+      const row = await this.driver.get('SELECT * FROM income_expenditure WHERE id = ?', [existing.id]);
       return this.mapIncomeExpenditureRow(row);
     }
-    const id = this.insertIncomeExpenditure(applicationId, ie);
-    const row = this.db.prepare('SELECT * FROM income_expenditure WHERE id = ?').get(id) as any;
+    const id = await this.insertIncomeExpenditure(this.driver, applicationId, ie);
+    const row = await this.driver.get('SELECT * FROM income_expenditure WHERE id = ?', [id]);
     return this.mapIncomeExpenditureRow(row);
   }
 
-  getWithRelations(id: string): ApplicationWithRelations | null {
-    const app = this.findById(id);
+  async getWithRelations(id: string): Promise<ApplicationWithRelations | null> {
+    const app = await this.findById(id);
     if (!app) return null;
 
-    const applicantRow = this.db.prepare('SELECT * FROM applicants WHERE application_id = ?').get(id) as any;
-    const addressRows = this.db.prepare('SELECT * FROM addresses WHERE application_id = ?').all(id) as any[];
-    const debtRows = this.db.prepare('SELECT * FROM debts WHERE application_id = ?').all(id) as any[];
-    const assetRows = this.db.prepare('SELECT * FROM assets WHERE application_id = ?').all(id) as any[];
-    const ieRow = this.db.prepare('SELECT * FROM income_expenditure WHERE application_id = ?').get(id) as any;
+    const applicantRow = await this.driver.get('SELECT * FROM applicants WHERE application_id = ?', [id]);
+    const addressRows = await this.driver.all('SELECT * FROM addresses WHERE application_id = ?', [id]);
+    const debtRows = await this.driver.all('SELECT * FROM debts WHERE application_id = ?', [id]);
+    const assetRows = await this.driver.all('SELECT * FROM assets WHERE application_id = ?', [id]);
+    const ieRow = await this.driver.get('SELECT * FROM income_expenditure WHERE application_id = ?', [id]);
 
     return {
       ...app,
@@ -461,41 +554,45 @@ export class ApplicationRepository {
     };
   }
 
-  getDebts(applicationId: string): Debt[] {
-    const rows = this.db.prepare('SELECT * FROM debts WHERE application_id = ?').all(applicationId) as any[];
+  async getDebts(applicationId: string): Promise<Debt[]> {
+    const rows = await this.driver.all('SELECT * FROM debts WHERE application_id = ?', [applicationId]);
     return rows.map(r => this.mapDebtRow(r));
   }
 
-  getAssets(applicationId: string): Asset[] {
-    const rows = this.db.prepare('SELECT * FROM assets WHERE application_id = ?').all(applicationId) as any[];
+  async getAssets(applicationId: string): Promise<Asset[]> {
+    const rows = await this.driver.all('SELECT * FROM assets WHERE application_id = ?', [applicationId]);
     return rows.map(r => this.mapAssetRow(r));
   }
 
-  getAddresses(applicationId: string): Address[] {
-    const rows = this.db.prepare('SELECT * FROM addresses WHERE application_id = ?').all(applicationId) as any[];
+  async getAddresses(applicationId: string): Promise<Address[]> {
+    const rows = await this.driver.all('SELECT * FROM addresses WHERE application_id = ?', [applicationId]);
     return rows.map(r => this.mapAddressRow(r));
   }
 
-  removeDebt(debtId: string): void {
-    this.db.prepare('DELETE FROM debts WHERE id = ?').run(debtId);
+  async removeDebt(debtId: string): Promise<void> {
+    await this.driver.run('DELETE FROM debts WHERE id = ?', [debtId]);
   }
 
-  removeAsset(assetId: string): void {
-    this.db.prepare('DELETE FROM assets WHERE id = ?').run(assetId);
+  async removeAsset(assetId: string): Promise<void> {
+    await this.driver.run('DELETE FROM assets WHERE id = ?', [assetId]);
   }
 
-  removeAddress(addressId: string): void {
-    this.db.prepare('DELETE FROM addresses WHERE id = ?').run(addressId);
+  async removeAddress(addressId: string): Promise<void> {
+    await this.driver.run('DELETE FROM addresses WHERE id = ?', [addressId]);
   }
 
   // ─── Private helpers ─────────────────────────
+  //
+  // Each takes the driver to write through rather than using `this.driver`, so
+  // create() can pass the transaction-bound one and have the inserts land inside
+  // the transaction. Callers outside a transaction pass `this.driver`.
 
-  private insertApplicant(applicationId: string, input: CreateApplicantInput): string {
+  private async insertApplicant(driver: DbDriver, applicationId: string, input: CreateApplicantInput): Promise<string> {
     const id = randomUUID();
-    this.db.prepare(`
+    await driver.run(`
       INSERT INTO applicants (id, application_id, title, first_name, last_name, date_of_birth, ni_number, marital_status, dependants, employment, email, phone)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
+    `, [
       id, applicationId,
       input.title || null,
       input.firstName,
@@ -506,12 +603,12 @@ export class ApplicationRepository {
       input.dependants ?? 0,
       input.employment || null,
       input.email || null,
-      input.phone || null
-    );
+      input.phone || null,
+    ]);
     return id;
   }
 
-  private updateApplicant(id: string, input: Partial<CreateApplicantInput>): void {
+  private async updateApplicant(driver: DbDriver, id: string, input: Partial<CreateApplicantInput>): Promise<void> {
     const sets: string[] = [];
     const values: any[] = [];
 
@@ -528,70 +625,73 @@ export class ApplicationRepository {
 
     if (sets.length > 0) {
       values.push(id);
-      this.db.prepare(`UPDATE applicants SET ${sets.join(', ')} WHERE id = ?`).run(...values);
+      await driver.run(`UPDATE applicants SET ${sets.join(', ')} WHERE id = ?`, values);
     }
   }
 
-  private insertAddress(applicationId: string, input: CreateAddressInput): string {
+  private async insertAddress(driver: DbDriver, applicationId: string, input: CreateAddressInput): Promise<string> {
     const id = randomUUID();
-    this.db.prepare(`
+    await driver.run(`
       INSERT INTO addresses (id, application_id, line1, line2, city, postcode, is_current, resident_from, resident_to)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
+    `, [
       id, applicationId,
       input.line1,
       input.line2 || null,
       input.city,
       input.postcode,
-      input.isCurrent ? 1 : 0,
+      // A real boolean, not 1/0: is_current is BOOLEAN in PostgreSQL, which rejects
+      // an integer. The SQLite adapter converts for its own INTEGER column.
+      input.isCurrent ?? false,
       input.residentFrom || null,
-      input.residentTo || null
-    );
+      input.residentTo || null,
+    ]);
     return id;
   }
 
-  private insertDebt(applicationId: string, input: CreateDebtInput): string {
+  private async insertDebt(driver: DbDriver, applicationId: string, input: CreateDebtInput): Promise<string> {
     const id = randomUUID();
-    this.db.prepare(`
+    await driver.run(`
       INSERT INTO debts (id, application_id, creditor, type, amount, monthly_payment, account_ref)
       VALUES (?, ?, ?, ?, ?, ?, ?)
-    `).run(
+    `, [
       id, applicationId,
       input.creditor,
       input.type,
       input.amount,
       input.monthlyPayment ?? 0,
-      input.accountRef || null
-    );
+      input.accountRef || null,
+    ]);
     return id;
   }
 
-  private insertAsset(applicationId: string, input: CreateAssetInput): string {
+  private async insertAsset(driver: DbDriver, applicationId: string, input: CreateAssetInput): Promise<string> {
     const id = randomUUID();
-    this.db.prepare(`
+    await driver.run(`
       INSERT INTO assets (id, application_id, type, description, value, outstanding, is_essential)
       VALUES (?, ?, ?, ?, ?, ?, ?)
-    `).run(
+    `, [
       id, applicationId,
       input.type,
       input.description,
       input.value,
       input.outstanding ?? 0,
-      input.isEssential ? 1 : 0
-    );
+      // Boolean for the same reason as is_current above.
+      input.isEssential ?? false,
+    ]);
     return id;
   }
 
-  private insertIncomeExpenditure(applicationId: string, input: CreateIncomeExpenditureInput): string {
+  private async insertIncomeExpenditure(driver: DbDriver, applicationId: string, input: CreateIncomeExpenditureInput): Promise<string> {
     const id = randomUUID();
-    this.db.prepare(`
+    await driver.run(`
       INSERT INTO income_expenditure (id, application_id, income, expenditure)
       VALUES (?, ?, ?, ?)
-    `).run(
+    `, [
       id, applicationId,
       JSON.stringify(input.income),
-      JSON.stringify(input.expenditure)
-    );
+      JSON.stringify(input.expenditure),
+    ]);
     return id;
   }
 }

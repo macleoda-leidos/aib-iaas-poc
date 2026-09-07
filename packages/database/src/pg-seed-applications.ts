@@ -79,11 +79,16 @@ export async function seedPgApplications(pool: Pool): Promise<void> {
     const batch = applications.slice(i, i + 10);
     const appValues = batch.map((a, idx) => {
       const n = i + idx + 1;
-      return `('app-${String(n).padStart(4, '0')}', '${a.ref}', '${a.status}', ${a.status !== 'draft' ? `'${a.date}T10:00:00Z'` : 'NULL'}, '${a.date}T09:00:00Z', '${a.date}T10:00:00Z')`;
+      // Every tenth case is owned by the seeded debtor (`user-debtor`, created by
+      // seedPgDatabase, which runs first). Ten rather than all hundred because one
+      // debtor holding every case would be absurd, and none at all would leave the
+      // ownership check and the debtor's own view with nothing to show.
+      const debtorUserId = n % 10 === 0 ? `'user-debtor'` : 'NULL';
+      return `('app-${String(n).padStart(4, '0')}', '${a.ref}', '${a.status}', ${debtorUserId}, ${a.status !== 'draft' ? `'${a.date}T10:00:00Z'` : 'NULL'}, '${a.date}T09:00:00Z', '${a.date}T10:00:00Z')`;
     }).join(',\n      ');
 
     await pool.query(`
-      INSERT INTO applications (id, reference_number, status, submitted_at, created_at, updated_at) VALUES
+      INSERT INTO applications (id, reference_number, status, debtor_user_id, submitted_at, created_at, updated_at) VALUES
       ${appValues}
       ON CONFLICT (id) DO NOTHING;
     `);

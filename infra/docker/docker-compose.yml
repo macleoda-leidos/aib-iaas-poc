@@ -74,6 +74,10 @@ services:
       - UPLOAD_PATH=/app/uploads
       - CLAMAV_HOST=clamav
       - CLAMAV_PORT=3310
+      # `auto` is correct *here* and only here: this is the one environment with a real
+      # ClamAV container (see the clamav service below and the depends_on above). The
+      # deployed containers have none, so render.yaml and the Bicep template both pin
+      # `placeholder` rather than letting `auto` resolve to whatever it finds.
       - SCANNER_MODE=auto
     volumes:
       - uploads:/app/uploads
@@ -101,6 +105,12 @@ services:
     environment:
       - PORT=3008
       - CREDIT_CHECK_MODE=sandbox
+      # Explicit, because the relative default did not land on the volume below.
+      # Dockerfile.service sets WORKDIR to /app/services/${SERVICE_NAME}, so
+      # ./data/credit-check-cache.db resolved to
+      # /app/services/credit-check-service/data/ — the app-data mount at /app/data was
+      # never touched, and the cache was discarded with the container (GAP-019).
+      - CREDIT_CHECK_DB_PATH=/app/data/credit-check-cache.db
     volumes:
       - app-data:/app/data
 

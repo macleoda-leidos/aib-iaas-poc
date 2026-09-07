@@ -1,13 +1,39 @@
 import { Router, Request, Response } from 'express';
+import { authenticate } from '../middleware/rbac';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { v4 as uuid } from 'uuid';
+import { resolveStorePath } from '@aib-iaas/observability';
 
 export const documentsRouter = Router();
 
-const UPLOAD_PATH = process.env.UPLOAD_PATH || './uploads';
+/**
+ * Documents are debtor evidence — bank statements, ID, wage slips — so every route
+ * requires an authenticated caller. Download and delete previously applied no check at
+ * all, so a leaked or guessed document id was a full download.
+ *
+ * On the router rather than the mount, so it cannot diverge between the standalone
+ * service and the deployment shim.
+ */
+documentsRouter.use(authenticate);
+
+/**
+ * `resolveStorePath` rather than a bare `||` fallback. `./uploads` resolves under the
+ * container's working directory, not the persistent disk mounted at `/data`, so every
+ * uploaded bank statement, payslip and identity document was destroyed each time the
+ * container spun down from idle — while the `documents` rows pointing at them survived
+ * on the disk, leaving a case list whose downloads 404. It warns at boot in production
+ * rather than relocating silently; the deployment fix is `UPLOAD_PATH` in render.yaml
+ * (GAP-019).
+ */
+const UPLOAD_PATH = resolveStorePath('UPLOAD_PATH', './uploads').path;
 const MAX_FILE_SIZE = parseInt(process.env.MAX_FILE_SIZE_MB || '10') * 1024 * 1024;
+
+/** The resolved path, for the readiness probe. */
+export function uploadPath(): string {
+  return UPLOAD_PATH;
+}
 
 // Ensure upload directory exists
 if (!fs.existsSync(UPLOAD_PATH)) {

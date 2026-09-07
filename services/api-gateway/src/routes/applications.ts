@@ -1,125 +1,66 @@
 import { Router, Request, Response } from 'express';
 import { randomUUID } from 'crypto';
 import { applications, audit } from '../db';
+import {
+  authenticate,
+  isDebtor,
+  ownsApplication,
+  denyApplicationAccess,
+  type AuthenticatedRequest,
+} from '../middleware/rbac';
+import { validateBody } from '../middleware/validate';
+import { toApplicationInput } from './applicationMapping';
+import {
+  applicationBodySchema,
+  applicationStatusBodySchema,
+  caseNoteBodySchema,
+} from '@aib-iaas/validation';
 
 export const applicationsRouter = Router();
 
-// Validation helpers
-function validateNINumber(ni: string): string | null {
-  if (!ni) return null; // NI is only validated if provided
-  const cleaned = ni.replace(/\s/g, '').toUpperCase();
-  const niRegex = /^[A-Z]{2}\d{6}[A-Z]$/;
-  const invalidPrefixes = ['BG', 'GB', 'NK', 'KN', 'TN', 'NT', 'ZZ'];
-
-  if (!niRegex.test(cleaned)) {
-    return 'NI number must be in format AB123456C (2 letters, 6 digits, 1 letter)';
-  }
-  if (invalidPrefixes.includes(cleaned.substring(0, 2))) {
-    return 'NI number cannot start with BG, GB, NK, KN, TN, NT, or ZZ';
-  }
-  return null;
-}
-
-function validateApplicationBody(body: any): string[] {
-  const errors: string[] = [];
-
-  // If body has debtorDetails, validate them
-  const debtor = body.debtorDetails;
-  if (debtor) {
-    if (debtor.firstName !== undefined && (!debtor.firstName || debtor.firstName.trim().length < 2)) {
-      errors.push('First name must be at least 2 characters');
-    }
-    if (debtor.lastName !== undefined && (!debtor.lastName || debtor.lastName.trim().length < 2)) {
-      errors.push('Last name must be at least 2 characters');
-    }
-    if (debtor.nationalInsuranceNumber) {
-      const niError = validateNINumber(debtor.nationalInsuranceNumber);
-      if (niError) errors.push(niError);
-    }
-    if (debtor.dateOfBirth) {
-      const dob = new Date(debtor.dateOfBirth);
-      if (isNaN(dob.getTime())) {
-        errors.push('Date of birth must be a valid date');
-      } else if (dob > new Date()) {
-        errors.push('Date of birth cannot be in the future');
-      }
-    }
-    if (debtor.employmentStatus) {
-      const validStatuses = ['employed', 'self_employed', 'unemployed', 'retired', 'student', 'other'];
-      if (!validStatuses.includes(debtor.employmentStatus)) {
-        errors.push('Employment status must be one of: ' + validStatuses.join(', '));
-      }
-    }
-    if (debtor.dependants !== undefined) {
-      const dep = parseInt(debtor.dependants);
-      if (isNaN(dep) || dep < 0 || dep > 20) {
-        errors.push('Dependants must be between 0 and 20');
-      }
-    }
-  }
-
-  // Validate debt summary if present
-  const debtSummary = body.debtSummary;
-  if (debtSummary && debtSummary.debts && Array.isArray(debtSummary.debts)) {
-    debtSummary.debts.forEach((debt: any, i: number) => {
-      if (debt.creditorName !== undefined && (!debt.creditorName || debt.creditorName.trim().length < 2)) {
-        errors.push(`Debt ${i + 1}: Creditor name must be at least 2 characters`);
-      }
-      const amount = parseFloat(debt.outstandingAmount);
-      if (!isNaN(amount) && amount <= 0) {
-        errors.push(`Debt ${i + 1}: Outstanding amount must be greater than 0`);
-      }
-      if (!isNaN(amount) && amount > 10000000) {
-        errors.push(`Debt ${i + 1}: Outstanding amount cannot exceed 10,000,000`);
-      }
-    });
-  }
-
-  // Validate income/expenditure if present
-  const ie = body.incomeExpenditure;
-  if (ie) {
-    if (ie.income) {
-      Object.entries(ie.income).forEach(([key, val]) => {
-        const num = parseFloat(val as string);
-        if (!isNaN(num) && num < 0) errors.push(`Income ${key}: amount must be 0 or more`);
-        if (!isNaN(num) && num > 99999) errors.push(`Income ${key}: amount cannot exceed 99,999`);
-      });
-    }
-    if (ie.expenditure) {
-      Object.entries(ie.expenditure).forEach(([key, val]) => {
-        const num = parseFloat(val as string);
-        if (!isNaN(num) && num < 0) errors.push(`Expenditure ${key}: amount must be 0 or more`);
-        if (!isNaN(num) && num > 99999) errors.push(`Expenditure ${key}: amount cannot exceed 99,999`);
-      });
-    }
-  }
-
-  return errors;
-}
+/**
+ * Every application route requires an authenticated caller.
+ *
+ * This closes GAP-002 for the routes carrying personal data. Until now these were
+ * open, and `optionalAuth` meant the ownership checks below only bound a caller who
+ * volunteered a token — anyone who simply did not authenticate got everything. Three
+ * controls (ownership, per-request permissions, body validation) were real for
+ * identified callers and bypassable by staying anonymous, which is worse than no
+ * control because it reads as one.
+ *
+ * Applied on the **router**, not at the mount point: the deployment shim re-mounts
+ * routers by hand, and a guard added only at a mount is invisible in the other
+ * topology — which is how the one authorised route in the repo shipped
+ * unauthenticated. A guard that travels with the router cannot diverge.
+ *
+ * **This is a deliberate product change**, not just a security fix: the public
+ * dashboard and case pages were viewable by anonymous visitors, and now are not. An
+ * unauthenticated caller gets 401 and the frontend sends them to log in.
+ */
+applicationsRouter.use(authenticate);
 
 // Create new application
-applicationsRouter.post('/', (req: Request, res: Response) => {
+applicationsRouter.post('/', validateBody(applicationBodySchema), async (req: Request, res: Response) => {
   try {
-    // Validate input if body contains structured data
-    const validationErrors = validateApplicationBody(req.body);
-    if (validationErrors.length > 0) {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: 'Invalid input data',
-          details: validationErrors,
-        },
-      });
-      return;
-    }
+    // Ownership is taken from the verified token, never from the request body: a
+    // client that could nominate the owner could hand its own application to
+    // someone else, or claim someone else's. Staff creating a case on a debtor's
+    // behalf may still pass `debtorUserId`, since they are not the owner.
+    const debtorUserId = isDebtor(req as AuthenticatedRequest)
+      ? (req as AuthenticatedRequest).user!.userId
+      : req.body?.debtorUserId ?? null;
 
-    const app = applications.create({
+    // Translated rather than spread. The body speaks the form's vocabulary
+    // (`debtorDetails`, `debtSummary`, `addressHistory`); the repository speaks the
+    // persistence model's (`applicant`, `debts`, `addresses`). Spreading meant the
+    // unrecognised keys were silently discarded — see applicationMapping.ts.
+    const app = await applications.create({
       status: 'draft',
-      ...req.body,
+      ...toApplicationInput(req.body),
+      debtorUserId,
     });
 
-    audit.create({
+    await audit.create({
       applicationId: app.id,
       action: 'application_created',
       actorName: 'system',
@@ -137,13 +78,20 @@ applicationsRouter.post('/', (req: Request, res: Response) => {
 });
 
 // Get application by ID
-applicationsRouter.get('/:id', (req: Request, res: Response) => {
+applicationsRouter.get('/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const app = applications.getWithRelations(id);
+    const app = await applications.getWithRelations(id);
 
     if (!app) {
       res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Application not found' } });
+      return;
+    }
+
+    // The IDOR fix. Without it a debtor could read any other debtor's full case —
+    // applicant, address, NI number, debts, assets, income — by changing the id.
+    if (!ownsApplication(req as AuthenticatedRequest, app)) {
+      denyApplicationAccess(res);
       return;
     }
 
@@ -154,13 +102,18 @@ applicationsRouter.get('/:id', (req: Request, res: Response) => {
 });
 
 // Update application
-applicationsRouter.put('/:id', (req: Request, res: Response) => {
+applicationsRouter.put('/:id', validateBody(applicationBodySchema), async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const existing = applications.findById(id);
+    const existing = await applications.findById(id);
 
     if (!existing) {
       res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Application not found' } });
+      return;
+    }
+
+    if (!ownsApplication(req as AuthenticatedRequest, existing)) {
+      denyApplicationAccess(res);
       return;
     }
 
@@ -169,23 +122,13 @@ applicationsRouter.put('/:id', (req: Request, res: Response) => {
       return;
     }
 
-    // Validate input
-    const validationErrors = validateApplicationBody(req.body);
-    if (validationErrors.length > 0) {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: 'Invalid input data',
-          details: validationErrors,
-        },
-      });
-      return;
-    }
+    // Translated, and `debtorUserId` never survives the translation — ownership
+    // comes from the token, so a debtor cannot hand their application to another
+    // user or claim one that had no owner. Reassignment is a staff action and has no
+    // route yet.
+    const updated = await applications.update(id, toApplicationInput(req.body));
 
-    const updated = applications.update(id, req.body);
-
-    audit.create({
+    await audit.create({
       applicationId: id,
       action: 'application_updated',
       actorName: 'applicant',
@@ -199,20 +142,25 @@ applicationsRouter.put('/:id', (req: Request, res: Response) => {
 });
 
 // Submit application
-applicationsRouter.post('/:id/submit', (req: Request, res: Response) => {
+applicationsRouter.post('/:id/submit', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const existing = applications.findById(id);
+    const existing = await applications.findById(id);
 
     if (!existing) {
       res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Application not found' } });
       return;
     }
 
-    applications.updateStatus(id, 'submitted');
-    applications.update(id, { submittedAt: new Date().toISOString() });
+    if (!ownsApplication(req as AuthenticatedRequest, existing)) {
+      denyApplicationAccess(res);
+      return;
+    }
 
-    audit.create({
+    await applications.updateStatus(id, 'submitted');
+    await applications.update(id, { submittedAt: new Date().toISOString() });
+
+    await audit.create({
       applicationId: id,
       action: 'application_submitted',
       actorName: 'applicant',
@@ -229,7 +177,7 @@ applicationsRouter.post('/:id/submit', (req: Request, res: Response) => {
 });
 
 // Update application status (staff action: approve/reject/request-info)
-applicationsRouter.patch('/:id/status', (req: Request, res: Response) => {
+applicationsRouter.patch('/:id/status', validateBody(applicationStatusBodySchema), async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { status, notes } = req.body;
@@ -241,7 +189,18 @@ applicationsRouter.patch('/:id/status', (req: Request, res: Response) => {
       recommendation_issued: ['approved', 'rejected', 'additional_info_required'],
     };
 
-    const existing = applications.findById(id);
+    // A staff decision, so ownership is the wrong test — owning the case is
+    // precisely what must *not* grant it. A debtor able to move their own
+    // application to `approved` would be deciding their own sequestration.
+    if (isDebtor(req as AuthenticatedRequest)) {
+      res.status(403).json({
+        success: false,
+        error: { code: 'FORBIDDEN', message: 'Only AiB staff can change an application status.' },
+      });
+      return;
+    }
+
+    const existing = await applications.findById(id);
     if (!existing) {
       res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Application not found' } });
       return;
@@ -256,9 +215,9 @@ applicationsRouter.patch('/:id/status', (req: Request, res: Response) => {
       return;
     }
 
-    applications.updateStatus(id, status);
+    await applications.updateStatus(id, status);
 
-    audit.create({
+    await audit.create({
       applicationId: id,
       action: `status_changed_to_${status}`,
       actorName: 'aib_staff',
@@ -273,18 +232,28 @@ applicationsRouter.patch('/:id/status', (req: Request, res: Response) => {
 });
 
 // List applications (admin)
-applicationsRouter.get('/', (req: Request, res: Response) => {
+applicationsRouter.get('/', async (req: Request, res: Response) => {
   try {
     const page = parseInt(req.query.page as string) || 1;
     const pageSize = parseInt(req.query.pageSize as string) || 20;
     const status = req.query.status as string | undefined;
     const assignedTo = req.query.assignedTo as string | undefined;
 
-    const result = applications.list({ status, assignedTo, page, pageSize });
+    // A debtor's list is narrowed to their own applications, and the value comes
+    // from the verified token rather than the query string — so it cannot be widened
+    // by asking for someone else's id, or dropped by omitting the parameter.
+    const debtorUserId = isDebtor(req as AuthenticatedRequest)
+      ? (req as AuthenticatedRequest).user!.userId
+      : undefined;
 
-    // Enrich with applicant summary where possible
-    const enrichedData = result.data.map(app => {
-      const withRelations = applications.getWithRelations(app.id);
+    const result = await applications.list({ status, assignedTo, debtorUserId, page, pageSize });
+
+    // Enrich with applicant summary where possible. Promise.all rather than a
+    // sequential loop: one page is up to `pageSize` lookups, and against Neon each
+    // is a network round trip, so serialising them would make the admin list
+    // pageSize times slower than it needs to be.
+    const enrichedData = await Promise.all(result.data.map(async app => {
+      const withRelations = await applications.getWithRelations(app.id);
       const applicant = withRelations?.applicant;
       return {
         ...app,
@@ -293,7 +262,7 @@ applicationsRouter.get('/', (req: Request, res: Response) => {
           totalDebt: withRelations?.debts?.reduce((sum, d) => sum + d.amount, 0) || 0,
         },
       };
-    });
+    }));
 
     res.json({
       success: true,
@@ -306,12 +275,23 @@ applicationsRouter.get('/', (req: Request, res: Response) => {
 });
 
 // Add staff note
-applicationsRouter.post('/:id/notes', (req: Request, res: Response) => {
+applicationsRouter.post('/:id/notes', validateBody(caseNoteBodySchema), async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { content, noteType, authorName } = req.body;
 
-    const existing = applications.findById(id);
+    // Staff casework, like the status change above: notes are the reviewer's record
+    // and are shown to reviewers as such, so a debtor writing one would be putting
+    // words in a caseworker's mouth.
+    if (isDebtor(req as AuthenticatedRequest)) {
+      res.status(403).json({
+        success: false,
+        error: { code: 'FORBIDDEN', message: 'Only AiB staff can add a case note.' },
+      });
+      return;
+    }
+
+    const existing = await applications.findById(id);
     if (!existing) {
       res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Application not found' } });
       return;
@@ -327,7 +307,7 @@ applicationsRouter.post('/:id/notes', (req: Request, res: Response) => {
       noteType: noteType || 'general',
     };
 
-    audit.create({
+    await audit.create({
       applicationId: id,
       action: 'note_added',
       actorName: authorName || 'AiB Staff',

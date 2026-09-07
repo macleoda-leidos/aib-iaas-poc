@@ -1,20 +1,32 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { app } from '../index';
 import http from 'http';
+import { issueAccessToken, generateKeyPairPem, resetSigningKeys } from '@aib-iaas/auth';
+import { users } from '../db';
 
 let server: http.Server;
 let baseUrl: string;
 
-// Create a valid admin token with reports.read permission
+/**
+ * Tokens are minted for *real seeded users* with *real sessions*, because the route
+ * no longer takes the caller's word for anything: the signature is verified, the
+ * session is looked up, and the permission set comes from the database. A synthetic
+ * `USR-001` with a hand-written permission list — which is what these tests used —
+ * cannot satisfy any of those three, and its acceptance was the finding.
+ *
+ * `user-admin` holds reports.read via role-sysadmin; `user-debtor` does not.
+ */
+let adminBearer: string;
+let debtorBearer: string;
+
+async function login(userId: string, email: string, role: string, roleLevel: number): Promise<string> {
+  const { token, expiresAt } = issueAccessToken({ userId, email, role, roleLevel });
+  await users.createSession(userId, token, expiresAt);
+  return token;
+}
+
 function adminToken(): string {
-  return Buffer.from(JSON.stringify({
-    userId: 'USR-001',
-    email: 'admin@aib.example.gov.scot',
-    role: 'system_admin',
-    roleLevel: 100,
-    permissions: ['reports.read', 'applications.read'],
-    exp: Date.now() + 60 * 60 * 1000,
-  })).toString('base64');
+  return adminBearer;
 }
 
 function request(method: string, path: string, headers?: Record<string, string>): Promise<{ status: number; data: any }> {
@@ -42,6 +54,14 @@ function request(method: string, path: string, headers?: Record<string, string>)
 
 describe('API Gateway - Reports Routes', () => {
   beforeAll(async () => {
+    const keys = generateKeyPairPem();
+    process.env.JWT_PRIVATE_KEY = keys.privateKey;
+    process.env.JWT_PUBLIC_KEY = keys.publicKey;
+    resetSigningKeys();
+
+    adminBearer = await login('user-admin', 'admin@aib-poc.example.com', 'system_admin', 100);
+    debtorBearer = await login('user-debtor', 'john.testerton@example.com', 'debtor', 10);
+
     await new Promise<void>((resolve) => {
       server = app.listen(0, () => {
         baseUrl = `http://localhost:${(server.address() as any).port}`;
@@ -59,131 +79,59 @@ describe('API Gateway - Reports Routes', () => {
     });
 
     it('GET /api/reports/dashboard rejects user without reports.read permission', async () => {
-      const token = Buffer.from(JSON.stringify({
-        userId: 'USR-009',
-        email: 'debtor@example.com',
-        role: 'debtor',
-        roleLevel: 10,
-        // A real debtor's grant set: applications.read, but no reports.read.
-        permissions: ['applications.read'],
+      // The debtor's grants are whatever the database says — this asserts against the
+      // seeded RBAC data rather than a permission list the test invented, so it would
+      // catch a seeding change that accidentally handed debtors report access.
+      const res = await request('GET', '/api/reports/dashboard', { Authorization: `Bearer ${debtorBearer}` });
+      expect(res.status).toBe(403);
+    });
+
+    it('GET /api/reports/dashboard rejects a forged unsigned token', async () => {
+      // Regression: this is the token format the route accepted before signing, and
+      // it granted itself reports.read simply by saying so.
+      const forged = Buffer.from(JSON.stringify({
+        userId: 'user-admin',
+        email: 'admin@aib-poc.example.com',
+        role: 'system_admin',
+        roleLevel: 100,
+        permissions: ['reports.read'],
         exp: Date.now() + 60000,
       })).toString('base64');
 
-      const res = await request('GET', '/api/reports/dashboard', { Authorization: `Bearer ${token}` });
+      const res = await request('GET', '/api/reports/dashboard', { Authorization: `Bearer ${forged}` });
+      expect(res.status).toBe(401);
+    });
+  });
+
+  /**
+   * The aggregate values are asserted in reportsAggregation.test.ts, against a dataset
+   * that file inserts. What remains here is the authorisation surface — these routes are
+   * the only permission-gated ones in the repo — plus the reachability of each endpoint.
+   *
+   * The assertions this replaces checked that byProduct, trends and geographic were
+   * present and non-empty. That was guaranteed by their being hardcoded, so every one
+   * would have passed with the database dropped.
+   */
+  describe.each([
+    ["/api/reports/dashboard"],
+    ["/api/reports/by-product"],
+    ["/api/reports/organisation-activity"],
+    ["/api/reports/processing-times"],
+  ])("%s", (path) => {
+    it("answers 200 to an authorised caller", async () => {
+      const res = await request("GET", path, { Authorization: `Bearer ${adminToken()}` });
+      expect(res.status).toBe(200);
+      expect(res.data.success).toBe(true);
+    });
+
+    it("refuses an unauthenticated caller", async () => {
+      const res = await request("GET", path);
+      expect(res.status).toBe(401);
+    });
+
+    it("refuses a caller without reports.read", async () => {
+      const res = await request("GET", path, { Authorization: `Bearer ${debtorBearer}` });
       expect(res.status).toBe(403);
-    });
-  });
-
-  describe('GET /api/reports/dashboard', () => {
-    it('returns dashboard data with valid auth', async () => {
-      const res = await request('GET', '/api/reports/dashboard', { Authorization: `Bearer ${adminToken()}` });
-      expect(res.status).toBe(200);
-      expect(res.data.success).toBe(true);
-      expect(res.data.data.summary).toBeDefined();
-      expect(res.data.data.summary.totalApplications).toBeGreaterThanOrEqual(0);
-    });
-
-    it('dashboard contains byStatus data', async () => {
-      const res = await request('GET', '/api/reports/dashboard', { Authorization: `Bearer ${adminToken()}` });
-      expect(res.data.data.byStatus).toBeDefined();
-      expect(Array.isArray(res.data.data.byStatus)).toBe(true);
-    });
-
-    it('dashboard contains byProduct data', async () => {
-      const res = await request('GET', '/api/reports/dashboard', { Authorization: `Bearer ${adminToken()}` });
-      expect(res.data.data.byProduct).toBeDefined();
-      expect(res.data.data.byProduct.length).toBeGreaterThan(0);
-      expect(res.data.data.byProduct[0]).toHaveProperty('product');
-      expect(res.data.data.byProduct[0]).toHaveProperty('count');
-    });
-
-    it('dashboard contains trends data', async () => {
-      const res = await request('GET', '/api/reports/dashboard', { Authorization: `Bearer ${adminToken()}` });
-      expect(res.data.data.trends).toBeDefined();
-      expect(res.data.data.trends.weeklyApplications).toBeDefined();
-      expect(res.data.data.trends.monthlyApplications).toBeDefined();
-    });
-
-    it('dashboard contains performance data', async () => {
-      const res = await request('GET', '/api/reports/dashboard', { Authorization: `Bearer ${adminToken()}` });
-      expect(res.data.data.performance).toBeDefined();
-      expect(res.data.data.performance.creditCheckSuccessRate).toBeDefined();
-    });
-
-    it('dashboard contains geographic data', async () => {
-      const res = await request('GET', '/api/reports/dashboard', { Authorization: `Bearer ${adminToken()}` });
-      expect(res.data.data.geographic).toBeDefined();
-      expect(res.data.data.geographic.length).toBeGreaterThan(0);
-    });
-
-    it('dashboard contains financial data', async () => {
-      const res = await request('GET', '/api/reports/dashboard', { Authorization: `Bearer ${adminToken()}` });
-      expect(res.data.data.financial).toBeDefined();
-      expect(res.data.data.financial.debtBands).toBeDefined();
-    });
-  });
-
-  describe('GET /api/reports/by-product', () => {
-    it('returns product breakdown with valid auth', async () => {
-      const res = await request('GET', '/api/reports/by-product', { Authorization: `Bearer ${adminToken()}` });
-      expect(res.status).toBe(200);
-      expect(res.data.success).toBe(true);
-      expect(res.data.data.products).toBeDefined();
-      expect(res.data.data.products.length).toBeGreaterThan(0);
-    });
-
-    it('each product entry has expected fields', async () => {
-      const res = await request('GET', '/api/reports/by-product', { Authorization: `Bearer ${adminToken()}` });
-      const product = res.data.data.products[0];
-      expect(product).toHaveProperty('product');
-      expect(product).toHaveProperty('code');
-      expect(product).toHaveProperty('active');
-      expect(product).toHaveProperty('completed');
-      expect(product).toHaveProperty('avgDebt');
-    });
-  });
-
-  describe('GET /api/reports/organisation-activity', () => {
-    it('returns organisation data with valid auth', async () => {
-      const res = await request('GET', '/api/reports/organisation-activity', { Authorization: `Bearer ${adminToken()}` });
-      expect(res.status).toBe(200);
-      expect(res.data.success).toBe(true);
-      expect(res.data.data.organisations).toBeDefined();
-      expect(res.data.data.organisations.length).toBeGreaterThan(0);
-    });
-
-    it('filters by orgType query parameter', async () => {
-      const res = await request('GET', '/api/reports/organisation-activity?orgType=money_adviser', { Authorization: `Bearer ${adminToken()}` });
-      expect(res.status).toBe(200);
-      const orgs = res.data.data.organisations;
-      orgs.forEach((org: any) => {
-        expect(org.type).toBe('money_adviser');
-      });
-    });
-  });
-
-  describe('GET /api/reports/processing-times', () => {
-    it('returns processing time data with valid auth', async () => {
-      const res = await request('GET', '/api/reports/processing-times', { Authorization: `Bearer ${adminToken()}` });
-      expect(res.status).toBe(200);
-      expect(res.data.success).toBe(true);
-      expect(res.data.data.averages).toBeDefined();
-      expect(res.data.data.slaCompliance).toBeDefined();
-    });
-
-    it('averages contain expected time measurements', async () => {
-      const res = await request('GET', '/api/reports/processing-times', { Authorization: `Bearer ${adminToken()}` });
-      const avg = res.data.data.averages;
-      expect(avg.submissionToReview).toBeDefined();
-      expect(avg.submissionToReview.hours).toBeDefined();
-      expect(avg.submissionToReview.target).toBeDefined();
-      expect(avg.totalEndToEnd).toBeDefined();
-    });
-
-    it('slaCompliance includes target percentage', async () => {
-      const res = await request('GET', '/api/reports/processing-times', { Authorization: `Bearer ${adminToken()}` });
-      expect(res.data.data.slaCompliance.withinTarget).toBeDefined();
-      expect(res.data.data.slaCompliance.withinTarget).toBeGreaterThan(0);
     });
   });
 });

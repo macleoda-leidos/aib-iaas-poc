@@ -1,4 +1,4 @@
-import type Database from 'better-sqlite3';
+import type { DbDriver } from '../driver';
 import { randomUUID } from 'crypto';
 
 // ─── Types ─────────────────────────────────────
@@ -30,7 +30,7 @@ export interface CreateDocumentInput {
 // ─── Repository ────────────────────────────────
 
 export class DocumentRepository {
-  constructor(private db: Database.Database) {}
+  constructor(private driver: DbDriver) {}
 
   private mapRow(row: any): Document {
     return {
@@ -48,14 +48,14 @@ export class DocumentRepository {
     };
   }
 
-  create(input: CreateDocumentInput): Document {
+  async create(input: CreateDocumentInput): Promise<Document> {
     const id = randomUUID();
     const now = new Date().toISOString();
 
-    this.db.prepare(`
+    await this.driver.run(`
       INSERT INTO documents (id, application_id, filename, original_name, mime_type, size, category, storage_path, scan_status, uploaded_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)
-    `).run(
+    `, [
       id,
       input.applicationId,
       input.filename,
@@ -64,8 +64,8 @@ export class DocumentRepository {
       input.size,
       input.category,
       input.storagePath,
-      now
-    );
+      now,
+    ]);
 
     return {
       id,
@@ -82,36 +82,39 @@ export class DocumentRepository {
     };
   }
 
-  findById(id: string): Document | null {
-    const row = this.db.prepare('SELECT * FROM documents WHERE id = ?').get(id) as any;
+  async findById(id: string): Promise<Document | null> {
+    const row = await this.driver.get('SELECT * FROM documents WHERE id = ?', [id]);
     return row ? this.mapRow(row) : null;
   }
 
-  findByApplication(applicationId: string): Document[] {
-    const rows = this.db.prepare(
-      'SELECT * FROM documents WHERE application_id = ? ORDER BY uploaded_at DESC'
-    ).all(applicationId) as any[];
+  async findByApplication(applicationId: string): Promise<Document[]> {
+    const rows = await this.driver.all(
+      'SELECT * FROM documents WHERE application_id = ? ORDER BY uploaded_at DESC',
+      [applicationId]
+    );
     return rows.map(r => this.mapRow(r));
   }
 
-  findByCategory(applicationId: string, category: string): Document[] {
-    const rows = this.db.prepare(
-      'SELECT * FROM documents WHERE application_id = ? AND category = ? ORDER BY uploaded_at DESC'
-    ).all(applicationId, category) as any[];
+  async findByCategory(applicationId: string, category: string): Promise<Document[]> {
+    const rows = await this.driver.all(
+      'SELECT * FROM documents WHERE application_id = ? AND category = ? ORDER BY uploaded_at DESC',
+      [applicationId, category]
+    );
     return rows.map(r => this.mapRow(r));
   }
 
-  updateScanStatus(id: string, status: string, result?: any): void {
-    this.db.prepare(
-      'UPDATE documents SET scan_status = ?, scan_result = ? WHERE id = ?'
-    ).run(status, result ? JSON.stringify(result) : null, id);
+  async updateScanStatus(id: string, status: string, result?: any): Promise<void> {
+    await this.driver.run(
+      'UPDATE documents SET scan_status = ?, scan_result = ? WHERE id = ?',
+      [status, result ? JSON.stringify(result) : null, id]
+    );
   }
 
-  delete(id: string): void {
-    this.db.prepare('DELETE FROM documents WHERE id = ?').run(id);
+  async delete(id: string): Promise<void> {
+    await this.driver.run('DELETE FROM documents WHERE id = ?', [id]);
   }
 
-  deleteByApplication(applicationId: string): void {
-    this.db.prepare('DELETE FROM documents WHERE application_id = ?').run(applicationId);
+  async deleteByApplication(applicationId: string): Promise<void> {
+    await this.driver.run('DELETE FROM documents WHERE application_id = ?', [applicationId]);
   }
 }

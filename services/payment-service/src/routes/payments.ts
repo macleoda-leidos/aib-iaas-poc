@@ -1,7 +1,15 @@
 import { Router, Request, Response } from 'express';
 import { v4 as uuid } from 'uuid';
+import { authenticate } from '../middleware/rbac';
 
 export const paymentsRouter = Router();
+
+/**
+ * Payment routes mutate shared state and one of them accepts card fields, so all of
+ * them require an authenticated caller. Previously open — including the refund route,
+ * which had a state guard but no identity check.
+ */
+paymentsRouter.use(authenticate);
 
 // In-memory payment store
 const payments = new Map<string, any>();

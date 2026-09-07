@@ -64,8 +64,8 @@ export function seedDatabase(): void {
   // ─── Applications with related data ──────────
   const applications = loadJSON('applications.json');
   const insertApp = db.prepare(`
-    INSERT OR IGNORE INTO applications (id, reference_number, status, assigned_to, submitted_at, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+    INSERT OR IGNORE INTO applications (id, reference_number, status, debtor_user_id, assigned_to, submitted_at, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
   `);
   const insertApplicant = db.prepare(`
     INSERT OR IGNORE INTO applicants (id, application_id, title, first_name, last_name, date_of_birth, ni_number, marital_status, dependants, employment, email, phone)
@@ -94,7 +94,10 @@ export function seedDatabase(): void {
 
   const seedApps = db.transaction(() => {
     for (const app of applications) {
-      insertApp.run(app.id, app.referenceNumber, app.status, app.assignedTo || null, app.submittedAt || null);
+      // debtorUserId is the debtor who owns the case; assignedTo is the member of
+      // staff handling it. Two of the five are owned, so the ownership check has
+      // something to distinguish — a debtor sees those two and not the other three.
+      insertApp.run(app.id, app.referenceNumber, app.status, app.debtorUserId || null, app.assignedTo || null, app.submittedAt || null);
 
       if (app.applicant) {
         const a = app.applicant;

@@ -2,6 +2,12 @@
 
 import Link from 'next/link';
 import { useState, useCallback, useEffect, useRef } from 'react';
+// The journey's form controls and the recommendation step live in sibling modules, not here:
+// Next.js App Router permits only `default`, `metadata` and a fixed set of route config keys
+// as exports from a route file, so anything defined in this file cannot be imported by a
+// test. See fields.tsx and RecommendationSection.tsx.
+import { Input, NumberInput, Select, CheckStatusBadge } from './fields';
+import { RecommendationSection } from './RecommendationSection';
 import { navigateTo } from '../../lib/navigation';
 import { useAppContext } from '../../lib/ApplicationContext';
 import {
@@ -1107,14 +1113,12 @@ function PersonalSection({ formData, updateField, errors }: { formData: any; upd
       </div>
 
       <div className="grid md:grid-cols-2 gap-4">
-        <div>
-          <label className="block font-bold mb-1 text-sm">Title</label>
-          <select value={d.title || ''} onChange={e => updateField('personal', 'title', e.target.value)}
-            className="border-2 border-gray-900 dark:border-gray-600 dark:bg-gray-800 p-2.5 min-h-[44px] w-full">
-            <option value="">Select</option>
-            {['Mr', 'Mrs', 'Ms', 'Miss', 'Dr'].map(t => <option key={t}>{t}</option>)}
-          </select>
-        </div>
+        <Select
+          label="Title"
+          value={d.title}
+          onChange={v => updateField('personal', 'title', v)}
+          options={['Mr', 'Mrs', 'Ms', 'Miss', 'Dr'].map(t => [t, t])}
+        />
         <div></div>
         <Input label="First name *" value={d.firstName} onChange={v => updateField('personal', 'firstName', v)} error={errors.firstName} />
         <Input label="Last name *" value={d.lastName} onChange={v => updateField('personal', 'lastName', v)} error={errors.lastName} />
@@ -1122,44 +1126,78 @@ function PersonalSection({ formData, updateField, errors }: { formData: any; upd
       <Input label="Date of birth *" type="date" value={d.dateOfBirth} onChange={v => updateField('personal', 'dateOfBirth', v)} hint="YYYY-MM-DD format" error={errors.dateOfBirth} />
       <Input label="National Insurance number *" value={d.nationalInsuranceNumber} onChange={v => updateField('personal', 'nationalInsuranceNumber', v)} hint="e.g. QQ 12 34 56 C" error={errors.nationalInsuranceNumber} demo="field-ni" />
       <div className="grid md:grid-cols-2 gap-4">
-        <div>
-          <label className="block font-bold mb-1 text-sm">Marital status *</label>
-          <select value={d.maritalStatus || ''} onChange={e => updateField('personal', 'maritalStatus', e.target.value)}
-            className={`border-2 ${errors.maritalStatus ? 'border-red-500' : 'border-gray-900 dark:border-gray-600'} dark:bg-gray-800 p-2.5 min-h-[44px] w-full`}>
-            <option value="">Select</option>
-            {['Single','Married','Civil Partnership','Divorced','Widowed','Separated'].map(s => <option key={s} value={s.toLowerCase().replace(' ','_')}>{s}</option>)}
-          </select>
-          {errors.maritalStatus && <p className="text-red-600 text-xs mt-1">{errors.maritalStatus}</p>}
-        </div>
-        <div className="mb-1">
-          <label className="block font-bold mb-1 text-sm">Number of dependants *</label>
-          {errors.dependants && <p className="text-xs text-red-600 font-bold mb-1">⚠ {errors.dependants}</p>}
-          <input type="number" min="0" max="20" step="1" value={d.dependants || 0} onChange={e => updateField('personal', 'dependants', Math.max(0, Math.min(20, parseInt(e.target.value) || 0)))}
-            className={`border-2 ${errors.dependants ? 'border-red-500' : 'border-gray-900 dark:border-gray-600'} dark:bg-gray-800 p-2.5 w-full text-base min-h-[44px] focus:outline-2 focus:outline-yellow-400`} />
-        </div>
+        <Select
+          label="Marital status *"
+          value={d.maritalStatus}
+          onChange={v => updateField('personal', 'maritalStatus', v)}
+          error={errors.maritalStatus}
+          options={['Single','Married','Civil Partnership','Divorced','Widowed','Separated'].map(s => [s.toLowerCase().replace(' ', '_'), s])}
+        />
+        {/* Number, so it keeps its own markup rather than going through Input, which is
+            typed for string values and would lose the clamp. Labelled the same way. */}
+        <NumberInput
+          label="Number of dependants *"
+          value={d.dependants ?? 0}
+          min={0}
+          max={20}
+          error={errors.dependants}
+          onChange={n => updateField('personal', 'dependants', n)}
+        />
       </div>
-      <div>
-        <label className="block font-bold mb-1 text-sm">Employment status *</label>
-        <select value={d.employmentStatus || ''} onChange={e => updateField('personal', 'employmentStatus', e.target.value)}
-          className={`border-2 ${errors.employmentStatus ? 'border-red-500' : 'border-gray-900 dark:border-gray-600'} dark:bg-gray-800 p-2.5 min-h-[44px] w-full md:w-1/2`}>
-          <option value="">Select</option>
-          {['Employed','Self-employed','Unemployed','Retired','Student','Other'].map(s => <option key={s} value={s.toLowerCase().replace('-','_')}>{s}</option>)}
-        </select>
-        {errors.employmentStatus && <p className="text-red-600 text-xs mt-1">{errors.employmentStatus}</p>}
-      </div>
+      <Select
+        label="Employment status *"
+        value={d.employmentStatus}
+        onChange={v => updateField('personal', 'employmentStatus', v)}
+        error={errors.employmentStatus}
+        className="md:w-1/2"
+        options={['Employed','Self-employed','Unemployed','Retired','Student','Other'].map(s => [s.toLowerCase().replace('-', '_'), s])}
+      />
 
       {/* Aliases / Other Names */}
       <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
         <h3 className="font-bold text-sm mb-2">Other Names / Aliases</h3>
         <p className="text-xs text-gray-500 mb-3">Include any other names you are or have been known by (maiden name, previous married name, etc.)</p>
+        {/* These three had *only* a placeholder, which is not an accessible name — it is
+            announced inconsistently and disappears the moment the field is typed into, so a
+            screen reader user who paused mid-entry could not recover what the field was.
+            Labelled properly now; the placeholders stay as visual hints.
+
+            The delete button had no name at all beyond the glyph "✕", which is announced as
+            "button" or as the literal character depending on the reader, and gave no
+            indication of *which* alias it removed. */}
         {(d.aliases || []).map((alias: any, i: number) => (
           <div key={i} className="flex gap-2 items-end mb-2">
-            <div className="flex-1"><input value={alias.firstName || ''} onChange={e => { const a = [...(d.aliases||[])]; a[i]={...a[i],firstName:e.target.value}; updateField('personal','aliases',a); }} placeholder="First name" className="border-2 border-gray-900 dark:border-gray-600 dark:bg-gray-800 p-2.5 min-h-[44px] w-full text-sm" /></div>
-            <div className="flex-1"><input value={alias.lastName || ''} onChange={e => { const a = [...(d.aliases||[])]; a[i]={...a[i],lastName:e.target.value}; updateField('personal','aliases',a); }} placeholder="Last name" className="border-2 border-gray-900 dark:border-gray-600 dark:bg-gray-800 p-2.5 min-h-[44px] w-full text-sm" /></div>
-            <select value={alias.type || ''} onChange={e => { const a = [...(d.aliases||[])]; a[i]={...a[i],type:e.target.value}; updateField('personal','aliases',a); }} className="border-2 border-gray-900 dark:border-gray-600 dark:bg-gray-800 p-2 text-sm">
-              <option value="">Type</option><option value="maiden">Maiden name</option><option value="previous_married">Previous married</option><option value="other">Other</option>
-            </select>
-            <button onClick={() => { const a = (d.aliases||[]).filter((_:any,idx:number)=>idx!==i); updateField('personal','aliases',a); }} className="text-red-600 text-xs px-2 py-2 hover:bg-red-50 rounded">✕</button>
+            <div className="flex-1">
+              <Input
+                label={`Other first name ${i + 1}`}
+                value={alias.firstName}
+                onChange={v => { const a = [...(d.aliases||[])]; a[i]={...a[i],firstName:v}; updateField('personal','aliases',a); }}
+              />
+            </div>
+            <div className="flex-1">
+              <Input
+                label={`Other last name ${i + 1}`}
+                value={alias.lastName}
+                onChange={v => { const a = [...(d.aliases||[])]; a[i]={...a[i],lastName:v}; updateField('personal','aliases',a); }}
+              />
+            </div>
+            <div className="flex-1">
+              <Select
+                label={`Name type ${i + 1}`}
+                placeholder="Type"
+                value={alias.type}
+                onChange={v => { const a = [...(d.aliases||[])]; a[i]={...a[i],type:v}; updateField('personal','aliases',a); }}
+                options={[['maiden', 'Maiden name'], ['previous_married', 'Previous married'], ['other', 'Other']]}
+              />
+            </div>
+            <button
+              type="button"
+              aria-label={`Remove other name ${i + 1}`}
+              onClick={() => { const a = (d.aliases||[]).filter((_:any,idx:number)=>idx!==i); updateField('personal','aliases',a); }}
+              className="text-red-600 text-xs px-2 py-2 hover:bg-red-50 rounded min-h-[44px]"
+            >
+              <span aria-hidden="true">✕</span>
+            </button>
           </div>
         ))}
         <button onClick={() => updateField('personal','aliases',[...(d.aliases||[]),{firstName:'',lastName:'',type:''}])} className="text-sm bg-gray-200 dark:bg-gray-700 px-3 py-1.5 rounded hover:bg-gray-300">+ Add other name</button>
@@ -1321,13 +1359,16 @@ function DebtsSection({ formData, updateField, errors }: { formData: any; update
                 </div>
               )}
             </div>
-            <div>
-              <label className="block font-bold mb-1 text-sm">Type *</label>
-              <select value={debt.creditorType} onChange={e => updateDebt(i, 'creditorType', e.target.value)} className={`border-2 ${errors[`debts.${i}.creditorType`] ? 'border-red-500' : 'border-gray-900 dark:border-gray-600'} dark:bg-gray-800 p-2.5 min-h-[44px] w-full`}>
-                {[['bank','Bank'],['credit_card','Credit Card'],['loan_company','Loan'],['utility','Utility'],['council_tax','Council Tax'],['hmrc','HMRC'],['other','Other']].map(([v,l]) => <option key={v} value={v}>{l}</option>)}
-              </select>
-              {errors[`debts.${i}.creditorType`] && <p className="text-red-600 text-xs mt-1">{errors[`debts.${i}.creditorType`]}</p>}
-            </div>
+            {/* The label says "Type *" on every creditor row, so the id must be unique per
+                row rather than derived from the label — Select uses useId() for that. */}
+            <Select
+              label={`Debt ${i + 1} type *`}
+              value={debt.creditorType}
+              onChange={v => updateDebt(i, 'creditorType', v)}
+              error={errors[`debts.${i}.creditorType`]}
+              placeholder="Select"
+              options={[['bank','Bank'],['credit_card','Credit Card'],['loan_company','Loan'],['utility','Utility'],['council_tax','Council Tax'],['hmrc','HMRC'],['other','Other']]}
+            />
             <Input label="Outstanding amount (£) *" type="number" value={debt.outstandingAmount} onChange={v => updateDebt(i, 'outstandingAmount', v)}
               error={errors[`debts.${i}.outstandingAmount`]} />
             <Input label="Monthly payment (£)" type="number" value={debt.monthlyPayment} onChange={v => updateDebt(i, 'monthlyPayment', v)} error={errors[`debts.${i}.monthlyPayment`]} />
@@ -1439,11 +1480,13 @@ function AssetsSection({ formData, updateField, errors }: { formData: any; updat
                 <Input label="Property address" value={p.address} onChange={v => updateItem('properties', i, 'address', v)} />
                 <Input label="Estimated value (£)" type="number" value={p.value} onChange={v => updateItem('properties', i, 'value', v)} />
                 <Input label="Outstanding mortgage (£)" type="number" value={p.mortgage} onChange={v => updateItem('properties', i, 'mortgage', v)} />
-                <div><label className="block font-bold mb-1 text-sm">Ownership</label>
-                  <select value={p.ownership||''} onChange={e => updateItem('properties', i, 'ownership', e.target.value)} className="border-2 border-gray-900 dark:border-gray-600 dark:bg-gray-800 p-2.5 min-h-[44px] w-full text-sm">
-                    <option value="">Select</option><option value="sole">Sole owner</option><option value="joint">Joint owner</option><option value="rented">Rented (not owned)</option>
-                  </select>
-                </div>
+                <Select
+                  label={`Property ${i + 1} ownership`}
+                  value={p.ownership}
+                  onChange={v => updateItem('properties', i, 'ownership', v)}
+                  className="text-sm"
+                  options={[['sole','Sole owner'],['joint','Joint owner'],['rented','Rented (not owned)']]}
+                />
                 <button onClick={() => removeItem('properties', i)} className="text-red-600 text-xs self-end">Remove</button>
               </div>
             ))}
@@ -1458,11 +1501,13 @@ function AssetsSection({ formData, updateField, errors }: { formData: any; updat
                 <Input label="Description" value={v.description} onChange={val => updateItem('vehicles', i, 'description', val)} hint="e.g. 2018 Ford Focus" />
                 <Input label="Estimated value (£)" type="number" value={v.value} onChange={val => updateItem('vehicles', i, 'value', val)} />
                 <Input label="Finance outstanding (£)" type="number" value={v.finance} onChange={val => updateItem('vehicles', i, 'finance', val)} />
-                <div><label className="block font-bold mb-1 text-sm">Essential for work?</label>
-                  <select value={v.essential||''} onChange={e => updateItem('vehicles', i, 'essential', e.target.value)} className="border-2 border-gray-900 dark:border-gray-600 dark:bg-gray-800 p-2.5 min-h-[44px] w-full text-sm">
-                    <option value="">Select</option><option value="yes">Yes — needed for employment</option><option value="no">No</option>
-                  </select>
-                </div>
+                <Select
+                  label={`Vehicle ${i + 1} essential for work?`}
+                  value={v.essential}
+                  onChange={val => updateItem('vehicles', i, 'essential', val)}
+                  className="text-sm"
+                  options={[['yes','Yes — needed for employment'],['no','No']]}
+                />
                 <button onClick={() => removeItem('vehicles', i)} className="text-red-600 text-xs self-end">Remove</button>
               </div>
             ))}
@@ -1474,11 +1519,13 @@ function AssetsSection({ formData, updateField, errors }: { formData: any; updat
             <h4 className="font-bold text-sm mb-2">💰 Savings & Investments</h4>
             {savings.map((s: any, i: number) => (
               <div key={i} className="grid md:grid-cols-3 gap-3 mb-2">
-                <div><label className="block font-bold mb-1 text-sm">Type</label>
-                  <select value={s.type||''} onChange={e => updateItem('savings', i, 'type', e.target.value)} className="border-2 border-gray-900 dark:border-gray-600 dark:bg-gray-800 p-2.5 min-h-[44px] w-full text-sm">
-                    <option value="">Select</option><option value="bank_savings">Bank savings</option><option value="isa">ISA</option><option value="stocks">Stocks/shares</option><option value="pension_pot">Pension pot</option><option value="crypto">Cryptocurrency</option><option value="other">Other</option>
-                  </select>
-                </div>
+                <Select
+                  label={`Savings ${i + 1} type`}
+                  value={s.type}
+                  onChange={val => updateItem('savings', i, 'type', val)}
+                  className="text-sm"
+                  options={[['bank_savings','Bank savings'],['isa','ISA'],['stocks','Stocks/shares'],['pension_pot','Pension pot'],['crypto','Cryptocurrency'],['other','Other']]}
+                />
                 <Input label="Provider" value={s.provider} onChange={val => updateItem('savings', i, 'provider', val)} />
                 <div className="flex gap-2 items-end">
                   <div className="flex-1"><Input label="Balance (£)" type="number" value={s.value} onChange={val => updateItem('savings', i, 'value', val)} /></div>
@@ -1654,21 +1701,34 @@ function DocumentsSection({ formData, updateField }: { formData: any; updateFiel
     <div className="space-y-4">
       <p className="text-sm text-gray-600 dark:text-gray-400">Upload supporting documents. This is <strong>optional</strong> but may speed up processing.</p>
 
-      <div
-        className="border-2 border-dashed border-gray-400 dark:border-gray-600 p-8 text-center bg-gray-50 dark:bg-gray-800 cursor-pointer hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950 transition-colors rounded-lg"
+      {/* A <button> rather than a <div onClick>.
+
+          The drop zone was a div with a click handler wrapping a `hidden` file input, which
+          means neither element was reachable: a div is not in the tab order and has no role,
+          and `display: none` removes the input from it entirely. So the document upload step
+          — bank statements, payslips, identity evidence — could not be operated by keyboard
+          at all. WCAG 2.2 AA 2.1.1 and 4.1.2.
+
+          The input stays visually hidden and stays the thing that is activated, because a
+          real <input type="file"> is what gives the native file picker and drag-and-drop; it
+          is now `sr-only` rather than `hidden` so assistive technology can still find it. */}
+      <button
+        type="button"
+        className="w-full border-2 border-dashed border-gray-400 dark:border-gray-600 p-8 text-center bg-gray-50 dark:bg-gray-800 cursor-pointer hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950 focus:outline-2 focus:outline-yellow-400 transition-colors rounded-lg"
         onClick={() => fileInputRef.current?.click()}
       >
-        <p className="text-lg mb-2">&#128194; Drop files here or click to browse</p>
+        <p className="text-lg mb-2"><span aria-hidden="true">&#128194; </span>Drop files here or click to browse</p>
         <p className="text-sm text-gray-500 dark:text-gray-400">Accepted: PDF, JPG, PNG, DOC, DOCX (max 10MB each)</p>
-        <input
-          ref={fileInputRef}
-          type="file"
-          multiple
-          accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
-          className="hidden"
-          onChange={handleFileSelect}
-        />
-      </div>
+      </button>
+      <input
+        ref={fileInputRef}
+        type="file"
+        multiple
+        accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+        aria-label="Choose supporting documents to upload"
+        className="sr-only"
+        onChange={handleFileSelect}
+      />
 
       {files.length > 0 && (
         <div data-demo="documents-list" className="space-y-3">
@@ -1781,7 +1841,21 @@ function ChecksSection({ formData, updateField }: { formData: any; updateField: 
           const response = await integrations.checkSystem(SYSTEMS[i], applicantData);
           setCheckResults(prev => [...prev, response.data]);
         } catch {
-          setCheckResults(prev => [...prev, { system: SYSTEMS[i], status: 'clear' as const, responseTime: Math.floor(Math.random() * 200) + 50 }]);
+          /**
+           * `unavailable`, never `clear`. (GAP-023)
+           *
+           * This used to record `status: 'clear'` with an invented response time for a
+           * check that had failed — so an applicant with a live sequestration in BASYS, or
+           * an existing DAS case, was shown "no existing cases found" because a register
+           * was merely unreachable. The recommendation engine then reads
+           * `existingCases: results.some(r => r.status === 'found')`, so a fabricated
+           * `clear` also fed a false negative into the statutory advice, which is how a
+           * cosmetic fallback became a wrong recommendation.
+           *
+           * A search that did not happen has no result, and saying so is the only honest
+           * option available here.
+           */
+          setCheckResults(prev => [...prev, { system: SYSTEMS[i], status: 'unavailable' as const, responseTime: 0 }]);
         }
       }
       // Run credit check
@@ -1792,17 +1866,27 @@ function ChecksSection({ formData, updateField }: { formData: any; updateField: 
         updateField('creditCheckResult', 'score', creditResponse.data.score);
         updateField('creditCheckResult', 'band', creditResponse.data.band);
       } catch {
-        setCreditResult({ score: 620, band: 'Fair', defaults: 0, ccjs: 0, utilisation: 38, provider: 'SyntheticCredit', checkedAt: new Date().toISOString() });
+        // Was a hard-coded score of 620 / band "Fair" / provider "SyntheticCredit",
+        // presented as a real credit search. Left null so the panel reports that the check
+        // did not run rather than inventing a number a caseworker might rely on.
+        setCreditResult(null);
       }
     } else {
-      // API not available — simulate realistic results with delays
+      /**
+       * Offline demo mode — a deliberate feature, and labelled as one.
+       *
+       * This branch exists so the journey can be walked with no backend at all, which is a
+       * legitimate thing to want. What made it a defect was that its output was
+       * indistinguishable from a real check: same badges, same wording, plausible response
+       * times. `simulated: true` is what draws the line, and the results panel renders it.
+       */
       const mockResults = [
-        { system: 'basys', status: 'clear' as const, responseTime: 230 },
-        { system: 'eden', status: 'clear' as const, responseTime: 185 },
-        { system: 'das', status: 'clear' as const, responseTime: 310 },
-        { system: 'cft', status: 'clear' as const, responseTime: 145 },
-        { system: 'moratorium', status: 'clear' as const, responseTime: 220 },
-        { system: 'roi', status: 'clear' as const, responseTime: 275 },
+        { system: 'basys', status: 'clear' as const, responseTime: 230, simulated: true },
+        { system: 'eden', status: 'clear' as const, responseTime: 185, simulated: true },
+        { system: 'das', status: 'clear' as const, responseTime: 310, simulated: true },
+        { system: 'cft', status: 'clear' as const, responseTime: 145, simulated: true },
+        { system: 'moratorium', status: 'clear' as const, responseTime: 220, simulated: true },
+        { system: 'roi', status: 'clear' as const, responseTime: 275, simulated: true },
       ];
       // Show results progressively with simulated timing
       for (const result of mockResults) {
@@ -1812,7 +1896,7 @@ function ChecksSection({ formData, updateField }: { formData: any; updateField: 
       }
       setCurrentCheck('credit');
       await new Promise(r => setTimeout(r, 500));
-      setCreditResult({ score: 620, band: 'Fair', defaults: 0, ccjs: 0, utilisation: 38, provider: 'SyntheticCredit', checkedAt: new Date().toISOString() });
+      setCreditResult({ score: 620, band: 'Fair', defaults: 0, ccjs: 0, utilisation: 38, provider: 'SyntheticCredit', checkedAt: new Date().toISOString(), simulated: true });
     }
 
     updateField('checks', 'completed', true);
@@ -1848,10 +1932,8 @@ function ChecksSection({ formData, updateField }: { formData: any; updateField: 
                 <div key={i} className="flex justify-between items-center p-2 bg-gray-50 dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700">
                   <span className="font-bold text-sm">{SYSTEM_LABELS[result.system] || result.system}</span>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-gray-500">{result.responseTime}ms</span>
-                    {result.status === 'clear' && <span className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded font-bold">✓ Clear</span>}
-                    {result.status === 'found' && <span className="text-xs bg-red-100 text-red-800 px-2 py-0.5 rounded font-bold">⚠ Case Found</span>}
-                    {result.status === 'error' && <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded font-bold">⚠ Error</span>}
+                    {result.responseTime ? <span className="text-xs text-gray-500">{result.responseTime}ms</span> : null}
+                    <CheckStatusBadge status={result.status} simulated={result.simulated} />
                   </div>
                 </div>
               ))}
@@ -1866,6 +1948,21 @@ function ChecksSection({ formData, updateField }: { formData: any; updateField: 
         </div>
       ) : (
         <div data-demo="checks-results" className="space-y-2">
+          {/* Any check that could not be reached is called out above the list rather than
+              only being visible as one badge among six. The recommendation engine reads
+              `existingCases` from these results, so an unreachable register means the advice
+              is being produced from an incomplete search — the applicant is entitled to know
+              that, and a caseworker needs to. */}
+          {checkResults.some(r => r.status === 'unavailable') && (
+            <div role="alert" className="p-3 border-l-4 border-amber-600 bg-amber-50 dark:bg-amber-950">
+              <p className="text-sm font-bold">Some registers could not be checked</p>
+              <p className="text-xs text-gray-700 dark:text-gray-300">
+                We could not reach every system, so this is not a complete search. Any
+                recommendation below should be confirmed with a money adviser.
+              </p>
+            </div>
+          )}
+
           {checkResults.length > 0 ? checkResults.map((result, i) => (
             <div key={i} className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700">
               <div>
@@ -1875,48 +1972,66 @@ function ChecksSection({ formData, updateField }: { formData: any; updateField: 
                 )}
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-xs text-gray-500">{result.responseTime}ms</span>
-                {result.status === 'clear' && <span className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded font-bold">✓ Clear</span>}
-                {result.status === 'found' && <span className="text-xs bg-red-100 text-red-800 px-2 py-0.5 rounded font-bold">⚠ Case Found</span>}
-                {result.status === 'error' && <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded font-bold">⚠ Error</span>}
+                {result.responseTime ? <span className="text-xs text-gray-500">{result.responseTime}ms</span> : null}
+                <CheckStatusBadge status={result.status} simulated={result.simulated} />
               </div>
             </div>
           )) : (
-            // Fallback display (offline mode)
-            ['BASYS', 'eDEN/DASH', 'DAS', 'CFT', 'Moratorium', 'RoI'].map(sys => (
-              <div key={sys} className="flex justify-between items-center p-2 bg-gray-50 dark:bg-gray-800 rounded">
-                <span className="font-bold text-sm">{sys}</span>
-                <span className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded font-bold">✓ Clear</span>
-              </div>
-            ))
+            /* No results at all.
+               This branch used to render six hard-coded "✓ Clear" badges — BASYS, eDEN/DASH,
+               DAS, CFT, Moratorium, RoI — with no data behind any of them. It is the same
+               defect as the fabricated recommendation, one layer down: the applicant was told
+               six statutory registers had been searched and found nothing when none had been
+               contacted. (GAP-023) */
+            <div role="alert" className="p-3 border-l-4 border-red-700 bg-red-50 dark:bg-red-950">
+              <p className="text-sm font-bold">The checks did not run</p>
+              <p className="text-xs text-gray-700 dark:text-gray-300">
+                No registers were searched, so we cannot say whether you have any existing cases.
+                Go back and select <strong>Run system checks</strong> to try again.
+              </p>
+            </div>
           )}
 
           {/* Credit Check Result */}
           <div className="mt-4 p-4 border rounded bg-white dark:bg-gray-800">
             <h4 className="font-bold text-sm mb-2">📊 Credit Check Result</h4>
             {creditResult ? (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <div className="text-center p-2 bg-gray-50 dark:bg-gray-700 rounded">
-                  <p className="text-2xl font-bold">{creditResult.score}</p>
-                  <p className="text-xs text-gray-500">Score</p>
+              <>
+                {creditResult.simulated && (
+                  <p className="text-xs font-bold text-purple-700 dark:text-purple-300 mb-2">
+                    Simulated — offline demo mode. No credit reference agency was contacted.
+                  </p>
+                )}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <div className="text-center p-2 bg-gray-50 dark:bg-gray-700 rounded">
+                    <p className="text-2xl font-bold">{creditResult.score}</p>
+                    <p className="text-xs text-gray-500">Score</p>
+                  </div>
+                  <div className="text-center p-2 bg-gray-50 dark:bg-gray-700 rounded">
+                    <p className="text-lg font-bold">{creditResult.band}</p>
+                    <p className="text-xs text-gray-500">Band</p>
+                  </div>
+                  <div className="text-center p-2 bg-gray-50 dark:bg-gray-700 rounded">
+                    <p className="text-lg font-bold">{creditResult.defaults}</p>
+                    <p className="text-xs text-gray-500">Defaults</p>
+                  </div>
+                  <div className="text-center p-2 bg-gray-50 dark:bg-gray-700 rounded">
+                    <p className="text-lg font-bold">{creditResult.ccjs}</p>
+                    <p className="text-xs text-gray-500">CCJs</p>
+                  </div>
                 </div>
-                <div className="text-center p-2 bg-gray-50 dark:bg-gray-700 rounded">
-                  <p className="text-lg font-bold">{creditResult.band}</p>
-                  <p className="text-xs text-gray-500">Band</p>
-                </div>
-                <div className="text-center p-2 bg-gray-50 dark:bg-gray-700 rounded">
-                  <p className="text-lg font-bold">{creditResult.defaults}</p>
-                  <p className="text-xs text-gray-500">Defaults</p>
-                </div>
-                <div className="text-center p-2 bg-gray-50 dark:bg-gray-700 rounded">
-                  <p className="text-lg font-bold">{creditResult.ccjs}</p>
-                  <p className="text-xs text-gray-500">CCJs</p>
-                </div>
-              </div>
+                <p className="text-xs text-gray-500 mt-2">Provider: {creditResult.provider} (Sandbox)</p>
+              </>
             ) : (
-              <p className="text-sm text-gray-500">Credit check: Score 520 (Fair)</p>
+              /* Was "Credit check: Score 520 (Fair)" — a hard-coded score, and a *different*
+                 invented one from the 620 the failure path used to set, so the two disagreed
+                 about the same fictional applicant. Nothing is stated now, because nothing is
+                 known. */
+              <p role="alert" className="text-sm text-gray-700 dark:text-gray-300">
+                The credit check did not complete, so no score is available. This does not affect
+                the information you have entered.
+              </p>
             )}
-            <p className="text-xs text-gray-500 mt-2">Provider: {creditResult?.provider || 'SyntheticCredit'} (Sandbox)</p>
           </div>
         </div>
       )}
@@ -1924,135 +2039,8 @@ function ChecksSection({ formData, updateField }: { formData: any; updateField: 
   );
 }
 
-function RecommendationSection({ formData, updateField }: { formData: any; updateField: any }) {
-  const rec = formData.recommendation || {};
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<Recommendation | null>(null);
 
-  const getRecommendation = async () => {
-    setLoading(true);
 
-    // Simulate processing delay for demo effect (2-3 seconds)
-    await new Promise(r => setTimeout(r, 2000 + Math.random() * 1000));
-
-    const income = formData.income || {};
-    const expenditure = formData.expenditure || {};
-    const debts = formData.debts?.items || [];
-    const assets = formData.assets || {};
-    const personal = formData.personal || {};
-
-    const totalIncome = Object.values(income).reduce((s: number, v: any) => s + (parseFloat(v) || 0), 0);
-    const totalExpenditure = Object.values(expenditure).reduce((s: number, v: any) => s + (parseFloat(v) || 0), 0);
-    const totalDebt = debts.reduce((s: number, d: any) => s + (parseFloat(d.outstandingAmount) || 0), 0);
-
-    try {
-      const response = await recommendations.get({
-        totalDebt,
-        creditorsCount: debts.length,
-        monthlyIncome: totalIncome,
-        monthlyExpenditure: totalExpenditure,
-        disposableIncome: totalIncome - totalExpenditure,
-        employmentStatus: personal.employmentStatus || 'employed',
-        hasAssets: !assets.noAssets && (assets.properties?.length > 0 || assets.vehicles?.length > 0),
-        existingCases: formData.checks?.results?.some((r: any) => r.status === 'found') || false,
-        hasMoratorium: false,
-      });
-
-      setResult(response.data);
-      updateField('recommendation', 'received', true);
-      updateField('recommendationResult', 'product', response.data.product);
-      updateField('recommendationResult', 'confidence', response.data.confidence);
-      updateField('recommendationResult', 'reasoning', response.data.reasoning);
-    } catch (err) {
-      // Fallback: show static recommendation if API unavailable
-      console.warn('Recommendation API not available, using fallback');
-      setResult({
-        product: 'debt_arrangement_scheme',
-        confidence: 'high',
-        reasoning: 'Based on your debt level and disposable income, DAS provides the best structured repayment path with statutory creditor protection.',
-        factors: [
-          { factor: 'Debt level', weight: 0.3, value: `£${totalDebt.toLocaleString()}` },
-          { factor: 'Disposable income', weight: 0.25, value: `£${(totalIncome - totalExpenditure).toLocaleString()}/month` },
-          { factor: 'Number of creditors', weight: 0.15, value: `${debts.length}` },
-        ],
-      });
-      updateField('recommendation', 'received', true);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const PRODUCT_LABELS: Record<string, string> = {
-    debt_arrangement_scheme: 'Debt Arrangement Scheme (DAS)',
-    minimal_asset_process: 'Minimal Asset Process (MAP)',
-    protected_trust_deed: 'Protected Trust Deed',
-    bankruptcy: 'Bankruptcy / Sequestration',
-    moratorium: 'Moratorium (Breathing Space)',
-    debt_payment_programme: 'Debt Payment Programme (DPP)',
-    signposting_advice: 'Signposting to Money Advice',
-  };
-
-  return (
-    <div className="space-y-4">
-      {!rec.received ? (
-        <>
-          <p className="text-sm text-gray-600 dark:text-gray-400">Based on your information, our rules engine will recommend the most suitable debt solution.</p>
-          <button data-demo="recommend-button" onClick={getRecommendation} disabled={loading} className="bg-green-700 text-white font-bold py-3 px-6 hover:bg-green-800 disabled:opacity-50">
-            {loading ? '⏳ Analysing...' : 'Get my recommendation'}
-          </button>
-          {loading && (
-            <div className="mt-4 p-6 bg-gray-50 dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700">
-              <div className="flex flex-col items-center gap-4">
-                <div className="relative">
-                  <div className="animate-spin w-12 h-12 border-4 border-green-200 border-t-green-700 rounded-full"></div>
-                </div>
-                <div className="text-center">
-                  <p className="font-bold text-sm mb-1">Analysing your financial profile...</p>
-                  <p className="text-xs text-gray-500">Evaluating debt level, disposable income, credit history, and assets against eligibility criteria for all Scottish debt solutions</p>
-                </div>
-                <div className="w-full max-w-xs bg-gray-200 rounded-full h-1.5 overflow-hidden">
-                  <div className="bg-green-600 h-1.5 rounded-full animate-pulse" style={{ width: '75%' }}></div>
-                </div>
-              </div>
-            </div>
-          )}
-        </>
-      ) : (
-        <>
-          <div data-demo="recommendation-result" className="bg-green-700 text-white p-6 rounded text-center animate-[fadeIn_0.5s_ease-in]">
-            <h3 className="text-xl font-bold text-white">Recommended: {result ? PRODUCT_LABELS[result.product] || result.product : 'Debt Arrangement Scheme (DAS)'}</h3>
-            <p className="text-green-100 mt-1">Confidence: {result?.confidence || 'High'}</p>
-          </div>
-
-          {result?.reasoning && (
-            <div className="bg-blue-50 dark:bg-blue-950 border-l-4 border-blue-600 p-4">
-              <h4 className="font-bold mb-2">Why we recommend this</h4>
-              <p className="text-sm">{result.reasoning}</p>
-            </div>
-          )}
-
-          {result?.factors && result.factors.length > 0 && (
-            <div className="border border-gray-200 dark:border-gray-700 rounded p-4">
-              <h4 className="font-bold text-sm mb-2">Decision Factors</h4>
-              <div className="space-y-2">
-                {result.factors.map((f, i) => (
-                  <div key={i} className="flex justify-between items-center text-sm">
-                    <span>{f.factor}</span>
-                    <span className="font-mono text-gray-600 dark:text-gray-400">{f.value}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <div className="border border-gray-300 dark:border-gray-700 p-4 rounded">
-            <p className="text-sm italic text-gray-600 dark:text-gray-400">This is an automated recommendation for information only. Speak with a money adviser before making decisions.</p>
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
 
 function PaymentSection({ formData, updateField, applicationId }: { formData: any; updateField: any; applicationId: string | null }) {
   const payment = formData.payment || {};
@@ -2272,25 +2260,6 @@ function PaymentSection({ formData, updateField, applicationId }: { formData: an
           {submitting ? '⏳ Processing...' : 'Complete Payment & Submit (Sandbox) — £90.00'}
         </button>
       )}
-    </div>
-  );
-}
-
-// ============ SHARED INPUT COMPONENT ============
-
-// `demo` puts a data-demo hook on the wrapper so demo mode can scroll to this
-// field. It sits on the wrapper rather than the <input> because the label and
-// hint are the part the audience needs to read.
-function Input({ label, type = 'text', value, onChange, hint, error, demo }: {
-  label: string; type?: string; value?: any; onChange: (v: string) => void; hint?: string; error?: string; demo?: string;
-}) {
-  return (
-    <div className="mb-1" data-demo={demo}>
-      <label className="block font-bold mb-1 text-sm">{label}</label>
-      {hint && <p className="text-xs text-gray-500 mb-1">{hint}</p>}
-      {error && <p className="text-xs text-red-600 font-bold mb-1">⚠ {error}</p>}
-      <input type={type} value={value || ''} onChange={e => onChange(e.target.value)}
-        className={`border-2 ${error ? 'border-red-500' : 'border-gray-900 dark:border-gray-600'} dark:bg-gray-800 p-2.5 w-full text-base min-h-[44px] focus:outline-2 focus:outline-yellow-400`} />
     </div>
   );
 }

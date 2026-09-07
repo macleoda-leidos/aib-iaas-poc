@@ -33,8 +33,13 @@
 | Sprint 26 | Real-Time & Notifications — toast system, notification bell with unread count, 30s dashboard auto-refresh, notifications polling hook | Complete |
 | Sprint 27 | Casework Workflow — batch select with batch approve/reject, SLA timer column, select-all header | Complete |
 | Sprint 28 | Production Polish — loading skeleton variants, API error boundary with retry, offline banner, service worker caching, useApiCall hook | Complete |
-| Sprint 29 | Enterprise Showcase — API versioning page, monitoring and observability page (uptime monitors, tracing, alert history) | Complete |
-| Sprint 30 | Security Remediation — close the 10 findings in `docs/security-known-gaps.md` (3 Critical, 4 High, 2 Medium, 1 Low) | **Planned — next sprint** |
+| Sprint 29 | Enterprise Showcase — API versioning page, monitoring and observability page (uptime monitors, tracing, alert history). **The monitoring page's figures were illustrative, not measured** — invented uptime percentages and a trace table attributed to OpenTelemetry and Grafana Cloud, neither of which was ever configured. Rewritten against real endpoints in Sprint 35 (GAP-021) | Complete |
+| Sprint 30 | Security Remediation — close the findings in `docs/security-known-gaps.md`. 18 of 25 closed, 2 partial, 5 open across Sprints 30–35 | In progress |
+| Sprint 31 | Shared Database — async driver over SQLite/PostgreSQL, all 7 repositories and 51 call sites migrated, Node now serves queries from Neon | Complete |
+| Sprint 32 | Trustworthy Identity — Ed25519-signed JWTs (zero new deps), server-side session validation, permissions resolved per request from the database | Complete |
+| Sprint 33 | Ownership & Validation — applications.debtor_user_id with ownership enforcement, Zod schemas wired in as middleware | Complete |
+| Sprint 34 | Real Data, Real Numbers — versioned migration runner, six empty tables populated, reporting computed from the database | Complete |
+| Sprint 35 | Honest Output, Operable Deployment — GAP-017 to GAP-024 closed: no client-fabricated recommendations, .NET engine brought to statutory parity with a shared case table, readiness endpoint, structured logging with correlation IDs, all four stores on the persistent disk, consent recorded, `/apply` labelled to WCAG AA | Complete |
 
 ---
 
@@ -44,7 +49,7 @@ This roadmap outlines the evolution of IAAS from Proof of Concept through to a f
 
 ---
 
-## Sprint 30 (Next Sprint) — Security Remediation
+## Sprint 30 (In Progress) — Security Remediation
 
 **Focus**: Close the gap between the POC implementation and the documented security case.
 
@@ -55,6 +60,20 @@ in [Security Known Gaps](./security-known-gaps.md). An eleventh, GAP-011, was ad
 three copies disagreed, leaving three roles with no permissions on SQLite and every role with
 none on PostgreSQL. The seeding and permission-vocabulary defects are already fixed; what
 remains in this sprint is the modelling work in stage 2. Ten of the eleven block production.
+
+**The register has since grown to 25 findings.** A full multi-agent audit on 4 September added
+GAP-012 to GAP-025 — fourteen more, of which one (GAP-012: unauthenticated account creation with an
+attacker-chosen role, yielding a *legitimately signed* admin session) was more severe than anything
+in the original review and would have voided the whole of GAP-001's remediation. The plan below was
+written against the first eleven and is retained as the record of that sequencing; **the register
+itself is the current state**, and it stands at 18 closed, 2 partial, 5 open.
+
+The five still open are GAP-003, GAP-004, GAP-007, GAP-008 and GAP-025. The two Criticals among
+them — GAP-003 (login accepts any password) and GAP-025 (MFA is client-side, and the token is
+issued before the code is checked) — are both authentication, and they compound: together they mean
+the identity that the ownership, per-request-permission and consent work all now depend on can
+still be assumed by anyone who knows an email address. That is the sequencing point the stage order
+below was making, and it still holds.
 
 GAP-011 is sequenced ahead of GAP-002 deliberately. Switching on default-deny while the grant
 data is wrong produces a lockout rather than a security improvement, and the instinctive
@@ -106,7 +125,7 @@ this fix, and this sprint should adopt its target design rather than build a thr
 
 | Capability | Description | Dependencies | Priority |
 |-----------|-------------|--------------|----------|
-| Security Findings Closure | All 10 findings in [security-known-gaps.md](./security-known-gaps.md) closed and re-reviewed. **Hard gate: no environment may hold real debtor data until the nine production-blocking findings are closed.** | Sprint 30 | Must |
+| Security Findings Closure | All findings in [security-known-gaps.md](./security-known-gaps.md) closed and re-reviewed. The register now holds **25** findings, not the 10 this row was written against: 18 closed, 2 partial, 5 open. **Hard gate: no environment may hold real debtor data until every production-blocking finding is closed** — currently GAP-003, GAP-004, GAP-007, GAP-008 and GAP-025. The two Criticals (GAP-003, GAP-025) are both authentication and they compound. | Sprint 30 | Must |
 | Production Identity Integration | Connect Keycloak to real ScotAccount + GOV.UK Login. Supersedes the POC's local password path entirely (closes GAP-001, GAP-003, GAP-007 at production grade) | Identity Provider agreements | Must |
 | Real Credit Bureau Integration | Replace mock with Experian/Equifax sandbox then live | Data sharing agreement | Must |
 | PostgreSQL Migration | Replace SQLite with managed PostgreSQL (AWS RDS) | Infrastructure provisioning | Must |
@@ -300,6 +319,8 @@ declared for that service. So writes against the .NET backend survive only until
 recycled. Two consequences worth stating plainly:
 
 - Switching backends mid-demo can appear to lose data, because the two services do not share storage.
+  Fixed by setting the same Neon `DATABASE_URL` on both, which since Sprint 31 both services honour —
+  see "What happens when it is set" below.
 - `services/dotnet-api/Program.cs` sets CORS without `exposedHeaders`, so it has the *same* defect the
   Node service just had: the frontend cannot read `RateLimit-*` from it and falls back to an assumed
   limit. Fixing it means adding `WithExposedHeaders` to the CORS policy there too.
@@ -311,8 +332,9 @@ flag? **The value can be set in advance; the flag cannot select it.** Recorded h
 is structural rather than a missing feature.
 
 **Where it is read.** `DATABASE_URL` is a server-side environment variable, read *once at container
-boot*: `services/consolidated-api/src/index.ts:251` for Node, `services/dotnet-api/Program.cs:21` for
-.NET. The backend toggle at `/admin/feature-flags` writes `localStorage['iaas-backend-url']` in the
+boot*: `packages/database/src/pg-connection.ts:6` via `isPostgresEnabled()` for Node,
+`services/dotnet-api/Program.cs:21` for .NET. The backend toggle at `/admin/feature-flags` writes
+`localStorage['iaas-backend-url']` in the
 browser. A browser key cannot reach an env var that a running container read at startup, so the toggle
 can only change *which service the browser calls* — never what either service is connected to. Both
 values are set per service in `render.yaml` (or the Render dashboard), and changing one restarts that
@@ -332,27 +354,34 @@ of Render's. Treat it as a secret: set it in the Render dashboard rather than co
 | Service | Effect | Serves queries from Postgres? |
 |---|---|---|
 | **.NET** (`iaas-dotnet-api`) | Real. `Program.cs:24-36` converts the `postgresql://` URI to ADO.NET form and switches EF Core to `UseNpgsql`; `EnsureCreated()` + `SeedData.Initialize` run on boot. | **Yes** |
-| **Node** (`iaas-api`) | Schema and seed only. `index.ts:248-250` states it outright: *"SQLite remains the runtime query engine … Neon holds the schema + seed data for when async migration completes."* | **No** |
+| **Node** (`iaas-api`) | Real, as of Sprint 31. `createRepositories()` selects a driver from `isPostgresEnabled()`, so the whole repository layer reads and writes Postgres when the URI is set and SQLite when it is not. | **Yes** |
 
-So setting `DATABASE_URL` on the Node service today seeds a Neon database that nothing then reads.
-`isPostgresEnabled()` and `getPgPool()` are exported from `packages/database` and called by no service.
-The Sprint 19 and 21 entries near the top of this document describe the persistence layer as complete;
-that is true of the schema, seeding and pooled connection, but **not** of query serving.
+Both backends therefore serve from the same Neon database when both carry the same `DATABASE_URL`,
+which also removes the "switching backends mid-demo appears to lose data" defect described above —
+they no longer have separate storage to disagree about.
 
-**What a genuinely shared database would take.** The blocker is synchronous SQLite. The repository
-layer is `better-sqlite3`, whose API is sync by design, and it is consumed synchronously — **57 call
-sites across 8 route files** (`applications.create(...)`, `applications.findById(...)` and so on, with
-no `await`), the largest being `api-gateway/src/routes/applications.ts` at 17. `pg` is async only, so
-switching the query engine means making every repository method async and threading `await` through each
-caller and its route handler. That is a bounded, mechanical change, but it touches the request path of
-the whole API and needs its own tests; it is not a config edit and should not be attempted alongside
-unrelated work.
+**How the Node service got there** (recorded because the shape of the work is not what it looked like
+from outside). The blocker was synchronous SQLite: the repository layer was `better-sqlite3`, whose API
+is sync by design, consumed synchronously at **51 call sites across 7 route files**, the largest being
+`api-gateway/src/routes/applications.ts` at 17. `pg` is async only, so every one of the 64 public
+repository methods became `async` and every caller and route handler had to await it.
 
-**Cheaper interim option, if the goal is just "the .NET backend stops losing data":** set
-`DATABASE_URL` on `iaas-dotnet-api` only. That is pure configuration, works today because the EF Core
-path is real, and fixes the ephemeral-SQLite problem on that service. The two backends still would not
-share data, so switching mid-demo would still show different records — but neither would lose writes on
-a container recycle.
+The mechanical part was the smaller part. Three silent divergences had to be handled in
+`packages/database/src/driver.ts` first, none of which the type checker could have found:
+
+- **Transactions did not transact.** `PostgresDriver.transaction()` opened `BEGIN` on a dedicated
+  client but passed its callback no argument, so every statement inside went back through the pool —
+  a different connection — and autocommitted outside the transaction it was supposed to be in. The
+  callback now receives a driver bound to that client.
+- **Booleans.** SQLite declares flags `INTEGER` and refuses to bind a boolean; Postgres declares them
+  `BOOLEAN` and refuses an integer. Repositories now bind the boolean and the SQLite adapter converts.
+- **Timestamps.** `pg` hydrates `TIMESTAMPTZ` into a `Date`; better-sqlite3 returns the stored string.
+  The adapter converts back to an ISO string, so the same endpoint serialises identically on both.
+  Retyping the Postgres columns to `TEXT` would have been cheaper but would break the .NET API, which
+  reads the same columns through EF Core as `DateTime`.
+
+A fourth, found the same way: PostgreSQL returns `COUNT(*)` as a bigint, which `pg` hands back as a
+*string*. Every pagination total and dashboard count is now wrapped in `Number()`.
 
 ### Could the .NET API run on the existing Azure Container Apps environment?
 

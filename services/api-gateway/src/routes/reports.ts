@@ -1,160 +1,240 @@
 import { Router, Request, Response } from 'express';
-import { getDatabase } from '../db';
+import { driver } from '../db';
+import {
+  applicationsByStatus,
+  applicationsByMonth,
+  applicationsByRegion,
+  recommendationsByProduct,
+  debtStatistics,
+  processingTimes,
+  organisationActivity,
+  paymentStatistics,
+} from './reportQueries';
 
 export const reportsRouter = Router();
 
+/**
+ * Management information, computed from the database.
+ *
+ * Every figure here except four application counts used to be a literal in this file —
+ * product mix, monthly trend, geographic spread, debt bands, processing times, SLA
+ * compliance. The `/statistics` page was wired to these endpoints all along, so it
+ * looked live while displaying numbers that never moved. A stakeholder had no way to
+ * tell which figures meant something, and a real one breaking would have gone unnoticed.
+ *
+ * They were literals because the tables were empty: a hundred applications existed with
+ * no debts, no recommendations, no addresses and no audit trail, so an honest query
+ * returned zero. The aggregation now lives in `./reportQueries.ts` and this file is the
+ * route layer over it.
+ *
+ * Where a figure genuinely cannot be derived yet — integration uptime, credit-check
+ * success rate, satisfaction — it is reported as `null` with a `derived: false` marker
+ * rather than as a plausible number. A null renders as "—" and prompts the right
+ * question; an invented 99.2% ends up in a board paper.
+ */
+
+/**
+ * "Applications created in the last N days", in each dialect's own terms.
+ *
+ * SQLite's `datetime('now', '-7 days')` is not PostgreSQL syntax, and because
+ * `created_at` is TEXT on one side and TIMESTAMPTZ on the other there is no portable
+ * literal to compare against either. Bound as a parameter rather than interpolated, so
+ * `days` can only ever be a number.
+ */
+function createdWithinDays(days: number): { sql: string; params: any[] } {
+  return driver.dialect === 'postgres'
+    ? {
+        sql: 'SELECT COUNT(*) as count FROM applications WHERE created_at >= NOW() - (? * INTERVAL \'1 day\')',
+        params: [days],
+      }
+    : {
+        sql: "SELECT COUNT(*) as count FROM applications WHERE created_at >= datetime('now', ?)",
+        params: [`-${days} days`],
+      };
+}
+
+/**
+ * Metrics no table records yet.
+ *
+ * Deliberately short, and it shrank: SLA compliance turned out to be derivable from
+ * the audit trail (the proportion of decided cases inside the end-to-end target), so
+ * it moved out of here and is now computed. What remains needs instrumentation that
+ * does not exist — uptime needs a monitor with history, and credit-check success needs
+ * the integration to record its outcomes.
+ */
+const NOT_YET_DERIVABLE = {
+  creditCheckSuccessRate: null,
+  integrationUptime: null,
+} as const;
+
+async function loadDashboard() {
+  const week = createdWithinDays(7);
+  const month = createdWithinDays(30);
+
+  // Issued together rather than in sequence: this is one page load, and against Neon
+  // each query is a network round trip.
+  const [
+    totalRow, weekRow, monthRow, byStatus, byProduct, monthly, regions, debts, timings, payments,
+  ] = await Promise.all([
+    driver.get('SELECT COUNT(*) as count FROM applications'),
+    driver.get(week.sql, week.params),
+    driver.get(month.sql, month.params),
+    applicationsByStatus(driver),
+    recommendationsByProduct(driver),
+    applicationsByMonth(driver),
+    applicationsByRegion(driver),
+    debtStatistics(driver),
+    processingTimes(driver),
+    paymentStatistics(driver),
+  ]);
+
+  return {
+    summary: {
+      totalApplications: Number(totalRow.count),
+      thisWeek: Number(weekRow.count),
+      thisMonth: Number(monthRow.count),
+      averageProcessingDays: timings.averageProcessingDays,
+      decidedApplications: timings.decidedCount,
+    },
+    byStatus,
+    byProduct,
+    trends: {
+      monthlyApplications: monthly,
+    },
+    performance: {
+      averageTimeToReviewHours: timings.submissionToReviewHours,
+      averageTimeToDecisionHours: timings.reviewToDecisionHours,
+      averageEndToEndHours: timings.endToEndHours,
+      slaCompliance: timings.slaCompliance,
+      paymentSuccessRate: payments.successRate,
+      feesCollected: payments.feeTotal,
+      ...NOT_YET_DERIVABLE,
+    },
+    geographic: regions,
+    financial: {
+      totalDebtUnderManagement: debts.totalDebtUnderManagement,
+      averageDebt: debts.averageDebt,
+      medianDebt: debts.medianDebt,
+      feesCollected: payments.feeTotal,
+      debtBands: debts.debtBands,
+    },
+    // So a consumer can tell computed figures from absent ones without guessing.
+    meta: {
+      derivedFromDatabase: true,
+      undeliverableMetrics: Object.keys(NOT_YET_DERIVABLE),
+    },
+  };
+}
+
 // Dashboard analytics summary
-reportsRouter.get('/dashboard', (_req: Request, res: Response) => {
-  const db = getDatabase();
-
-  const total = (db.prepare('SELECT COUNT(*) as count FROM applications').get() as any).count;
-  const byStatus = db.prepare(`
-    SELECT status, COUNT(*) as count FROM applications GROUP BY status
-  `).all() as any[];
-
-  const thisWeek = (db.prepare(`
-    SELECT COUNT(*) as count FROM applications WHERE created_at >= datetime('now', '-7 days')
-  `).get() as any).count;
-
-  const thisMonth = (db.prepare(`
-    SELECT COUNT(*) as count FROM applications WHERE created_at >= datetime('now', '-30 days')
-  `).get() as any).count;
-
-  // Synthetic additional data for POC demo
-  res.json({
-    success: true,
-    data: {
-      summary: {
-        totalApplications: total || 156,
-        thisWeek: thisWeek || 12,
-        thisMonth: thisMonth || 47,
-        averageProcessingDays: 3.2,
-      },
-      byStatus: byStatus.length > 0 ? byStatus : [
-        { status: 'draft', count: 8 },
-        { status: 'submitted', count: 12 },
-        { status: 'under_review', count: 15 },
-        { status: 'additional_info_required', count: 5 },
-        { status: 'recommendation_issued', count: 28 },
-        { status: 'accepted', count: 72 },
-        { status: 'rejected', count: 11 },
-        { status: 'withdrawn', count: 5 },
-      ],
-      byProduct: [
-        { product: 'debt_arrangement_scheme', count: 45, percentage: 28.8 },
-        { product: 'minimal_asset_process', count: 32, percentage: 20.5 },
-        { product: 'protected_trust_deed', count: 28, percentage: 17.9 },
-        { product: 'bankruptcy', count: 18, percentage: 11.5 },
-        { product: 'debt_payment_programme', count: 15, percentage: 9.6 },
-        { product: 'moratorium', count: 8, percentage: 5.1 },
-        { product: 'signposting_advice', count: 10, percentage: 6.4 },
-      ],
-      trends: {
-        weeklyApplications: [
-          { week: 'W23', count: 11 }, { week: 'W24', count: 14 },
-          { week: 'W25', count: 12 }, { week: 'W26', count: 13 },
-          { week: 'W27', count: 15 }, { week: 'W28', count: 11 },
-          { week: 'W29', count: 13 }, { week: 'W30', count: 16 },
-          { week: 'W31', count: 14 }, { week: 'W32', count: 12 },
-          { week: 'W33', count: 15 }, { week: 'W34', count: 8 },
-        ],
-        monthlyApplications: [
-          { month: 'Sep 25', count: 31, das: 9, map: 7, ptd: 5, other: 10 },
-          { month: 'Oct 25', count: 35, das: 10, map: 8, ptd: 6, other: 11 },
-          { month: 'Nov 25', count: 38, das: 11, map: 7, ptd: 7, other: 13 },
-          { month: 'Dec 25', count: 28, das: 8, map: 5, ptd: 5, other: 10 },
-          { month: 'Jan 26', count: 42, das: 12, map: 9, ptd: 8, other: 13 },
-          { month: 'Feb 26', count: 45, das: 13, map: 10, ptd: 8, other: 14 },
-          { month: 'Mar 26', count: 47, das: 14, map: 9, ptd: 9, other: 15 },
-          { month: 'Apr 26', count: 44, das: 13, map: 10, ptd: 7, other: 14 },
-          { month: 'May 26', count: 51, das: 15, map: 11, ptd: 9, other: 16 },
-          { month: 'Jun 26', count: 48, das: 14, map: 10, ptd: 8, other: 16 },
-          { month: 'Jul 26', count: 53, das: 16, map: 11, ptd: 10, other: 16 },
-          { month: 'Aug 26', count: 12, das: 4, map: 3, ptd: 2, other: 3 },
-        ],
-      },
-      performance: {
-        averageTimeToRecommendation: '2.1 days',
-        averageTimeToDecision: '5.4 days',
-        creditCheckSuccessRate: 94,
-        integrationUptime: 99.2,
-        slaCompliance: 87,
-      },
-      geographic: [
-        { region: 'Edinburgh & Lothians', applications: 38, percentage: 24.4 },
-        { region: 'Glasgow & Clyde', applications: 42, percentage: 26.9 },
-        { region: 'Aberdeen & NE', applications: 18, percentage: 11.5 },
-        { region: 'Dundee & Tayside', applications: 15, percentage: 9.6 },
-        { region: 'Highlands & Islands', applications: 12, percentage: 7.7 },
-        { region: 'Fife', applications: 14, percentage: 9.0 },
-        { region: 'Borders & South', applications: 17, percentage: 10.9 },
-      ],
-      financial: {
-        totalDebtUnderManagement: 4850000,
-        averageDebt: 18200,
-        totalRecovered: 890000,
-        debtBands: [
-          { band: '<£5k', count: 28, percentage: 17.9 },
-          { band: '£5k-£15k', count: 52, percentage: 33.3 },
-          { band: '£15k-£25k', count: 42, percentage: 26.9 },
-          { band: '£25k-£50k', count: 24, percentage: 15.4 },
-          { band: '>£50k', count: 10, percentage: 6.4 },
-        ],
-      },
-    },
-  });
+reportsRouter.get('/dashboard', async (_req: Request, res: Response) => {
+  // Express 4 does not observe a rejected promise returned by a handler, so without
+  // this an unreachable database would hang the request rather than answer it.
+  try {
+    res.json({ success: true, data: await loadDashboard() });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: error.message } });
+  }
 });
 
-// Applications by product type
-reportsRouter.get('/by-product', (_req: Request, res: Response) => {
-  res.json({
-    success: true,
-    data: {
-      products: [
-        { product: 'Debt Arrangement Scheme', code: 'das', active: 45, completed: 120, avgDebt: 15200, avgDuration: '4.2 years' },
-        { product: 'Minimal Asset Process', code: 'map', active: 32, completed: 89, avgDebt: 7800, avgDuration: '6 months' },
-        { product: 'Protected Trust Deed', code: 'ptd', active: 28, completed: 65, avgDebt: 32000, avgDuration: '4 years' },
-        { product: 'Sequestration', code: 'seq', active: 18, completed: 42, avgDebt: 48000, avgDuration: '1 year' },
-        { product: 'Debt Payment Programme', code: 'dpp', active: 15, completed: 55, avgDebt: 3500, avgDuration: '2.1 years' },
-        { product: 'Moratorium', code: 'mor', active: 8, completed: 34, avgDebt: 12000, avgDuration: '6 weeks' },
-      ],
-    },
-  });
+/**
+ * Applications by product.
+ *
+ * Joins recommendations to their applications' debts, so `avgDebt` is the mean total
+ * debt of the people recommended each product — which is the figure that makes the
+ * product mix interpretable. Previously six hardcoded rows.
+ */
+reportsRouter.get('/by-product', async (_req: Request, res: Response) => {
+  try {
+    const rows = await driver.all(`
+      SELECT r.product,
+             COUNT(DISTINCT r.application_id) as recommended,
+             AVG(t.total) as avg_debt,
+             SUM(CASE WHEN a.status IN ('approved', 'accepted') THEN 1 ELSE 0 END) as completed
+      FROM recommendations r
+      JOIN applications a ON a.id = r.application_id
+      LEFT JOIN (SELECT application_id, SUM(amount) as total FROM debts GROUP BY application_id) t
+             ON t.application_id = r.application_id
+      GROUP BY r.product
+      ORDER BY COUNT(DISTINCT r.application_id) DESC
+    `);
+
+    res.json({
+      success: true,
+      data: {
+        products: rows.map(r => ({
+          product: r.product,
+          recommended: Number(r.recommended),
+          completed: Number(r.completed),
+          // Rounded to the pound: a mean of integer debts is not itself an integer,
+          // and pence on an average debt figure implies a precision it does not have.
+          avgDebt: r.avg_debt === null ? null : Math.round(Number(r.avg_debt)),
+        })),
+        meta: { derivedFromDatabase: true },
+      },
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: error.message } });
+  }
 });
 
-// Organisation activity report
-reportsRouter.get('/organisation-activity', (req: Request, res: Response) => {
-  const { orgType } = req.query;
+/**
+ * Organisation activity.
+ *
+ * Reports what can be derived. Applications carry no `organisation_id`, so a
+ * per-organisation caseload cannot be computed — that is stated in `meta` rather than
+ * filled with plausible numbers, because a fabricated caseload is precisely the figure
+ * a stakeholder would quote back.
+ */
+reportsRouter.get('/organisation-activity', async (req: Request, res: Response) => {
+  try {
+    const orgType = typeof req.query.orgType === 'string' ? req.query.orgType : undefined;
 
-  res.json({
-    success: true,
-    data: {
-      organisations: [
-        { name: 'Citizens Advice Scotland', type: 'money_adviser', applications: 34, approved: 28, rejected: 3, pending: 3 },
-        { name: 'StepChange Scotland', type: 'money_adviser', applications: 22, approved: 18, rejected: 2, pending: 2 },
-        { name: 'Royal Bank of Scotland', type: 'creditor', casesInvolved: 45, claimsValue: 234000, dividendsReceived: 28000 },
-        { name: 'Sample Insolvency Practitioners', type: 'trustee', activeCases: 34, completedThisYear: 12, estatesManaged: 1200000 },
-      ].filter(o => !orgType || o.type === orgType),
-    },
-  });
+    res.json({
+      success: true,
+      data: {
+        organisations: await organisationActivity(driver, orgType),
+        meta: {
+          derivedFromDatabase: true,
+          note: 'Per-organisation caseload is not reported: applications carry no organisation_id, so it cannot be derived.',
+        },
+      },
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: error.message } });
+  }
 });
 
-// Processing time report
-reportsRouter.get('/processing-times', (_req: Request, res: Response) => {
-  res.json({
-    success: true,
-    data: {
-      averages: {
-        submissionToReview: { hours: 4.2, target: 8 },
-        reviewToRecommendation: { hours: 48, target: 72 },
-        recommendationToDecision: { hours: 72, target: 120 },
-        totalEndToEnd: { hours: 124, target: 240 },
+/**
+ * Processing times, from the audit trail — the only record of when a case moved
+ * between states.
+ *
+ * Cases that have not reached a stage contribute nothing to that stage's average
+ * rather than counting as zero. Averaging in not-yet-happened as instant is how a
+ * service reports an SLA it is not meeting.
+ */
+reportsRouter.get('/processing-times', async (_req: Request, res: Response) => {
+  try {
+    const timings = await processingTimes(driver);
+
+    // Targets are policy, not data — they belong in configuration and are stated here
+    // as the constants they are, so a breach is visible against a named target.
+    res.json({
+      success: true,
+      data: {
+        averages: {
+          submissionToReview: { hours: timings.submissionToReviewHours, target: 8 },
+          reviewToDecision: { hours: timings.reviewToDecisionHours, target: 72 },
+          totalEndToEnd: { hours: timings.endToEndHours, target: 240 },
+        },
+        sampleSize: timings.decidedCount,
+        meta: {
+          derivedFromDatabase: true,
+          note: 'Averages exclude applications that have not yet reached the stage being measured.',
+        },
       },
-      slaCompliance: {
-        withinTarget: 87,
-        breached: 13,
-        note: '87% of applications processed within SLA targets',
-      },
-    },
-  });
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: error.message } });
+  }
 });

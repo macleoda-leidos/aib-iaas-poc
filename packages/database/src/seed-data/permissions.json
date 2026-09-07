@@ -158,5 +158,13 @@
     "description": "Full system configuration access",
     "resource": "system",
     "action": "admin"
+  },
+  {
+    "id": "perm-notif-send",
+    "code": "notifications.send",
+    "name": "Send Notifications",
+    "description": "Send case correspondence to a user",
+    "resource": "notifications",
+    "action": "send"
   }
 ]

@@ -1,6 +1,6 @@
 import { MAP, SEQUESTRATION_MIN_DEBT, DCO } from '@aib-iaas/statutory';
 
-interface RecommendationInput {
+export interface RecommendationInput {
   totalDebt: number;
   numberOfCreditors: number;
   monthlyIncome: number;
@@ -12,12 +12,44 @@ interface RecommendationInput {
   hasMoratorium: boolean;
 }
 
-interface Recommendation {
+export interface Recommendation {
   recommendedProduct: string;
   confidence: 'high' | 'medium' | 'low';
   reasoning: string[];
   alternativeProducts: string[];
   factors: Array<{ factor: string; value: string; impact: 'positive' | 'negative' | 'neutral' }>;
+}
+
+/**
+ * Words an upstream system uses to mean "this case is still running".
+ *
+ * The check was `caseStatus?.includes('Active')`, and every test used `'Active'` or
+ * `'Active DPP'` — so the branch was only ever proved for the string the test happened to
+ * choose. The DAS mock contract declares `application_in_progress`, and eDEN and BASYS
+ * each have their own vocabulary, so a live case reported as `Open`, `Current` or
+ * `In Progress` fell straight past this and the debtor was handed a *second* statutory
+ * product while already inside one.
+ *
+ * Matched by substring and case-insensitively, because these come from six different
+ * upstream systems and none of them is under our control. Over-matching is the safe
+ * direction: the consequence is signposting someone to an adviser who confirms there is
+ * no live case, rather than recommending a duplicate insolvency route.
+ */
+const LIVE_CASE_MARKERS = [
+  'active',
+  'open',
+  'current',
+  'live',
+  'in progress',
+  'in_progress',
+  'ongoing',
+  'pending',
+];
+
+export function isLiveCaseStatus(caseStatus?: string): boolean {
+  if (!caseStatus) return false;
+  const normalised = caseStatus.toLowerCase();
+  return LIVE_CASE_MARKERS.some(marker => normalised.includes(marker));
 }
 
 export function calculateRecommendation(input: RecommendationInput): Recommendation {
@@ -64,7 +96,7 @@ export function calculateRecommendation(input: RecommendationInput): Recommendat
   });
 
   // Check for existing active cases first
-  const activeExistingCase = input.existingCases.find(c => c.found && c.caseStatus?.includes('Active'));
+  const activeExistingCase = input.existingCases.find(c => c.found && isLiveCaseStatus(c.caseStatus));
   if (activeExistingCase) {
     reasoning.push(`Active case found in ${activeExistingCase.system}`);
     reasoning.push('Applicant should be signposted to existing case handler');
@@ -201,7 +233,7 @@ export function calculateRecommendation(input: RecommendationInput): Recommendat
   if (input.totalDebt > 5000 && input.totalAssetValue > 5000) {
     reasoning.push(`Total debt of £${input.totalDebt.toLocaleString()} with assets valued at £${input.totalAssetValue.toLocaleString()}`);
     reasoning.push('Protected Trust Deed may be appropriate given asset position');
-    reasoning.push('Allows structured repayment over 4 years with asset realisation');
+    reasoning.push('Allows structured repayment over a trustee-agreed period with asset realisation');
     return {
       recommendedProduct: 'protected_trust_deed',
       confidence: 'medium',

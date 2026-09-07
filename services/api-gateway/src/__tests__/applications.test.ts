@@ -1,9 +1,14 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { adminHeaders } from '../../../../tests/helpers/authHeaders';
 import { app } from '../index';
 import http from 'http';
 
 // Integration tests for the API Gateway application endpoints
 // Uses the actual Express app with SQLite (in-memory for tests)
+
+// Populated in beforeAll. Application routes now require an authenticated caller —
+// the anonymous assertions this replaces were the finding, not the baseline.
+let auth: Record<string, string> = {};
 
 let server: http.Server;
 let baseUrl: string;
@@ -16,7 +21,7 @@ function request(method: string, path: string, body?: any): Promise<{ status: nu
       port: url.port,
       path: url.pathname + url.search,
       method,
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...auth },
     };
     const req = http.request(options, (res) => {
       let data = '';
@@ -34,6 +39,7 @@ function request(method: string, path: string, body?: any): Promise<{ status: nu
 
 describe('API Gateway - Applications', () => {
   beforeAll(async () => {
+  auth = await adminHeaders();
     await new Promise<void>((resolve) => {
       server = app.listen(0, () => {
         const addr = server.address() as any;

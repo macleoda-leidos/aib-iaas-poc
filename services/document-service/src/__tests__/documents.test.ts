@@ -1,8 +1,14 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { adminHeaders } from '../../../../tests/helpers/authHeaders';
 import { app } from '../index';
 import http from 'http';
 import path from 'path';
 import fs from 'fs';
+
+// Populated in beforeAll. These routes now require an authenticated caller, so every
+// request() below carries it. The anonymous assertions this replaces were the
+// finding, not the baseline — see tests/helpers/authHeaders.ts.
+let auth: Record<string, string> = {};
 
 let server: http.Server;
 let baseUrl: string;
@@ -15,7 +21,7 @@ function request(method: string, urlPath: string, body?: any): Promise<{ status:
       port: url.port,
       path: url.pathname + url.search,
       method,
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...auth },
     };
     const req = http.request(opts, (res) => {
       let d = '';
@@ -66,6 +72,9 @@ function uploadFile(
       headers: {
         'Content-Type': `multipart/form-data; boundary=${boundary}`,
         'Content-Length': fullBody.length,
+        // Uploads are guarded too — a document is debtor evidence, and this route had
+        // no identity check at all.
+        ...auth,
       },
     };
 
@@ -85,6 +94,7 @@ function uploadFile(
 
 describe('Document Service - /api/documents', () => {
   beforeAll(async () => {
+    auth = await adminHeaders();
     await new Promise<void>((resolve) => {
       server = app.listen(0, () => {
         baseUrl = `http://localhost:${(server.address() as any).port}`;

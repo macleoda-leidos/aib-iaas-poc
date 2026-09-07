@@ -1,4 +1,4 @@
-import type Database from 'better-sqlite3';
+import type { DbDriver } from '../driver';
 import { randomUUID } from 'crypto';
 
 // ─── Types ─────────────────────────────────────
@@ -27,7 +27,7 @@ export interface CreatePaymentInput {
 // ─── Repository ────────────────────────────────
 
 export class PaymentRepository {
-  constructor(private db: Database.Database) {}
+  constructor(private driver: DbDriver) {}
 
   private mapRow(row: any): Payment {
     return {
@@ -43,14 +43,14 @@ export class PaymentRepository {
     };
   }
 
-  create(input: CreatePaymentInput): Payment {
+  async create(input: CreatePaymentInput): Promise<Payment> {
     const id = randomUUID();
     const now = new Date().toISOString();
 
-    this.db.prepare(`
+    await this.driver.run(`
       INSERT INTO payments (id, application_id, amount, currency, status, provider, provider_ref, created_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
+    `, [
       id,
       input.applicationId,
       input.amount,
@@ -58,8 +58,8 @@ export class PaymentRepository {
       input.status || 'pending',
       input.provider || null,
       input.providerRef || null,
-      now
-    );
+      now,
+    ]);
 
     return {
       id,
@@ -74,24 +74,25 @@ export class PaymentRepository {
     };
   }
 
-  findById(id: string): Payment | null {
-    const row = this.db.prepare('SELECT * FROM payments WHERE id = ?').get(id) as any;
+  async findById(id: string): Promise<Payment | null> {
+    const row = await this.driver.get('SELECT * FROM payments WHERE id = ?', [id]);
     return row ? this.mapRow(row) : null;
   }
 
-  findByApplication(applicationId: string): Payment[] {
-    const rows = this.db.prepare(
-      'SELECT * FROM payments WHERE application_id = ? ORDER BY created_at DESC'
-    ).all(applicationId) as any[];
+  async findByApplication(applicationId: string): Promise<Payment[]> {
+    const rows = await this.driver.all(
+      'SELECT * FROM payments WHERE application_id = ? ORDER BY created_at DESC',
+      [applicationId]
+    );
     return rows.map(r => this.mapRow(r));
   }
 
-  updateStatus(id: string, status: string): void {
+  async updateStatus(id: string, status: string): Promise<void> {
     const paidAt = status === 'completed' ? new Date().toISOString() : null;
-    this.db.prepare('UPDATE payments SET status = ?, paid_at = ? WHERE id = ?').run(status, paidAt, id);
+    await this.driver.run('UPDATE payments SET status = ?, paid_at = ? WHERE id = ?', [status, paidAt, id]);
   }
 
-  setProviderRef(id: string, provider: string, providerRef: string): void {
-    this.db.prepare('UPDATE payments SET provider = ?, provider_ref = ? WHERE id = ?').run(provider, providerRef, id);
+  async setProviderRef(id: string, provider: string, providerRef: string): Promise<void> {
+    await this.driver.run('UPDATE payments SET provider = ?, provider_ref = ? WHERE id = ?', [provider, providerRef, id]);
   }
 }

@@ -1,0 +1,53 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The repository's first .NET test project.
+
+    services/dotnet-api has shipped since Sprint 20 with no test project and no CI step, so
+    its recommendation engine had never been executed by anything other than a person
+    clicking through the demo. That is how it kept a £1,500 MAP floor that SSI 2023/9 reg.2
+    removed on 6 February 2023, and how it evaluated PTD before MAP, while the Node engine
+    did neither — two deployed backends giving different statutory advice for the same
+    applicant (GAP-024).
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>IAAS.Api.Tests</RootNamespace>
+    <!--
+      net9.0 matches services/dotnet-api, which is what Render builds. But a developer
+      machine often has only a newer runtime installed, and the xunit test host is a real
+      executable that needs one: without this it aborts with "You must install or update
+      .NET to run this application" even though everything compiled. LatestMajor rolls
+      forward only when the exact 9.0 runtime is absent, so CI — which installs 9.0 —
+      still runs on the version the deployed artefact uses.
+    -->
+    <RollForward>LatestMajor</RollForward>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\services\dotnet-api\IAAS.Api.csproj" />
+  </ItemGroup>
+
+  <!--
+    The case table is shared with the Node suite rather than copied. Copying it would let
+    the two drift, which is the exact failure this project exists to prevent — so it is
+    read from its single location at tests/fixtures/ and copied to the output directory at
+    build time so the test host can find it.
+  -->
+  <ItemGroup>
+    <None Include="..\..\fixtures\recommendation-cases.json"
+          Link="fixtures\recommendation-cases.json"
+          CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

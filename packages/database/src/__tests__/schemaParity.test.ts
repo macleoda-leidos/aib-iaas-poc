@@ -92,7 +92,10 @@ describe('schema parity', () => {
       // A regex that silently stopped matching would make the comparisons below
       // vacuously true.
       const tables = parseTables(await captureDdl());
-      expect(tables.size).toBe(16);
+      // 16 domain tables plus `consents`, added with GAP-018. Deliberately a literal: the
+      // point of this case is that the regex above has not silently stopped matching, and a
+      // derived figure would move with the bug.
+      expect(tables.size).toBe(17);
     });
   });
 

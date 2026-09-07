@@ -1,0 +1,164 @@
+{
+  "_comment": [
+    "Shared recommendation cases, read by BOTH engine suites:",
+    "  services/recommendation-service/src/__tests__/engineParity.test.ts  (Node, vitest)",
+    "  tests/dotnet/IAAS.Api.Tests/RecommendationParityTests.cs             (.NET, xunit)",
+    "",
+    "The AiB IAAS POC deploys two backends serving the same API surface. Until this table",
+    "existed they disagreed about statutory advice and nothing detected it: the .NET engine",
+    "applied a £1,500 MAP floor that SSI 2023/9 reg.2 removed on 6 February 2023, evaluated",
+    "PTD before MAP, and required a £100 surplus for DAS where the Node engine requires only",
+    "that a surplus exists. Same applicant, two products, no failing test. (GAP-024)",
+    "",
+    "One table both suites consume is what makes parity a property rather than a claim.",
+    "Two independently written test files would drift, which is exactly how the divergence",
+    "arose. Change an expectation here and BOTH suites must go red — that is the check.",
+    "",
+    "Fields mirror the Node RecommendationInput. `expect.product` is the required assertion;",
+    "`expect.confidence` and `expect.alternatives` are asserted where present."
+  ],
+
+  "cases": [
+    {
+      "name": "small debt, comfortable surplus - a programme, not a refusal",
+      "why": "The £1,500 floor. SSI 2023/9 reg.2 removed the MAP minimum and prescribed nothing in its place; DAS never had a monetary minimum (reg.21(1) permits a programme for 'one or more debts'). £800 at £300/month clears in three months, so refusing every statutory route was wrong in the direction that harms.",
+      "input": { "totalDebt": 800, "numberOfCreditors": 1, "monthlyIncome": 2000, "monthlyExpenditure": 1700, "employmentStatus": "employed", "hasAssets": false, "totalAssetValue": 0, "hasMoratorium": false },
+      "expect": { "product": "debt_payment_programme", "confidence": "high" }
+    },
+    {
+      "name": "debt just below the withdrawn floor, at the boundary",
+      "why": "£1,499 is the value the removed branch would have caught. Pinned explicitly so reintroducing the literal 1500 anywhere fails immediately rather than at the next audit.",
+      "input": { "totalDebt": 1499, "numberOfCreditors": 2, "monthlyIncome": 1800, "monthlyExpenditure": 1600, "employmentStatus": "employed", "hasAssets": false, "totalAssetValue": 0, "hasMoratorium": false },
+      "expect": { "product": "debt_payment_programme" }
+    },
+    {
+      "name": "small debt, no surplus, minimal assets - MAP",
+      "why": "A £900 debtor with nothing spare is not turned away either. MAP has no minimum, so this is the debt-relief route.",
+      "input": { "totalDebt": 900, "numberOfCreditors": 1, "monthlyIncome": 850, "monthlyExpenditure": 850, "employmentStatus": "unemployed", "hasAssets": false, "totalAssetValue": 0, "hasMoratorium": false },
+      "expect": { "product": "minimal_asset_process", "confidence": "high" }
+    },
+    {
+      "name": "low debt repayable inside the contribution period - DPP",
+      "why": "s.91(2)(a) sets 48 months as the default debtor contribution period. £3,000 at £300/month is ten.",
+      "input": { "totalDebt": 3000, "numberOfCreditors": 3, "monthlyIncome": 2000, "monthlyExpenditure": 1700, "employmentStatus": "employed", "hasAssets": false, "totalAssetValue": 0, "hasMoratorium": false },
+      "expect": { "product": "debt_payment_programme", "confidence": "high" }
+    },
+    {
+      "name": "medium debt with a healthy surplus - DAS",
+      "input": { "totalDebt": 15000, "numberOfCreditors": 4, "monthlyIncome": 2000, "monthlyExpenditure": 1700, "employmentStatus": "employed", "hasAssets": false, "totalAssetValue": 0, "hasMoratorium": false },
+      "expect": { "product": "debt_arrangement_scheme", "confidence": "high" }
+    },
+    {
+      "name": "medium debt with a token surplus - still DAS, at low confidence",
+      "why": "The £100 DAS gate. A £60 surplus is above MAP's £50 ceiling and was below the old DAS gate of £100, so these applicants matched no branch at all and were told their case 'does not clearly match standard product criteria' while sitting inside DAS range. Eligibility is 'can they offer creditors anything'; the size of the surplus is a matter of confidence, which is why this is DAS at low rather than not DAS.",
+      "input": { "totalDebt": 12000, "numberOfCreditors": 3, "monthlyIncome": 1500, "monthlyExpenditure": 1440, "employmentStatus": "employed", "hasAssets": false, "totalAssetValue": 0, "hasMoratorium": false },
+      "expect": { "product": "debt_arrangement_scheme", "confidence": "low", "alternatives": ["protected_trust_deed"] }
+    },
+    {
+      "name": "a one pound surplus with nothing to realise - MAP, not signposting",
+      "why": "Below MAP's £50 ceiling the MAP branch claims the applicant first, and correctly: it is evaluated before DAS because it is the more specific test and is the cheaper, simpler route for someone with £1 a month spare and no assets. The point being pinned is that they are offered something at all — the withdrawn £100 DAS gate left this applicant on the generic default.",
+      "input": { "totalDebt": 12000, "numberOfCreditors": 3, "monthlyIncome": 1500, "monthlyExpenditure": 1499, "employmentStatus": "employed", "hasAssets": false, "totalAssetValue": 0, "hasMoratorium": false },
+      "expect": { "product": "minimal_asset_process" }
+    },
+    {
+      "name": "a one pound surplus with assets between the two ceilings - DAS",
+      "why": "Assets of £3,000 sit above MAP's £2,000 cap and below the £5,000 trust-deed deferral, which isolates the DAS branch. This is exactly the applicant the withdrawn `disposable > 100` gate excluded from every branch.",
+      "input": { "totalDebt": 12000, "numberOfCreditors": 3, "monthlyIncome": 1500, "monthlyExpenditure": 1499, "employmentStatus": "employed", "hasAssets": true, "totalAssetValue": 3000, "hasMoratorium": false },
+      "expect": { "product": "debt_arrangement_scheme", "confidence": "low" }
+    },
+    {
+      "name": "medium debt, mid surplus - DAS at medium confidence",
+      "input": { "totalDebt": 14000, "numberOfCreditors": 3, "monthlyIncome": 2000, "monthlyExpenditure": 1850, "employmentStatus": "employed", "hasAssets": false, "totalAssetValue": 0, "hasMoratorium": false },
+      "expect": { "product": "debt_arrangement_scheme", "confidence": "medium" }
+    },
+    {
+      "name": "minimal assets and almost no ability to pay - MAP, not PTD",
+      "why": "The ordering half of GAP-024. MAP is the more specific test (minimal assets AND almost no surplus) and must be evaluated first; with PTD ahead of it this applicant was routed to a trust deed instead of the cheaper, simpler process they qualified for.",
+      "input": { "totalDebt": 8000, "numberOfCreditors": 3, "monthlyIncome": 900, "monthlyExpenditure": 880, "employmentStatus": "unemployed", "hasAssets": false, "totalAssetValue": 500, "hasMoratorium": false },
+      "expect": { "product": "minimal_asset_process", "confidence": "high", "alternatives": ["bankruptcy"] }
+    },
+    {
+      "name": "MAP asset ceiling, just under",
+      "why": "s.2(2)(c) caps total assets at £2,000. £1,999 qualifies.",
+      "input": { "totalDebt": 9000, "numberOfCreditors": 2, "monthlyIncome": 1000, "monthlyExpenditure": 990, "employmentStatus": "unemployed", "hasAssets": true, "totalAssetValue": 1999, "hasMoratorium": false },
+      "expect": { "product": "minimal_asset_process" }
+    },
+    {
+      "name": "MAP asset ceiling, exactly at it - no longer MAP",
+      "why": "£2,000 is not 'less than £2,000'. With no surplus and debt above the sequestration minimum, sequestration is the route.",
+      "input": { "totalDebt": 9000, "numberOfCreditors": 2, "monthlyIncome": 1000, "monthlyExpenditure": 1000, "employmentStatus": "unemployed", "hasAssets": true, "totalAssetValue": 2000, "hasMoratorium": false },
+      "expect": { "product": "bankruptcy" }
+    },
+    {
+      "name": "substantial assets with a token surplus - deferred to PTD",
+      "why": "deferToTrustDeed. With £50,000 of assets and £80 spare, realising the assets is the realistic route and a DPP would run implausibly long.",
+      "input": { "totalDebt": 20000, "numberOfCreditors": 4, "monthlyIncome": 1600, "monthlyExpenditure": 1520, "employmentStatus": "employed", "hasAssets": true, "totalAssetValue": 50000, "hasMoratorium": false },
+      "expect": { "product": "protected_trust_deed", "confidence": "medium" }
+    },
+    {
+      "name": "substantial assets with a real surplus - DAS still takes precedence",
+      "why": "Above £100/month a DPP is viable, so DAS continues to take precedence over PTD as it always has.",
+      "input": { "totalDebt": 20000, "numberOfCreditors": 4, "monthlyIncome": 2200, "monthlyExpenditure": 1900, "employmentStatus": "employed", "hasAssets": true, "totalAssetValue": 50000, "hasMoratorium": false },
+      "expect": { "product": "debt_arrangement_scheme" }
+    },
+    {
+      "name": "assets declared by value while hasAssets is unset - still PTD",
+      "why": "The PTD branch keys on totalAssetValue alone. hasAssets is self-declared and nothing keeps the two consistent, so requiring both meant £50,000 of assets with the flag unset skipped PTD and bankruptcy and landed on generic signposting.",
+      "input": { "totalDebt": 20000, "numberOfCreditors": 4, "monthlyIncome": 1600, "monthlyExpenditure": 1590, "employmentStatus": "employed", "hasAssets": false, "totalAssetValue": 50000, "hasMoratorium": false },
+      "expect": { "product": "protected_trust_deed" }
+    },
+    {
+      "name": "debt above the MAP ceiling - sequestration",
+      "why": "s.2(2)(b)(ii), £25,000 since SSI 2021/148.",
+      "input": { "totalDebt": 40000, "numberOfCreditors": 8, "monthlyIncome": 2000, "monthlyExpenditure": 1900, "employmentStatus": "employed", "hasAssets": false, "totalAssetValue": 0, "hasMoratorium": false },
+      "expect": { "product": "bankruptcy", "confidence": "medium" }
+    },
+    {
+      "name": "MAP debt ceiling, exactly at it - still MAP territory",
+      "why": "s.2(2)(b)(ii) is 'not more than £25,000', so £25,000 itself qualifies. An off-by-one here decides between a £90 process and full sequestration.",
+      "input": { "totalDebt": 25000, "numberOfCreditors": 5, "monthlyIncome": 1200, "monthlyExpenditure": 1190, "employmentStatus": "unemployed", "hasAssets": false, "totalAssetValue": 100, "hasMoratorium": false },
+      "expect": { "product": "minimal_asset_process" }
+    },
+    {
+      "name": "no surplus at the sequestration minimum",
+      "why": "s.2(8)(a) sets £3,000 as the minimum for a debtor application. Above it with no surplus and assets too high for MAP, sequestration applies. The old £10,000 arm stranded these applicants on the signposting default.",
+      "input": { "totalDebt": 3000, "numberOfCreditors": 2, "monthlyIncome": 1200, "monthlyExpenditure": 1200, "employmentStatus": "unemployed", "hasAssets": true, "totalAssetValue": 4000, "hasMoratorium": false },
+      "expect": { "product": "bankruptcy" }
+    },
+    {
+      "name": "negative surplus with high debt - sequestration",
+      "input": { "totalDebt": 18000, "numberOfCreditors": 6, "monthlyIncome": 1400, "monthlyExpenditure": 1600, "employmentStatus": "unemployed", "hasAssets": true, "totalAssetValue": 3000, "hasMoratorium": false },
+      "expect": { "product": "bankruptcy" }
+    },
+    {
+      "name": "active moratorium takes precedence over any product",
+      "why": "Breathing space is already in force; the debtor has time to take advice rather than a recommendation to act now.",
+      "input": { "totalDebt": 15000, "numberOfCreditors": 4, "monthlyIncome": 2000, "monthlyExpenditure": 1700, "employmentStatus": "employed", "hasAssets": false, "totalAssetValue": 0, "hasMoratorium": true },
+      "expect": { "product": "moratorium", "confidence": "high" }
+    },
+    {
+      "name": "live existing case - signposting, whatever the figures say",
+      "why": "Recommending a second statutory product to someone already inside one is the most harmful output this engine can produce.",
+      "input": { "totalDebt": 15000, "numberOfCreditors": 4, "monthlyIncome": 2000, "monthlyExpenditure": 1700, "employmentStatus": "employed", "hasAssets": false, "totalAssetValue": 0, "hasMoratorium": false, "existingCases": [{ "system": "das", "found": true, "caseStatus": "application_in_progress" }] },
+      "expect": { "product": "signposting_advice", "confidence": "high", "alternatives": [] }
+    },
+    {
+      "name": "live case reported as Open rather than Active",
+      "why": "Six upstream systems, six vocabularies, none under our control. The original check was caseStatus.includes('Active') and every test used 'Active', so a case reported as Open, Current or In Progress fell straight past it.",
+      "input": { "totalDebt": 15000, "numberOfCreditors": 4, "monthlyIncome": 2000, "monthlyExpenditure": 1700, "employmentStatus": "employed", "hasAssets": false, "totalAssetValue": 0, "hasMoratorium": false, "existingCases": [{ "system": "eden", "found": true, "caseStatus": "Open" }] },
+      "expect": { "product": "signposting_advice" }
+    },
+    {
+      "name": "closed existing case does not block a recommendation",
+      "why": "The other direction, and the .NET divergence: a single bool meant any hit in any register produced signposting, including a case discharged years ago. A past bankruptcy is not a reason to refuse advice today.",
+      "input": { "totalDebt": 15000, "numberOfCreditors": 4, "monthlyIncome": 2000, "monthlyExpenditure": 1700, "employmentStatus": "employed", "hasAssets": false, "totalAssetValue": 0, "hasMoratorium": false, "existingCases": [{ "system": "basys", "found": true, "caseStatus": "discharged" }] },
+      "expect": { "product": "debt_arrangement_scheme" }
+    },
+    {
+      "name": "debt of exactly 5000 with a token surplus - DAS, not signposting",
+      "why": "The DAS branch uses > 5000 for the trust-deed deferral, mirroring the PTD branch's own gate, so £5,000 exactly is never deferred to a branch that would decline it and drop through to the generic default.",
+      "input": { "totalDebt": 5000, "numberOfCreditors": 2, "monthlyIncome": 1500, "monthlyExpenditure": 1440, "employmentStatus": "employed", "hasAssets": true, "totalAssetValue": 6000, "hasMoratorium": false },
+      "expect": { "product": "debt_arrangement_scheme" }
+    }
+  ]
+}

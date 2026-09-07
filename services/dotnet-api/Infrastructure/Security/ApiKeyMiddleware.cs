@@ -9,9 +9,16 @@ public class ApiKeyMiddleware
 
     public async Task InvokeAsync(HttpContext context)
     {
-        // Skip auth for public endpoints
+        // Skip auth for public endpoints.
+        //
+        // NOTE: this middleware is not currently registered in Program.cs. The prefix
+        // was "/health", but every endpoint in this service is mounted under "/api/" —
+        // so registering it as written would have returned 401 to Render's health check
+        // at /api/health and failed the deploy. Corrected here rather than left as a
+        // trap for whoever wires it up. Readiness is included for the same reason: an
+        // external prober cannot present an API key.
         var path = context.Request.Path.Value ?? "";
-        if (path == "/" || path.StartsWith("/health") || path.StartsWith("/swagger") || path == "/api/smoke-test")
+        if (path == "/" || path.StartsWith("/api/health") || path.StartsWith("/swagger") || path == "/api/smoke-test")
         {
             await _next(context);
             return;

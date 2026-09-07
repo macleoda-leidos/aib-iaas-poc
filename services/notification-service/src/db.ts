@@ -1,9 +1,24 @@
 import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
+import { resolveStorePath } from '@aib-iaas/observability';
 
-const DB_PATH = process.env.NOTIFICATION_DB_PATH || './data/notifications.db';
+/**
+ * Case correspondence, in its own SQLite file rather than the shared schema.
+ *
+ * `resolveStorePath` rather than a bare `||` fallback because `./data/notifications.db`
+ * resolves under the container's working directory, not the persistent disk mounted at
+ * `/data` — so on Render's free plan every notification was destroyed each time the
+ * container spun down from idle. It warns at boot in production instead of relocating
+ * silently; the deployment fix is `NOTIFICATION_DB_PATH` in render.yaml (GAP-019).
+ */
+const DB_PATH = resolveStorePath('NOTIFICATION_DB_PATH', './data/notifications.db').path;
 let db: Database.Database;
+
+/** The resolved path, for the readiness probe and for tests. */
+export function notificationDbPath(): string {
+  return DB_PATH;
+}
 
 export function getNotificationDb(): Database.Database {
   if (!db) {

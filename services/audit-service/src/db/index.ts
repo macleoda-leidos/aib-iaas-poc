@@ -1,11 +1,18 @@
-import { createRepositories, getDatabase } from '@aib-iaas/database';
+import { createRepositories, initialiseDatabase, getDatabase } from '@aib-iaas/database';
 
 export const repos = createRepositories();
-export const { audit, applications } = repos;
+export const { audit, applications, driver } = repos;
 
 // Disable FK enforcement for the audit service — it's an independent microservice
 // that logs events referencing application IDs from other services' databases.
-getDatabase().pragma('foreign_keys = OFF');
+//
+// SQLite only, and no PostgreSQL equivalent is needed: `pragma` is a better-sqlite3
+// method with no analogue in `pg`, and pg-schema.ts declares no foreign key on
+// audit_events.application_id at all, so PostgreSQL already behaves the way this
+// pragma makes SQLite behave.
+if (driver.dialect === 'sqlite') {
+  getDatabase().pragma('foreign_keys = OFF');
+}
 
 // Legacy aliases for backwards compatibility
 export const getAuditDb = () => {
@@ -13,7 +20,7 @@ export const getAuditDb = () => {
   return getDatabase();
 };
 
-export function initAuditDb(): void {
-  // Schema is initialized by createRepositories() above — this is a no-op now
+export async function initAuditDb(): Promise<void> {
+  await initialiseDatabase();
   console.log('[Audit DB] Initialized via @aib-iaas/database');
 }

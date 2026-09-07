@@ -35,8 +35,14 @@ This document records what was delivered in each sprint of the AiB IAAS POC deve
 | 27 | Casework Workflow | ✅ Complete | — | — |
 | 28 | Production Polish | ✅ Complete | — | — |
 | 29 | Enterprise Showcase | ✅ Complete | +2 | — |
+| 30 | Security Remediation | 🚧 In progress | — | — |
+| 31 | Shared Database | ✅ Complete | — | +15 |
+| 32 | Trustworthy Identity | ✅ Complete | — | +42 |
+| 33 | Ownership & Validation | ✅ Complete | — | +47 |
+| 34 | Real Data, Real Numbers | ✅ Complete | — | +56 |
+| 35 | Honest Output, Operable Deployment | ✅ Complete | — | +166 vitest, +57 xunit |
 
-**Totals: 65+ pages, 50+ features, 658+ tests, 60 docs, 12+ AI capabilities**
+**Totals: 65+ pages, 50+ features, 1,317 vitest tests across 66 files plus 57 xunit tests, 60 docs, 12+ AI capabilities**
 
 ---
 
@@ -594,6 +600,443 @@ This document records what was delivered in each sprint of the AiB IAAS POC deve
 
 ---
 
+## Sprint 30 — Security Remediation (In Progress)
+
+**Goal**: Close the gap between the POC implementation and the documented security case.
+
+Tracked in full, with file-and-line evidence, in
+[security-known-gaps.md](./security-known-gaps.md). Summarised here because the sprint is partially
+landed and the register is the source of truth for what remains.
+
+### Delivered:
+1. GAP-011 (part) — role-permission grants consolidated into one definition in
+   `packages/database/src/rbac.ts`, replacing three disagreeing copies that left three roles with no
+   permissions on SQLite and every role with none on PostgreSQL
+2. GAP-011 (part) — permission vocabulary corrected; `api-gateway` asked for `reports.view`, a code no
+   role has ever held, so the only authorised route in the repo returned 403 to everyone including
+   `system_admin`. It now asks for the seeded `reports.read`
+3. Schema parity tests (`packages/database/src/__tests__/schemaParity.test.ts`) and RBAC reference-data
+   tests (`rbac.test.ts`) to stop the grant definitions drifting apart again
+
+### Residual (open):
+Four items remain — see the "Residual work" section of the register. The nine production-blocking
+findings are **not** yet closed, so the hard gate stands: no environment may hold real debtor data.
+
+---
+
+## Sprint 31 — Shared Database
+
+**Goal**: Make the Node API actually serve queries from PostgreSQL, so both backends can share one
+Neon database instead of each holding its own.
+
+Sprints 19 and 21 described persistence as complete. That was true of the schema, seeding and pooled
+connection, but not of query serving: `isPostgresEnabled()` and `getPgPool()` were exported and called
+by no service, so setting `DATABASE_URL` on the Node service seeded a Neon database that nothing then
+read.
+
+### Delivered:
+1. `packages/database/src/driver.ts` — one async query surface over both backends, exported from the
+   package and wired into `createRepositories()`, which now selects its driver from `isPostgresEnabled()`
+2. All 7 repositories migrated off `better-sqlite3` (64 public methods now `async`, 1,608 lines)
+3. All 51 repository call sites across 7 route files awaited, and their handlers made `async`
+4. Raw-SQL escape hatches converted: `api-gateway`'s dashboard aggregates and `consolidated-api`'s demo
+   seed now go through the driver, with dialect-appropriate date arithmetic and upserts
+5. `initialiseDatabase()` awaited during each service's bootstrap, before `app.listen`
+
+### Defects found and fixed en route:
+6. **`PostgresDriver.transaction()` did not transact.** It opened `BEGIN` on a dedicated client but
+   passed its callback no argument, so every statement inside went back through the pool — a different
+   connection — and autocommitted outside the transaction. `application.create()` writes an applicant,
+   addresses, debts, assets and income/expenditure, so a mid-way failure would have left a partial
+   application with nothing to roll back. The callback now receives a driver bound to that client
+7. **Boolean binds.** `is_current`, `is_essential` and `mfa_enabled` were bound as `1`/`0`. PostgreSQL
+   declares all three `BOOLEAN` and rejects an integer, so every write touching an address, asset or
+   user would have failed. Repositories now bind the boolean; the SQLite adapter converts
+8. **Timestamp types.** `pg` hydrates `TIMESTAMPTZ` into a `Date`, better-sqlite3 returns the stored
+   string, and the row mappers passed both straight through — so the same endpoint would have
+   serialised a different shape per backend, silently. Normalised to ISO strings in the adapter rather
+   than by retyping the columns, which would have broken the .NET API's EF Core `DateTime` mapping
+9. **`COUNT(*)` as a string.** PostgreSQL returns it as a bigint and `pg` hands back a string rather
+   than lose precision. Every pagination total and dashboard count is now `Number()`-wrapped; without
+   it `totalPages` would have concatenated instead of divided, and `"0"` being truthy would have
+   stopped an empty database from ever seeding
+10. **Two handlers had no `try/catch`** (`user-service` logout, `api-gateway` dashboard). Express 4 does
+    not observe a rejected promise from a handler, so once their queries became async an unreachable
+    database would have hung the request rather than answering it. Both now catch
+
+### Tests:
+11. `driver.test.ts` extended from 25 to 38 cases — including one that asserts a write inside a
+    transaction goes to the transaction's *own connection* and never to the pool, which is the check
+    the previous suite could not make and the reason defect 6 survived review
+12. Suite total: **956 tests across 52 files**, all passing
+
+---
+
+## Sprint 32 — Trustworthy Identity
+
+**Goal**: Make a token's contents unforgeable and its session revocable, so that the RBAC data
+Sprint 30 corrected is actually enforced rather than decorative.
+
+Closes GAP-001 and GAP-010, and the deployed half of GAP-002. Everything in the security case
+downstream of identity — ownership checks, audit attribution, default-deny routing — was
+unenforceable while any client could mint an admin token by editing JSON.
+
+### Delivered:
+1. `packages/auth` — Ed25519 (EdDSA) signed JWTs, issued and verified with Node's built-in
+   `crypto`, so **no new dependency** was added to fix the finding
+2. `alg` pinned to `EdDSA` and checked before verification is attempted — `alg: none` and
+   HS256-signed-with-the-public-key are both refused
+3. Keys from `JWT_PRIVATE_KEY` / `JWT_PUBLIC_KEY` (PEM or base64-wrapped PEM); when unset, an
+   ephemeral keypair is generated with a logged warning. The fallback never reverts to
+   accepting unsigned tokens
+4. `npm run auth:keygen` prints a fresh keypair in the form the environment wants
+5. **Permissions removed from the token.** Authorisation is resolved per request from
+   `role_permissions` with a 5-second cache, so a role change or revocation takes effect
+   immediately rather than at next login
+6. **Server-side session validation on every request.** The token's `jti` is looked up in
+   `sessions`; logout deletes the row, so revocation is immediate. Deliberately uncached —
+   caching it would reintroduce the very window GAP-010 describes
+7. `optionalAuth` verifies too: "optional" governs whether a token is *required*, not whether
+   it is *checked*
+
+### The finding that prompted item 8:
+8. **The deployed container authenticated nothing.** `api-gateway/src/index.ts` had always
+   guarded `/api/reports` with `authenticate + requirePermission`, but
+   `consolidated-api/src/index.ts` — the only artefact that deploys — mounted the same router
+   bare. The sole authorised route in the repo was unauthorised everywhere it actually served
+   traffic. Now guarded in both. The general hazard remains: the consolidation layer re-mounts
+   routers by hand, so middleware applied in a service's own entry point is invisible to
+   deployment unless repeated
+
+### Also fixed:
+9. Dead code removed from `api-gateway`'s login: it synthesised a `USR-DEMO-001` user when
+   `demo@example.com` was not found, which was unreachable (that address is seeded as
+   `user-demo`) and is now impossible, since a session row carries a foreign key to `users`
+10. `85 stale .js files from an August build` were sitting inside `src/`, where Node's
+    directory resolution prefers `index.js` over `index.ts` — so running the service loaded
+    August's code while the tests, which resolve TypeScript directly, saw the current source.
+    Removed. `vitest.config.ts` already guarded against this for tests; the runtime path did not
+
+### Tests:
+11. `packages/auth/src/__tests__/jwt.test.ts` — 32 cases, mostly forgery attempts: tampered
+    role claim, `alg: none`, algorithm substitution, foreign signing key, the legacy unsigned
+    format, expiry boundaries, and a misconfigured non-Ed25519 public key
+12. `services/api-gateway/src/__tests__/rbac.test.ts` — rewritten to mint real signed tokens
+    for real seeded users with real sessions; asserts permissions come from the database, that
+    a role change is reflected without re-login, that logout revokes immediately, and that a
+    database failure surfaces as a server error rather than as a 403
+13. Suite total: **998 tests across 53 files**, all passing
+
+### Residual:
+GAP-003 is untouched — any password is still accepted for a seeded user, because no real
+hashes exist to verify against. Identity is now unforgeable but still not proven. Access
+tokens also still live 8 hours with no refresh rotation.
+
+---
+
+## Sprint 33 — Ownership and Validation
+
+**Goal**: Make authorisation decisions about *this record* rather than about records in
+general, and make validation structural rather than hand-rolled per route.
+
+Closes the authenticated half of GAP-005 and wires GAP-009 into the application routes.
+
+### Delivered — resource ownership (GAP-005):
+1. **`applications.debtor_user_id`** added to the SQLite schema, the PostgreSQL schema and the
+   .NET EF model (built and verified). There was previously no link between an application and
+   a debtor *user* at all — `assigned_to` is the member of staff, and `applicants` is a
+   separate table with no user reference — so the first part of the fix was a data-model
+   change, not a code one
+2. Nullable by design: null means owned by nobody, so a debtor never matches it. That is the
+   safe default for staff-created and anonymously-started cases
+3. Ownership enforced on read, update and submit. Refusals return **404, not 403**, so the
+   endpoint cannot be used to enumerate which reference numbers exist
+4. List queries filtered by the owner taken from the **verified token**, not the query string —
+   the scope cannot be widened by naming another user or dropped by omitting the parameter. The
+   reported total is scoped too, so it does not leak how many cases exist in total
+5. `PATCH /:id/status` and `POST /:id/notes` refuse debtors outright: ownership is the wrong
+   test for a statutory decision, because owning the case is precisely what must not grant it
+6. Mass assignment closed — `debtorUserId` is stamped from the token on create and stripped
+   from the update body, so a debtor cannot give their case away or claim an unowned one
+7. Seeds updated: two of the five seeded applications and every tenth of the hundred demo
+   applications are owned by the seeded debtor, so the check has something to distinguish
+
+### Delivered — structural validation (GAP-009):
+8. **Found the mechanical reason the validation package was dead code.** Its `package.json`
+   declared `"main": "./dist/index.js"`, and that built file imports `./schemas` without a file
+   extension, which does not resolve under ESM — `require('@aib-iaas/validation')` threw
+   `ERR_MODULE_NOT_FOUND`. The package could not be loaded at all, so no amount of intent
+   would have wired it in. Fixed by pointing `main`/`types` at `src/index.ts`
+9. `validateBody(schema)` middleware, returning the existing error envelope so the text the
+   frontend renders is unchanged. Applied to all four application routes that accept a body;
+   the 75-line hand-rolled `validateApplicationBody` is deleted
+10. `packages/validation/src/api.ts` — schemas for what the endpoints **actually receive**.
+    `schemas.ts` describes the frontend *form* (every field required, different nesting); no
+    endpoint is sent that shape, and applying it as middleware would have rejected every real
+    request. The new schemas are draft-tolerant, because `/apply` saves section by section, but
+    strict on any field that is present
+11. The middleware replaces `req.body` with the parsed value, so coercions land once: amounts
+    posted as strings become numbers, NI numbers are normalised at the boundary
+
+### Defects found while doing it:
+12. **A latent 500.** `assets: {}` — exactly what the `/apply` auto-save sends when the
+    applicant has no assets — was iterated with `for...of` in `applications.create()`. A JSON
+    object is truthy but not iterable, so it threw a TypeError and surfaced as a 500 rather
+    than a 400. Reachable from the real client; hidden only because the journey sends that
+    field on update, where it was ignored. Now guarded with `Array.isArray` on addresses,
+    debts and assets alike
+13. **An incorrect NI-number rule.** The API accepted `DF123456Z`: it matches
+    `[A-Z]{2}\d{6}[A-Z]` and is not on the disallowed-prefix list, but D is not a valid first
+    letter and Z is not a valid suffix. The shared Zod schema had the correct character classes
+    all along — precisely the frontend/backend drift GAP-009 predicted. Both rules are now applied
+
+### Tests:
+14. `applicationOwnership.test.ts` — 18 cases using **two distinct debtors**, asserting across
+    the boundary between them. A single-debtor test cannot distinguish "scoped to me" from
+    "scoped to nobody", which is how this went unnoticed
+15. `applicationValidation.test.ts` — 29 cases. As many assert that *partial* input is still
+    accepted as assert that malformed input is rejected: wiring validation in is only safe
+    because the schemas are draft-tolerant, so those are the tests that would catch someone
+    tightening them and breaking the journey
+16. Suite total: **1,151 tests across 59 files**, all passing. Coverage 87.7% statements /
+    80.6% branches
+
+### Residual:
+The enforcement above is real for any caller who identifies themselves and **bypassable by any
+caller who does not**, because no deployed application route requires a token (GAP-002). That
+is asserted as a deliberate gap in the test suite rather than left as an assumption, so closing
+it will fail loudly and force the register to be updated. Routes in the other five services
+still read `req.body` with no schema.
+
+---
+
+## Sprint 34 — Real Data, Real Numbers
+
+**Goal**: Make the demo functional rather than decorative — populate the tables screens read,
+give the schema a way to evolve, and replace the reporting literals with computed figures.
+
+### Delivered — schema evolution:
+1. **A versioned migration runner** (`packages/database/src/migrations.ts`) with a
+   `schema_migrations` table, driver-based so one definition covers both backends. This
+   replaces two ad-hoc stopgaps and, more importantly, the absence of any record of what shape
+   a deployed database is in. Its limits are documented in the file rather than implied: no down
+   migrations, no schema diffing, no advisory locking
+2. Migrations run from `initialiseDatabase()`, after the CREATE statements — which can only ever
+   act on a database that does not yet have the table
+
+### Delivered — the demo dataset:
+3. **Six tables were empty after every previous seeding path**: `addresses`, `debts`,
+   `income_expenditure`, `recommendations`, `audit_events`, `payments`. A debt-advice demo whose
+   applications have no debts showed an empty creditor list on every case page, £0 total debt on
+   every dashboard, and a blank audit trail — which is why several screens carried hardcoded
+   figures instead
+4. `packages/database/src/seed-demo.ts` fills them: 350 debts, 133 addresses, 100 income records,
+   66 recommendations, 430 audit events, 83 payments. Driver-based, so it seeds SQLite and
+   PostgreSQL from one definition — the hundred applications were previously written twice, in
+   two files with different id schemes, so the backends disagreed about what the demo data was
+5. Internally consistent by construction: each case's creditors sum to its total (the last takes
+   the remainder, so rounding cannot make the parts disagree), its recommendation follows from its
+   own debt and surplus, its audit events are ordered and match its status, and a payment exists
+   only where the case progressed past draft
+6. Statuses are **read from the application rows**, not recomputed, so the detail cannot contradict
+   the case it hangs off. Everything else derives from the loop index — no `Math.random()` — so the
+   dataset is byte-identical on every boot, which is what a scripted demo needs
+
+### Delivered — reporting that computes:
+7. **Every figure on `/statistics` except four counts was a literal** in `routes/reports.ts` —
+   product mix, monthly trend, geographic spread, debt bands, processing times, SLA compliance.
+   The page was wired to the API all along, so it looked live while showing numbers that never
+   moved. Now computed in `routes/reportQueries.ts`: £2.4M debt under management, median £24,075,
+   five populated debt bands, six regions, SLA compliance from the audit trail
+8. **SLA compliance turned out to be derivable** and moved out of the undeliverable list — it is
+   the proportion of decided cases that reached a decision inside the end-to-end target
+9. Metrics that genuinely have no instrumentation (integration uptime, credit-check success) are
+   reported as `null` with a `meta.undeliverableMetrics` list, and render as an em dash. The
+   invented 99.2% and 94% they replaced are the kind of figure that ends up in a board paper
+10. The `/statistics` page previously ignored `financial`, `geographic` and `trends` from the API
+    response and rendered its hardcoded fallbacks even on success — fixed
+
+### Defects found:
+11. **Test collection is non-deterministic under load.** Vitest was observed collecting 57 or 58
+    of 59 files and reporting a **green run over the subset** — silently, with no error and no
+    skip notice. Not pool-specific (`--pool=forks` and `--pool=threads` both did it); it
+    correlated with heavy concurrent machine load. A green CI run therefore proves nothing unless
+    the file count is checked. `--no-file-parallelism` has collected all 59 on every attempt.
+    Recorded in CLAUDE.md. Note that per-sprint test totals recorded before this was found may
+    understate, having been measured from possibly-truncated runs
+12. The reporting tests asserted that `byProduct`, `trends` and `geographic` were *present and
+    non-empty* — guaranteed by their being hardcoded. Every one would have passed with the
+    database dropped. Replaced with assertions against known inserted inputs
+
+### Tests:
+13. `reportsAggregation.test.ts` (22) — asserts computed values against a dataset it inserts, with
+    debts chosen to land in three distinct bands and an audit trail stamped with deliberate 2-hour
+    and 24-hour gaps, so the expected figures are arithmetic rather than whatever the code produces
+14. `migrations.test.ts` (11) — including the awkward case that matters: a migration whose column
+    is also in the CREATE statement must be a no-op that still records itself, or it fails on every
+    fresh database
+15. `seedDemo.test.ts` (23) — coherence rather than counts: creditors summing to totals,
+    recommendations agreeing with their own factors, audit trails ordered forward, one current
+    address per application, determinism across two separate databases
+16. Suite total: **1,151 tests across 59 files**, all passing. Coverage 88.4% statements /
+    81.9% branches
+
+---
+
+## Sprint 35 — Honest Output, Operable Deployment
+
+**Goal**: Close the eight Critical/High findings left outstanding in
+`docs/security-known-gaps.md` after the 4 September multi-agent audit — GAP-017 (residual) and
+GAP-018 through GAP-024. They fall into three groups that needed different treatment, and
+conflating them is why they had stayed open.
+
+### Delivered — two were wrong advice:
+1. **The client fabricated statutory recommendations** (GAP-023). There were *three* fabrication
+   sites in `RecommendationSection`, not one: the `catch` returned a whole response —
+   `debt_arrangement_scheme` at `'high'` confidence with three invented factor weights — and set
+   `received: true` so the journey advanced; the heading defaulted to "Debt Arrangement Scheme
+   (DAS)" when `result` was null; the confidence line defaulted to "High". All three chose DAS,
+   which is a *repayment programme*, so the fabrication specifically told people who cannot afford
+   to repay that they should
+2. Worse, the system-check step fed the engine. A failed BASYS/eDEN/DAS/CFT/Moratorium/RoI check
+   was recorded as `status: 'clear'`, and `calculateRecommendation` reads `existingCases` from
+   exactly those results — so a cosmetic fallback became a false negative in statutory advice. A
+   failed credit check became a hard-coded 620; a *different* hard-coded 520 sat in the render
+   fallback. With no results at all, six statutory registers rendered "✓ Clear" having never been
+   contacted
+3. Now: one retry (Render spins an idle container down after 15 minutes — that cold start is what
+   the fallback was really covering for), then an explicit failure panel naming no product, with
+   `received` left false. Failed checks read `unavailable`, visually distinct from `clear`. The
+   deliberate offline demo mode is kept and every result it produces is labelled `simulated` —
+   that distinction is the whole fix, because the branch was always legitimate and what made it a
+   defect was being indistinguishable from a real check
+4. **The .NET engine gave different statutory advice from the Node one** (GAP-024). It applied a
+   £1,500 MAP floor that **SSI 2023/9 reg. 2 removed on 6 February 2023**, evaluated PTD before
+   MAP, required a £100 surplus for DAS where Node requires only that a surplus exists, and
+   signposted on *any* existing case including one discharged years ago. So a £900 debtor was
+   turned away from every statutory route on one backend and offered a Debt Payment Programme on
+   the other
+5. `services/dotnet-api/Domain/Statutory/Thresholds.cs` now mirrors `packages/statutory`
+   structurally — value, citation, amending SSI, effective date — with `Map.MinDebt` modelled
+   explicitly as `null`, because "no minimum" is a policy position third-party summaries still get
+   wrong. The handler follows the Node branch order exactly
+6. **The parity mechanism matters more than the port.**
+   `tests/fixtures/recommendation-cases.json` is read by both engine suites, so changing one
+   expectation turns *both* red — verified by doing it. Two independently written test files would
+   drift, which is how the divergence arose. `tests/dotnet/IAAS.Api.Tests` is the repository's
+   first .NET test project, and a `dotnet-test` job in CI means this code is executed by something
+   other than a person clicking through the demo for the first time since Sprint 20
+
+### Delivered — three were deployed but not operable:
+7. **`/api/health` could not fail** (GAP-020), and `render.yaml` names it as `healthCheckPath` for
+   both services — so the only signal the platform had was "the process is listening". A container
+   whose database was unreachable was indistinguishable from a working one. The fix is *not* to
+   make it fail: on the free plan a failing check fails the deploy, and a Neon cold start takes
+   seconds, so that would turn a wake-up into a failed deployment mid-demo. Liveness stays
+   always-200; a new `/api/health/ready` probes the driver, both auxiliary stores and whether
+   `UPLOAD_PATH` is genuinely writable, returning 503 with per-dependency detail
+8. **Three of four stores were never on the persistent disk** (GAP-019). `Dockerfile.service` sets
+   `WORKDIR` to `/app/services/${SERVICE_NAME}`, so `./uploads` resolved under the container rather
+   than the `/data` mount. Every uploaded bank statement and payslip and all case correspondence was
+   destroyed several times a day — and because the `documents` rows *did* survive on the disk, the
+   case list kept offering downloads that 404'd. All four paths are now set in `render.yaml`, the
+   Bicep template and Compose, and `resolveStorePath()` logs an error at boot rather than silently
+   relocating: a relative store path works perfectly until the first restart, which is why it must
+   be loud
+9. **No structured logging, correlation id or metrics existed in the deployed artefact** (GAP-021).
+   The one request-id middleware was mounted on api-gateway's *app*, which the deployed container
+   does not use — it imports the *routers* — so it had never run in production. New zero-dependency
+   `packages/observability`: JSON lines with redaction in the serialiser rather than at each call
+   site, an inbound-`x-request-id` filter (it reaches a log aggregator and a response header, so an
+   unfiltered attacker-controlled string is a log injection primitive), route *patterns* not URLs
+   as log fields and metric labels, and Prometheus exposition behind `system.admin`
+10. It also replaced two divergent error handlers. The deployed one returned `err.message`
+    with **no `NODE_ENV` guard**, putting SQLite table and column names in the browser in
+    production; the api-gateway copy guarded it correctly, which is the argument against two copies.
+    Several services mounted none at all and fell through to Express's HTML stack trace
+11. `observabilityParity.test.ts` fails if any of the thirteen Express apps is missing the
+    middleware, if `requestId` is not first, or if `errorHandler` is not last. That
+    mount-point-versus-router divergence has now caused four defects here; the test exists so it
+    stops causing them
+
+### Delivered — three were the remainder of part-closed work:
+12. **Notification writes were still unscoped** (GAP-017 residual). Authentication had landed and
+    closed none of the following on its own: `PATCH /:id/read` and `DELETE /:id` took an id and
+    checked nothing, so any authenticated user could mark read or **destroy** any other user's case
+    correspondence; `read-all` honoured the path parameter for everyone; and `POST /send` let any
+    authenticated caller write an arbitrary subject and body to any userId, attributed to the
+    service. Ownership is now in the `WHERE` clause rather than a check-then-act pair, so "not
+    mine" and "does not exist" are one zero-row result answering 404 — the endpoint is not an
+    existence oracle. Sending requires a new `notifications.send` permission granted to the four
+    casework roles
+13. There was also not one `try` in the file, and no error handler on the service, so posting `{}`
+    threw a `NOT NULL` violation out of better-sqlite3 into Express's default HTML handler
+14. **Consent was a receipt for a record that did not exist** (GAP-018). `POST /consent` returned
+    201 with a fresh uuid and "Consent recorded for audit purposes" and executed no write; there was
+    no `consents` table. UK GDPR Art. 7(1) requires the controller to be able to *demonstrate*
+    consent, so this was worse than a 501 — it made the absence of a record look like its presence
+15. The cache was the more consequential half: keyed on
+    `${niNumber || lastName}-${dateOfBirth}` with a 24-hour TTL, it returned a cached result to a
+    *different* application for the same person, so a fresh consent authorised no fresh check; and
+    the `lastName` fallback (NI number is optional on the form) meant two people sharing a surname
+    and date of birth received each other's credit data. Now keyed on the application plus a
+    SHA-256 of the identity tuple, with a 1-hour TTL — the purpose is "do not bill the provider
+    twice for a double-click", not "remember this person for a day"
+16. Withdrawal is a timestamp, not a deletion: "they withdrew on 3 March" is itself
+    demonstrable-consent evidence. An explicit `consentGiven: false` in a request body overrides
+    any stored consent, because consent is withdrawable at any time under Art. 7(3) and the
+    applicant's present "no" outranks a stored "yes"
+17. **Every control in the citizen journey was programmatically unlabelled** (GAP-022). `<label>`
+    with no `htmlFor`, `<input>` with no `id`, and seven `<select>`s with sibling labels tied to
+    nothing — so a screen reader announced "edit text, blank" for name, date of birth, NI number,
+    every address, every creditor and every figure. Errors had no `aria-describedby`,
+    `aria-invalid` or `role="alert"`. The alias fields had only `placeholder`, which is not an
+    accessible name and vanishes on typing. WCAG 2.2 AA 1.3.1/3.3.2/4.1.2, under PSBAR 2018
+18. Found while fixing it: the document-upload drop zone was a `<div onClick>` wrapping a
+    `display: none` file input, so the upload step could not be operated by keyboard at all
+19. `packages/ui-components/GovInput.tsx` already did all of this correctly and was imported by
+    nothing. It was not swapped in wholesale — no `data-demo` support and different classes, so it
+    would have changed the visual design and broken the demo script. The controls moved to
+    `apply/fields.tsx` because Next App Router permits no arbitrary named exports from a route
+    file, so a component defined in `page.tsx` cannot be imported by a test
+
+### Delivered — engineering fixes found along the way:
+20. `packages/auth` had no `tsconfig.json`, so `tsc` fell back to the root config and
+    `npm run build` — a CI gate — failed with TS6059. Added
+21. `Migration.requiresTables` makes a data migration fail loudly, and *not* record itself, when a
+    prerequisite table is absent. Silently skipping would leave the grant unapplied, never retried,
+    and invisible — the exact class of drift the runner exists to remove
+22. `ApiKeyMiddleware` in the .NET API bypassed `/health`, but every endpoint is under `/api/` — so
+    registering it as written would have 401'd Render's health check and failed the deploy. It is
+    not currently registered; corrected rather than left as a trap
+
+### Verified:
+23. Suite total: **1,317 vitest tests across 66 files** (994 backend / 53 files, 323 frontend / 13
+    files), all passing, plus **57 xunit tests** in `tests/dotnet/IAAS.Api.Tests`. Coverage 90.23%
+    statements / 83.5% branches, against gates of 50/45/45/50
+24. Every workspace builds cleanly on its own — all nine packages and thirteen services under
+    `tsc --noEmit`, and both Next apps under `next build`. `npm run build` at the root is
+    **intermittent on Windows**, crashing with `3221226505` (0xC0000409) on whichever build the
+    concurrency happens to catch; it moves target between runs and some runs pass outright. Same
+    class as the documented `EBUSY` artefact, and CI runs on `ubuntu-latest` where it does not
+    occur. Recorded in CLAUDE.md with the commands that distinguish it from a real failure
+25. **`packages/auth` had no `tsconfig.json`**, which was not merely a CI break. `tsc` in a
+    workspace without one falls back to the root config — no `noEmit`, default `include` of
+    `**/*` — so it emitted `.js`, `.js.map` and `.d.ts` next to *every* source file in the
+    repository: 1,464 files, each giving Next a second candidate for a module it already had.
+    That shadowing has previously caused a deployed page to run weeks-old code. Cause fixed,
+    artefacts cleared, and both the check and the reason are now in CLAUDE.md
+26. `demoSelectors.test.ts` still passes all 98 assertions: the accessibility work touched every
+    field on `/apply` and moved no `data-demo` hook
+
+**Status**: Complete. GAP-017 through GAP-024 closed. **GAP-025 (MFA is client-side, and the token
+is issued before the code is checked) is deliberately out of this scope and remains open**,
+alongside GAP-003 (passwords are never verified) — the two are the only remaining Criticals and
+they compound: together they mean the identity every other control now depends on can still be
+assumed by anyone who knows an email address.
+
+---
+
 ## Pre-Sprint Work (Initial POC + Copilot Recommendations)
 
 Before the numbered sprints, significant foundational work was delivered:
@@ -623,15 +1066,16 @@ Before the numbered sprints, significant foundational work was delivered:
 |--------|-------|
 | Total UI Pages | 50+ |
 | Total Features Documented | 40+ |
-| Total Automated Tests | 658+ |
+| Total Automated Tests | 1,317 across 66 files (Vitest) + 57 (xunit, `tests/dotnet`) |
+| Test Coverage | 90.23% statements / 83.5% branches (gates: 50/45/45/50) |
 | Total Documentation Files | 36+ |
 | AI/ML Capabilities | 12+ |
 | Admin Features | 32 |
-| Backend Services | 13 (consolidated) |
-| Database Tables | 14 |
+| Backend Services | 12 logical, 1 deployed container (+ `dotnet-api` alternative implementation) |
+| Database Tables | 17 shared (plus 2 service-local SQLite stores) |
 | Seed Data Records | 30+ (users, orgs, roles, permissions, applications) |
 | Live API Endpoints | 10 groups |
-| Sprints Completed | 29 |
+| Sprints Completed | 35 |
 | Monthly Running Cost | £0 |
 
 ---

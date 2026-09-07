@@ -21,7 +21,8 @@
       "audit.export",
       "reports.read",
       "reports.export",
-      "system.admin"
+      "system.admin",
+      "notifications.send"
     ]
   },
   {
@@ -40,7 +41,8 @@
       "audit.read",
       "audit.export",
       "reports.read",
-      "reports.export"
+      "reports.export",
+      "notifications.send"
     ]
   },
   {
@@ -62,7 +64,8 @@
       "users.read",
       "organisations.read",
       "audit.read",
-      "reports.read"
+      "reports.read",
+      "notifications.send"
     ]
   },
   {
@@ -73,7 +76,8 @@
       "applications.update",
       "applications.submit",
       "organisations.read",
-      "audit.read"
+      "audit.read",
+      "notifications.send"
     ]
   },
   {

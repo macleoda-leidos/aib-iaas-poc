@@ -3,6 +3,7 @@
     "id": "app-001",
     "referenceNumber": "AIB-2026-00147",
     "status": "submitted",
+    "debtorUserId": "user-debtor-01",
     "submittedAt": "2026-07-15T10:32:00.000Z",
     "assignedTo": "user-officer-01",
     "applicant": {
@@ -82,8 +83,23 @@
       }
     ],
     "incomeExpenditure": {
-      "income": { "wages": 2150, "benefits": 180, "pension": 0, "other": 0 },
-      "expenditure": { "rent": 850, "councilTax": 145, "utilities": 120, "food": 380, "transport": 160, "insurance": 65, "childcare": 200, "clothing": 60, "other": 90 }
+      "income": {
+        "wages": 2150,
+        "benefits": 180,
+        "pension": 0,
+        "other": 0
+      },
+      "expenditure": {
+        "rent": 850,
+        "councilTax": 145,
+        "utilities": 120,
+        "food": 380,
+        "transport": 160,
+        "insurance": 65,
+        "childcare": 200,
+        "clothing": 60,
+        "other": 90
+      }
     },
     "recommendation": {
       "product": "das",
@@ -96,14 +112,42 @@
         "No prior insolvency history"
       ],
       "factors": [
-        { "factor": "employment_status", "value": "employed", "impact": "positive", "met": true },
-        { "factor": "surplus_income", "value": 80, "impact": "positive", "met": true },
-        { "factor": "debt_to_income_ratio", "value": 0.89, "impact": "neutral", "met": true },
-        { "factor": "essential_assets_only", "value": true, "impact": "positive", "met": true }
+        {
+          "factor": "employment_status",
+          "value": "employed",
+          "impact": "positive",
+          "met": true
+        },
+        {
+          "factor": "surplus_income",
+          "value": 80,
+          "impact": "positive",
+          "met": true
+        },
+        {
+          "factor": "debt_to_income_ratio",
+          "value": 0.89,
+          "impact": "neutral",
+          "met": true
+        },
+        {
+          "factor": "essential_assets_only",
+          "value": true,
+          "impact": "positive",
+          "met": true
+        }
       ],
       "alternatives": [
-        { "product": "map", "score": 62, "reason": "Could qualify but DAS provides better creditor protection" },
-        { "product": "ptd", "score": 45, "reason": "Debt level below typical PTD threshold" }
+        {
+          "product": "map",
+          "score": 62,
+          "reason": "Could qualify but DAS provides better creditor protection"
+        },
+        {
+          "product": "ptd",
+          "score": 45,
+          "reason": "Debt level below typical PTD threshold"
+        }
       ],
       "engineVersion": "2.1.0"
     }
@@ -112,6 +156,7 @@
     "id": "app-002",
     "referenceNumber": "AIB-2026-00152",
     "status": "under_review",
+    "debtorUserId": null,
     "submittedAt": "2026-07-22T14:18:00.000Z",
     "assignedTo": "user-officer-02",
     "applicant": {
@@ -182,8 +227,23 @@
       }
     ],
     "incomeExpenditure": {
-      "income": { "wages": 0, "benefits": 1120, "pension": 0, "other": 50 },
-      "expenditure": { "rent": 625, "councilTax": 0, "utilities": 95, "food": 240, "transport": 80, "insurance": 0, "childcare": 0, "clothing": 40, "other": 55 }
+      "income": {
+        "wages": 0,
+        "benefits": 1120,
+        "pension": 0,
+        "other": 50
+      },
+      "expenditure": {
+        "rent": 625,
+        "councilTax": 0,
+        "utilities": 95,
+        "food": 240,
+        "transport": 80,
+        "insurance": 0,
+        "childcare": 0,
+        "clothing": 40,
+        "other": 55
+      }
     },
     "recommendation": {
       "product": "map",
@@ -196,14 +256,42 @@
         "Minimal assets — does not justify sequestration costs"
       ],
       "factors": [
-        { "factor": "employment_status", "value": "unemployed", "impact": "negative", "met": true },
-        { "factor": "surplus_income", "value": 0, "impact": "negative", "met": false },
-        { "factor": "debt_to_income_ratio", "value": 2.36, "impact": "negative", "met": true },
-        { "factor": "total_assets_below_threshold", "value": true, "impact": "positive", "met": true }
+        {
+          "factor": "employment_status",
+          "value": "unemployed",
+          "impact": "negative",
+          "met": true
+        },
+        {
+          "factor": "surplus_income",
+          "value": 0,
+          "impact": "negative",
+          "met": false
+        },
+        {
+          "factor": "debt_to_income_ratio",
+          "value": 2.36,
+          "impact": "negative",
+          "met": true
+        },
+        {
+          "factor": "total_assets_below_threshold",
+          "value": true,
+          "impact": "positive",
+          "met": true
+        }
       ],
       "alternatives": [
-        { "product": "sequestration", "score": 55, "reason": "Qualifies but MAP is less disruptive and lower cost" },
-        { "product": "moratorium", "score": 40, "reason": "Temporary relief only — does not address root cause" }
+        {
+          "product": "sequestration",
+          "score": 55,
+          "reason": "Qualifies but MAP is less disruptive and lower cost"
+        },
+        {
+          "product": "moratorium",
+          "score": 40,
+          "reason": "Temporary relief only — does not address root cause"
+        }
       ],
       "engineVersion": "2.1.0"
     }
@@ -212,6 +300,7 @@
     "id": "app-003",
     "referenceNumber": "AIB-2026-00138",
     "status": "approved",
+    "debtorUserId": null,
     "submittedAt": "2026-07-02T09:45:00.000Z",
     "assignedTo": "user-officer-01",
     "applicant": {
@@ -289,8 +378,23 @@
       }
     ],
     "incomeExpenditure": {
-      "income": { "wages": 3800, "benefits": 0, "pension": 0, "other": 200 },
-      "expenditure": { "rent": 0, "councilTax": 210, "utilities": 185, "food": 450, "transport": 280, "insurance": 190, "childcare": 0, "clothing": 70, "other": 150 }
+      "income": {
+        "wages": 3800,
+        "benefits": 0,
+        "pension": 0,
+        "other": 200
+      },
+      "expenditure": {
+        "rent": 0,
+        "councilTax": 210,
+        "utilities": 185,
+        "food": 450,
+        "transport": 280,
+        "insurance": 190,
+        "childcare": 0,
+        "clothing": 70,
+        "other": 150
+      }
     },
     "recommendation": {
       "product": "ptd",
@@ -303,14 +407,42 @@
         "PTD allows continued trading while managing debt"
       ],
       "factors": [
-        { "factor": "employment_status", "value": "self_employed", "impact": "neutral", "met": true },
-        { "factor": "surplus_income", "value": 465, "impact": "positive", "met": true },
-        { "factor": "debt_to_income_ratio", "value": 1.48, "impact": "negative", "met": true },
-        { "factor": "has_non_essential_assets", "value": true, "impact": "negative", "met": true }
+        {
+          "factor": "employment_status",
+          "value": "self_employed",
+          "impact": "neutral",
+          "met": true
+        },
+        {
+          "factor": "surplus_income",
+          "value": 465,
+          "impact": "positive",
+          "met": true
+        },
+        {
+          "factor": "debt_to_income_ratio",
+          "value": 1.48,
+          "impact": "negative",
+          "met": true
+        },
+        {
+          "factor": "has_non_essential_assets",
+          "value": true,
+          "impact": "negative",
+          "met": true
+        }
       ],
       "alternatives": [
-        { "product": "sequestration", "score": 60, "reason": "Viable but would likely lose business and BMW" },
-        { "product": "das", "score": 35, "reason": "Debt too high for realistic DAS payment plan" }
+        {
+          "product": "sequestration",
+          "score": 60,
+          "reason": "Viable but would likely lose business and BMW"
+        },
+        {
+          "product": "das",
+          "score": 35,
+          "reason": "Debt too high for realistic DAS payment plan"
+        }
       ],
       "engineVersion": "2.1.0"
     }
@@ -319,6 +451,7 @@
     "id": "app-004",
     "referenceNumber": "AIB-2026-00161",
     "status": "rejected",
+    "debtorUserId": null,
     "submittedAt": "2026-08-01T16:05:00.000Z",
     "assignedTo": "user-senior-01",
     "applicant": {
@@ -376,8 +509,23 @@
       }
     ],
     "incomeExpenditure": {
-      "income": { "wages": 2400, "benefits": 0, "pension": 0, "other": 0 },
-      "expenditure": { "rent": 650, "councilTax": 95, "utilities": 80, "food": 280, "transport": 150, "insurance": 110, "childcare": 0, "clothing": 80, "other": 120 }
+      "income": {
+        "wages": 2400,
+        "benefits": 0,
+        "pension": 0,
+        "other": 0
+      },
+      "expenditure": {
+        "rent": 650,
+        "councilTax": 95,
+        "utilities": 80,
+        "food": 280,
+        "transport": 150,
+        "insurance": 110,
+        "childcare": 0,
+        "clothing": 80,
+        "other": 120
+      }
     },
     "recommendation": null
   },
@@ -385,6 +533,7 @@
     "id": "app-005",
     "referenceNumber": "AIB-2026-00170",
     "status": "draft",
+    "debtorUserId": "user-debtor-01",
     "submittedAt": null,
     "assignedTo": null,
     "applicant": {
@@ -448,8 +597,23 @@
       }
     ],
     "incomeExpenditure": {
-      "income": { "wages": 0, "benefits": 220, "pension": 980, "other": 0 },
-      "expenditure": { "rent": 0, "councilTax": 125, "utilities": 110, "food": 260, "transport": 60, "insurance": 85, "childcare": 0, "clothing": 30, "other": 70 }
+      "income": {
+        "wages": 0,
+        "benefits": 220,
+        "pension": 980,
+        "other": 0
+      },
+      "expenditure": {
+        "rent": 0,
+        "councilTax": 125,
+        "utilities": 110,
+        "food": 260,
+        "transport": 60,
+        "insurance": 85,
+        "childcare": 0,
+        "clothing": 30,
+        "other": 70
+      }
     },
     "recommendation": null
   }

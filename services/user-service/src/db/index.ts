@@ -1,7 +1,7 @@
-import { createRepositories } from '@aib-iaas/database';
+import { createRepositories, initialiseDatabase } from '@aib-iaas/database';
 
 export const repos = createRepositories();
-export const { users, organisations } = repos;
+export const { users, organisations, driver } = repos;
 
 // Legacy aliases for backwards compatibility
 export const getUserDb = () => {
@@ -9,8 +9,7 @@ export const getUserDb = () => {
   return getDatabase();
 };
 
-export function initUserDb(): void {
-  // Schema is initialized by createRepositories() above — this is a no-op now
-  // Seed data is now handled by @aib-iaas/database seed function
+export async function initUserDb(): Promise<void> {
+  await initialiseDatabase();
   console.log('[User DB] Initialized via @aib-iaas/database');
 }
