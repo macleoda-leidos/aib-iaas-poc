@@ -1,6 +1,5 @@
 import express from 'express';
 import cors from 'cors';
-import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import { initDatabase } from './db';
 import { applicationsRouter } from './routes/applications';
@@ -10,12 +9,19 @@ import { reportsRouter } from './routes/reports';
 import { reportsExportRouter } from './routes/reports-export';
 import { errorHandler } from './middleware/errorHandler';
 import { authenticate, requirePermission } from './middleware/rbac';
+import { enforceAuthentication } from './middleware/accessPolicy';
+import { securityHeaders } from './middleware/securityHeaders';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Security middleware
-app.use(helmet());
+// Never advertise the framework/version.
+app.disable('x-powered-by');
+
+// Security headers — shared with the deployed consolidated-api (see
+// ./middleware/securityHeaders) so both services present an identical,
+// scanner-grade header set.
+securityHeaders().forEach((mw) => app.use(mw));
 app.use(cors({
   origin: process.env.CORS_ORIGIN || '*',
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
@@ -40,6 +46,10 @@ app.use((req, _res, next) => {
 // Initialize database
 initDatabase();
 
+// Default-deny authentication, identical posture to the deployed consolidated-api
+// (shared accessPolicy), so the two services cannot drift on their public surface.
+app.use(enforceAuthentication);
+
 // Routes
 app.use('/api/auth', authRouter);
 app.use('/api/applications', applicationsRouter);
@@ -48,6 +58,7 @@ app.use('/api/reports/export', reportsExportRouter); // Public for POC demo (mus
 // `reports.read` is the code seeded into role_permissions. This asked for
 // `reports.view` until Sprint 30 — a code no role has ever held, so the only
 // authorised route in the repo returned 403 to everyone including system_admin.
+// The global gate already authenticated; requirePermission adds the authz check.
 app.use('/api/reports', authenticate, requirePermission('reports.read'), reportsRouter);
 
 // Health check

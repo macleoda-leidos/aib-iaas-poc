@@ -1,4 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
+import { verifyToken, TokenError, TOKEN_EXPIRED, type AccessTokenClaims } from '@aib-iaas/auth';
+import { isSessionRevoked } from './sessionStore';
 
 export interface AuthenticatedRequest extends Request {
   user?: {
@@ -8,13 +10,23 @@ export interface AuthenticatedRequest extends Request {
     roleLevel: number;
     organisationId?: string;
     permissions: string[];
+    jti?: string;
   };
 }
 
 /**
- * Authentication middleware - validates bearer token and attaches user context.
- * In production: validates JWT signature, checks token expiry, verifies against revocation list.
- * POC: decodes base64 token from user-service.
+ * Authentication middleware — verifies the signed bearer token and attaches the
+ * user context.
+ *
+ * The token is now an HS256 JWT verified by @aib-iaas/auth (signature + issuer +
+ * audience + a mandatory numeric exp). This replaces the old base64 decode,
+ * which trusted whatever JSON the client sent — tokens were forgeable and a
+ * token simply omitting `exp` never expired. verifyToken closes both.
+ *
+ * After the signature and expiry pass, a token carrying a `jti` is checked
+ * against the session store so logout can actually invalidate it (see Stage 4 /
+ * sessionStore). Tokens minted without a jti (only ever in unit tests) skip the
+ * revocation check — every real login includes one.
  */
 export function authenticate(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
   const authHeader = req.headers.authorization;
@@ -29,12 +41,12 @@ export function authenticate(req: AuthenticatedRequest, res: Response, next: Nex
 
   try {
     const token = authHeader.slice(7);
-    const payload = JSON.parse(Buffer.from(token, 'base64').toString());
+    const payload = verifyToken<AccessTokenClaims>(token);
 
-    if (payload.exp && payload.exp < Date.now()) {
+    if (payload.jti && isSessionRevoked(payload.jti)) {
       res.status(401).json({
         success: false,
-        error: { code: 'TOKEN_EXPIRED', message: 'Session expired. Please log in again.' },
+        error: { code: 'TOKEN_EXPIRED', message: 'Session ended. Please log in again.' },
       });
       return;
     }
@@ -46,13 +58,17 @@ export function authenticate(req: AuthenticatedRequest, res: Response, next: Nex
       roleLevel: payload.roleLevel || 0,
       organisationId: payload.organisationId,
       permissions: payload.permissions || [],
+      jti: payload.jti,
     };
 
     next();
-  } catch {
+  } catch (err) {
+    const expired = err instanceof TokenError && err.code === TOKEN_EXPIRED;
     res.status(401).json({
       success: false,
-      error: { code: 'INVALID_TOKEN', message: 'Invalid authentication token.' },
+      error: expired
+        ? { code: 'TOKEN_EXPIRED', message: 'Session expired. Please log in again.' }
+        : { code: 'INVALID_TOKEN', message: 'Invalid authentication token.' },
     });
   }
 }
@@ -134,6 +150,22 @@ export function requireRoleLevel(minLevel: number) {
 }
 
 /**
+ * Require a different permission depending on the HTTP method, for routers that
+ * mix read and write on one mount (e.g. /api/users: GET→users.read,
+ * POST→users.create, …). A method with no entry is left unrestricted, so the
+ * router's own logic / the global gate still applies. Each entry may be a single
+ * code or a list treated as any-of.
+ */
+export function requirePermissionByMethod(map: Record<string, string | string[]>) {
+  return (req: AuthenticatedRequest, res: Response, next: NextFunction): void => {
+    const required = map[req.method];
+    if (!required) { next(); return; }
+    const perms = Array.isArray(required) ? required : [required];
+    requireAnyPermission(...perms)(req, res, next);
+  };
+}
+
+/**
  * Optional authentication - attaches user if token present, but doesn't require it.
  * Useful for public endpoints that behave differently when authenticated.
  */
@@ -143,8 +175,8 @@ export function optionalAuth(req: AuthenticatedRequest, _res: Response, next: Ne
   if (authHeader?.startsWith('Bearer ')) {
     try {
       const token = authHeader.slice(7);
-      const payload = JSON.parse(Buffer.from(token, 'base64').toString());
-      if (!payload.exp || payload.exp >= Date.now()) {
+      const payload = verifyToken<AccessTokenClaims>(token);
+      if (!payload.jti || !isSessionRevoked(payload.jti)) {
         req.user = {
           userId: payload.userId,
           email: payload.email,
@@ -152,9 +184,10 @@ export function optionalAuth(req: AuthenticatedRequest, _res: Response, next: Ne
           roleLevel: payload.roleLevel || 0,
           organisationId: payload.organisationId,
           permissions: payload.permissions || [],
+          jti: payload.jti,
         };
       }
-    } catch { /* ignore invalid token for optional auth */ }
+    } catch { /* invalid/expired token is simply ignored for optional auth */ }
   }
 
   next();

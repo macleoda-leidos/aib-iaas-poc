@@ -1,5 +1,34 @@
 import type Database from 'better-sqlite3';
+import { hashPassword, DEMO_MFA_SECRET } from '@aib-iaas/auth';
 import { seedRbacSqlite } from './rbac';
+
+/**
+ * One real bcrypt hash of the demo password, computed lazily and once per
+ * process (bcrypt at cost 12 is deliberately slow). Every seed path writes this
+ * for the demo accounts so login genuinely verifies a password rather than
+ * accepting anything — the demo password stays "demo", which the login page
+ * advertises. We can no longer paste a precomputed literal here because the
+ * build host has no Node to generate one; computing it at seed time is
+ * equivalent and keeps a single source of truth.
+ */
+let demoPasswordHash: string | undefined;
+export function getDemoPasswordHash(): string {
+  if (!demoPasswordHash) demoPasswordHash = hashPassword('demo');
+  return demoPasswordHash;
+}
+
+/**
+ * Add a column to an existing table only if it is missing. The deployed Render
+ * disk is persistent, so `CREATE TABLE IF NOT EXISTS` never adds a column to a
+ * table that already exists — a new column has to be migrated in explicitly.
+ * Guarded on PRAGMA table_info so it is safe to run on every boot.
+ */
+function addColumnIfMissing(db: Database.Database, table: string, column: string, definition: string): void {
+  const columns = db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>;
+  if (!columns.some(c => c.name === column)) {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+  }
+}
 
 /**
  * Initialize all tables matching the Prisma schema.
@@ -68,6 +97,7 @@ export function initializeSchema(db: Database.Database): void {
       status TEXT NOT NULL DEFAULT 'active',
       password_hash TEXT,
       mfa_enabled INTEGER NOT NULL DEFAULT 0,
+      mfa_secret TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now')),
       FOREIGN KEY (role_id) REFERENCES roles(id),
@@ -92,6 +122,7 @@ export function initializeSchema(db: Database.Database): void {
       system_checks TEXT,
       credit_check TEXT,
       assigned_to TEXT,
+      owner_user_id TEXT,
       submitted_at TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -239,6 +270,12 @@ export function initializeSchema(db: Database.Database): void {
     CREATE INDEX IF NOT EXISTS idx_payments_app ON payments(application_id);
   `);
 
+  // ─── Idempotent migrations for persistent volumes ──
+  // CREATE TABLE IF NOT EXISTS above is a no-op on a disk that already holds an
+  // older schema, so columns added after first deploy have to be ALTERed in.
+  addColumnIfMissing(db, 'users', 'mfa_secret', 'TEXT');
+  addColumnIfMissing(db, 'applications', 'owner_user_id', 'TEXT');
+
   // Roles, permissions and grants come from ./rbac so that SQLite and PostgreSQL
   // grant identical access. This used to be a hand-maintained list here, which
   // is how it came to omit three roles and use a permission vocabulary no other
@@ -265,25 +302,57 @@ export function initializeSchema(db: Database.Database): void {
 
     INSERT OR IGNORE INTO organisations (id, name, type, parent_id, status, contact_email, address_city, address_postcode, created_at, updated_at)
     VALUES ('org-trustee-1', 'Wylie & Bisset LLP', 'trustee', NULL, 'active', 'insolvency@wyliebisset.com', 'Glasgow', 'G2 4JR', datetime('now'), datetime('now'));
-
-    -- ─── Users ──────────────────────────────────
-
-    INSERT OR IGNORE INTO users (id, email, first_name, last_name, display_name, role_id, organisation_id, status, password_hash, mfa_enabled, created_at, updated_at)
-    VALUES ('user-admin', 'admin@aib-poc.example.com', 'Admin', 'User', 'Admin User', 'role-sysadmin', 'org-aib', 'active', 'not-a-real-hash', 0, datetime('now'), datetime('now'));
-
-    INSERT OR IGNORE INTO users (id, email, first_name, last_name, display_name, role_id, organisation_id, status, password_hash, mfa_enabled, created_at, updated_at)
-    VALUES ('user-demo', 'demo@example.com', 'Demo', 'User', 'Demo User', 'role-officer', 'org-aib', 'active', 'not-a-real-hash', 0, datetime('now'), datetime('now'));
-
-    INSERT OR IGNORE INTO users (id, email, first_name, last_name, display_name, role_id, organisation_id, status, password_hash, mfa_enabled, created_at, updated_at)
-    VALUES ('user-cyberops', 'david.chen@aib.gov.uk', 'David', 'Chen', 'David Chen', 'role-cyberops', 'org-aib', 'active', 'not-a-real-hash', 0, datetime('now'), datetime('now'));
-
-    INSERT OR IGNORE INTO users (id, email, first_name, last_name, display_name, role_id, organisation_id, status, password_hash, mfa_enabled, created_at, updated_at)
-    VALUES ('user-stats', 'stats@aib.gov.uk', 'Analytics', 'User', 'Analytics User', 'role-statistician', 'org-aib', 'active', 'not-a-real-hash', 0, datetime('now'), datetime('now'));
-
-    INSERT OR IGNORE INTO users (id, email, first_name, last_name, display_name, role_id, organisation_id, status, password_hash, mfa_enabled, created_at, updated_at)
-    VALUES ('user-adviser', 'adviser@cas.example.org', 'Karen', 'MacLeod', 'Karen MacLeod', 'role-adviser', 'org-cas', 'active', 'not-a-real-hash', 0, datetime('now'), datetime('now'));
-
-    INSERT OR IGNORE INTO users (id, email, first_name, last_name, display_name, role_id, organisation_id, status, password_hash, mfa_enabled, created_at, updated_at)
-    VALUES ('user-debtor', 'john.testerton@example.com', 'John', 'Testerton', 'John Testerton', 'role-debtor', NULL, 'active', 'not-a-real-hash', 0, datetime('now'), datetime('now'));
   `);
+
+  // ─── Users ──────────────────────────────────
+  // Written through a prepared statement (not db.exec) so the real bcrypt hash
+  // can be bound as a parameter. password_hash is a genuine bcrypt('demo', 12)
+  // for every account — login verifies it, so the old 'not-a-real-hash' would
+  // now reject every sign-in. The demo password stays "demo".
+  //
+  // mfa_enabled is set on the two accounts the demo and the admin flow exercise;
+  // both carry the fixed DEMO_MFA_SECRET so a real server-side TOTP check passes
+  // with a code the login page can compute live. The scripted demo signs in as
+  // the Case Officer (demo@example.com), so that account MUST have MFA enabled
+  // for the demo's second-factor beat to be real rather than theatre.
+  const demoHash = getDemoPasswordHash();
+  const inlineUsers: Array<[string, string, string, string, string, string | null, number]> = [
+    ['user-admin', 'admin@aib-poc.example.com', 'Admin', 'User', 'role-sysadmin', 'org-aib', 1],
+    ['user-demo', 'demo@example.com', 'Demo', 'User', 'role-officer', 'org-aib', 1],
+    ['user-cyberops', 'david.chen@aib.gov.uk', 'David', 'Chen', 'role-cyberops', 'org-aib', 0],
+    ['user-stats', 'stats@aib.gov.uk', 'Analytics', 'User', 'role-statistician', 'org-aib', 0],
+    ['user-adviser', 'adviser@cas.example.org', 'Karen', 'MacLeod', 'role-adviser', 'org-cas', 0],
+    ['user-debtor', 'john.testerton@example.com', 'John', 'Testerton', 'role-debtor', null, 0],
+  ];
+  const insertInlineUser = db.prepare(`
+    INSERT OR IGNORE INTO users (id, email, first_name, last_name, display_name, role_id, organisation_id, status, password_hash, mfa_enabled, mfa_secret, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, datetime('now'), datetime('now'))
+  `);
+  for (const [id, email, firstName, lastName, roleId, orgId, mfaEnabled] of inlineUsers) {
+    insertInlineUser.run(
+      id, email, firstName, lastName, `${firstName} ${lastName}`, roleId, orgId,
+      demoHash, mfaEnabled, mfaEnabled ? DEMO_MFA_SECRET : null
+    );
+  }
+
+  // ─── Credential backfill for existing persistent volumes ──
+  // INSERT OR IGNORE never touches a row that already exists, so demo users
+  // seeded onto the persistent Render disk BEFORE the Phase-1 password/MFA change
+  // keep their 'not-a-real-hash' placeholder (or a NULL hash, for users.json
+  // accounts seeded without one) and could not log in after this deploys. Give
+  // any user lacking a real bcrypt hash the demo hash, and (re)assert MFA on the
+  // documented demo/admin accounts. Both guards make this a no-op once applied,
+  // and a no-op on a freshly-seeded database (every row already has a $2… hash).
+  const staleCreds = db
+    .prepare(`SELECT COUNT(*) AS c FROM users WHERE password_hash IS NULL OR password_hash NOT LIKE '$2%'`)
+    .get() as { c: number };
+  if (staleCreds.c > 0) {
+    db.prepare(`UPDATE users SET password_hash = ? WHERE password_hash IS NULL OR password_hash NOT LIKE '$2%'`).run(demoHash);
+  }
+  const setMfa = db.prepare(
+    `UPDATE users SET mfa_enabled = 1, mfa_secret = ? WHERE email = ? AND (mfa_enabled = 0 OR mfa_secret IS NULL)`
+  );
+  for (const email of ['admin@aib-poc.example.com', 'demo@example.com', 'admin@aib.gov.scot', 'fiona.campbell@aib.gov.scot']) {
+    setMfa.run(DEMO_MFA_SECRET, email);
+  }
 }

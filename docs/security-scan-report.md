@@ -90,3 +90,73 @@ None of these packages are bundled into the Next.js application output or the Ex
 ## Conclusion
 
 The AiB IAAS POC has a clean production security posture. The 12 advisories reported by `npm audit` are confined to development tooling and do not represent exploitable attack surface in the deployed application. No immediate action is required, but the team should address these findings during the next planned dependency upgrade cycle to maintain a clean audit baseline.
+
+---
+
+## External HTTP Header & DNS Scan (1 October 2026)
+
+A customer-side external scanner was run against the public demo URL
+`https://macleoda-leidos.github.io/aib-iaas-poc/` and returned an initial score of
+**16 / 100 (Critical)** — 5 High, 1 Medium, 1 Low, 4 Info. The findings were almost entirely
+transport/host-layer (missing security headers, absent/ineffective CSP, CORS wildcard, no
+SPF/DMARC/DNSSEC, a server-version banner, no `security.txt`).
+
+### Why most of the frontend findings are host-layer
+
+The public demo frontend is a Next.js **static export hosted on GitHub Pages**, served through
+GitHub's Fastly CDN. GitHub Pages serves plain files with a **fixed** response-header set and
+provides no mechanism (no `_headers` support; `next` `output: 'export'` cannot emit headers) to
+add `Content-Security-Policy`, `X-Content-Type-Options`, `X-Frame-Options`, `Permissions-Policy`,
+COOP/COEP/CORP or HSTS as **response headers**, to change the `Server:` banner, or to remove the
+Fastly `Access-Control-Allow-Origin: *` on static assets. The domain `macleoda-leidos.github.io`
+is a GitHub-owned subdomain, so its DNS records (SPF, DMARC, DNSSEC, DKIM) are not ours to set —
+and are not applicable to a static demo that sends no email.
+
+A deliberate decision was taken to **keep the demo on GitHub Pages** (no infrastructure change for
+a POC) rather than move it to a header-capable host. The remediation below therefore (a) applies
+the full, real header set where we *do* control the response — the API — (b) applies the
+best-effort browser controls GitHub Pages *does* honour, and (c) stages the complete header set
+in-repo so that pointing the demo at a header-capable host (the already-present Azure Static Web
+Apps config, or Cloudflare/Netlify) realises a ~100 score with no further code change.
+
+### Per-finding disposition
+
+| Finding (severity) | Surface | Disposition |
+|---|---|---|
+| Missing CSP header (High) | API / Frontend | **API: real strict CSP** (`default-src 'none'`). Frontend: `<meta http-equiv>` CSP (browser-honoured; partial scanner credit) + full CSP staged for a header-capable host |
+| CSP absent/ineffective (High) | API / Frontend | As above — the API now carries an explicit, strict policy |
+| CORS wildcard `ACAO: *` (High) | Frontend host | GitHub/Fastly-set on static assets → **cannot change on Pages**. The API uses a fixed CORS allow-list, not a wildcard |
+| No SPF record (High) | DNS of `github.io` | Not ours to set; **N/A** for a no-email static demo |
+| No DMARC record (High) | DNS of `github.io` | Not ours to set; **N/A** for a no-email static demo |
+| Missing recommended headers ×6 (Medium) | API / Frontend | **API: all set** (X-Frame-Options, Referrer-Policy, Permissions-Policy, COOP/CORP). Frontend: referrer set via `<meta>`; rest staged for a header-capable host |
+| Server reveals technology (Low) | Frontend host | GitHub-set `Server:` → **cannot change on Pages**. API: `X-Powered-By` now disabled |
+| No `security.txt` (Info) | Frontend | **Fixed** — `/.well-known/security.txt` published (RFC 9116) |
+| DKIM / DNSSEC (Info) | DNS of `github.io` | Not ours to set; documented |
+| Detected technologies (Info) | Both | Informational; not remediable without obscuring the stack |
+
+### Remediation landed in this change
+
+- **API response headers (the real score win).** A shared `securityHeaders()` middleware
+  (`services/api-gateway/src/middleware/securityHeaders.ts`), applied by both the deployed
+  `consolidated-api` and the standalone `api-gateway`, now sets a strict JSON-API CSP
+  (`default-src 'none'`), HSTS (1 year, `includeSubDomains`, `preload`), `X-Content-Type-Options:
+  nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, a `Permissions-Policy`, and
+  COOP/CORP; `X-Powered-By` is disabled. This closes ITHC VUL-001 on the API. (CORP is
+  `cross-origin` so the separate frontend origin can still read responses; the CORS allow-list
+  remains the access control.)
+- **Frontend best-effort (GitHub Pages).** `apps/web/src/app/layout.tsx` emits a
+  `<meta http-equiv="Content-Security-Policy">` (production builds only — `next dev` needs `eval`
+  for HMR) and a `<meta name="referrer">` policy. `/.well-known/security.txt` is published.
+- **Staged for any header-capable host.** `apps/web/public/_headers` (Cloudflare/Netlify),
+  `apps/web/public/staticwebapp.config.json` `globalHeaders` (Azure SWA), and a guarded
+  `headers()` in `next.config.js` (Node runtime) all carry the full header set.
+
+### Reachable score and the one-step path to ~100
+
+With the demo on bare GitHub Pages the external score rises modestly (the `security.txt`,
+referrer and partial-CSP findings clear; the header/CORS/`Server`/DNS findings are documented as
+host-layer). **Against the API URL the header findings clear outright.** To realise the full ~100
+on the frontend, point the live deploy at the header-capable configuration already in the repo
+(re-enable the SWA workflow, or front the site with Cloudflare/Netlify + a custom domain, which
+would additionally let us set SPF/DMARC/DNSSEC). No application code change is required for that
+switch.

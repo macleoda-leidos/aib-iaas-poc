@@ -65,25 +65,35 @@ whatever data the system holds, and they compound: an attacker needs only one of
 
 ### Findings Summary
 
-| Ref | Title | Severity | Blocks Production |
-|-----|-------|----------|-------------------|
-| GAP-001 | Authentication tokens are unsigned base64 JSON — forgeable | Critical | Yes |
-| GAP-002 | Deployed service applies no authentication or authorisation to any route | Critical | Yes |
-| GAP-003 | Login accepts any password; passwords are never verified | Critical | Yes |
-| GAP-004 | Malware scanning is fail-open and filename-based in deployment | High | Yes |
-| GAP-005 | Insecure direct object reference on all application routes, including approve/reject | High | Yes |
-| GAP-006 | Audit events are unauthenticated and attacker-attributable | High | Yes |
-| GAP-007 | No multi-factor authentication implemented | High | Yes |
-| GAP-008 | No brute-force protection or account lockout on login | Medium | Yes |
-| GAP-009 | Schema validation package is dead code with no importers | Medium | Yes |
-| GAP-010 | Session tokens are not invalidated server-side on logout | Low | No |
-| GAP-011 | Role-permission grants were defined three times and the copies disagreed | Medium | Yes — seeding fixed, residual items open |
+| Ref | Title | Severity | Blocks Production | Status |
+|-----|-------|----------|-------------------|--------|
+| GAP-001 | Authentication tokens are unsigned base64 JSON — forgeable | Critical | Yes | Remediated (Phase 1) |
+| GAP-002 | Deployed service applies no authentication or authorisation to any route | Critical | Yes | Remediated (Phase 1) — staff surface + approve/reject; applicant-intake public by design |
+| GAP-003 | Login accepts any password; passwords are never verified | Critical | Yes | Remediated (Phase 1) |
+| GAP-004 | Malware scanning is fail-open and filename-based in deployment | High | Yes | Remediated (Phase 1) — fail-closed; real engine still a deployment dependency |
+| GAP-005 | Insecure direct object reference on all application routes, including approve/reject | High | Yes | Remediated (Phase 1) — staff/approve gated; applicant read-IDOR deferred to GAP-007 |
+| GAP-006 | Audit events are unauthenticated and attacker-attributable | High | Yes | Remediated (Phase 1) |
+| GAP-007 | No multi-factor authentication implemented | High | Yes | Partially remediated (Phase 1) — real server-side TOTP enforced; IdP federation still target |
+| GAP-008 | No brute-force protection or account lockout on login | Medium | Yes | Remediated (Phase 1) |
+| GAP-009 | Schema validation package is dead code with no importers | Medium | Yes | Remediated (Phase 1) |
+| GAP-010 | Session tokens are not invalidated server-side on logout | Low | No | Remediated (Phase 1) |
+| GAP-011 | Role-permission grants were defined three times and the copies disagreed | Medium | Yes — seeding fixed, residual items open | Residual #1 fixed (Phase 1); residual #2–#4 open |
 
 Counts: 3 Critical, 4 High, 3 Medium, 1 Low. Ten of eleven findings block production.
 
 GAP-011 was added on 25 August 2026 and is not part of the original 24 August review. Its
 seeding and vocabulary defects are fixed; the modelling gaps recorded under "Residual work"
 remain open and gate the correct closure of GAP-002.
+
+> **Phase 1 remediation (October 2026).** The security backbone has been implemented in the
+> five-stage order below. The `Status` column reflects the delivered code; the fixes are proven
+> green by CI (`npx vitest run`, `npx tsc -b`) and an image build + smoke test rather than on the
+> authoring host, which has no Node runtime. Per-finding detail is in
+> `docs/security-hardening-log.md` §"Phase 1 — Security Backbone". Residual, explicitly out-of-scope
+> items — real IdP federation and RS256/JWKS (full GAP-007), applicant read-IDOR pending applicant
+> identity (GAP-005 note), the `/admin/users` RBAC matrix driven by live data and the scoping
+> qualifiers (GAP-011 residual #2–#4), and .NET API parity for these controls — remain open and
+> are tracked as follow-on work.
 
 ---
 
@@ -617,12 +627,14 @@ matches `roles.json`.
 
 **Residual work.**
 
-1. `permissions.json` defines no `documents.*` or `credit_check.*` resources, though both
-   services exist and hold the most sensitive data in the system. GAP-002 cannot place a
-   meaningful check on those routes until the resources are modelled.
-   `services/user-service/src/__tests__/rbac.test.ts` unit-tests its helpers with invented codes
-   (`credit_check.run`, `document.delete`) that no role holds, which reads as coverage of grants
-   that do not exist.
+1. ~~`permissions.json` defines no `documents.*` or `credit_check.*` resources.~~ **Fixed
+   (Phase 1).** `permissions.json` now models `documents.read/create/delete` and
+   `credit_check.read/run`, granted in `role-permissions.json` (sysadmin all; officer/senior
+   read+create documents and read credit; adviser read), and the deployed `/api/documents` and
+   `/api/credit-check` mounts enforce them. `packages/database/src/__tests__/rbac.test.ts` is
+   extended to assert the new codes exist and are granted as intended. (The
+   `services/user-service/src/__tests__/rbac.test.ts` helper test still exercises the shared-types
+   permission functions with illustrative arrays; it does not assert against the seeded grant set.)
 2. The RBAC matrix on `/admin/users` is a separate hardcoded illustration (9 role tiers × 11
    capability groups) with no relationship to the seeded data. It should be driven by the API
    before it is used to evidence an access-control claim.
@@ -699,7 +711,7 @@ what already works.
 | **File upload size limit** | Enforced. `MAX_FILE_SIZE` (default 10MB) is applied via multer `limits: { fileSize: MAX_FILE_SIZE }` (`services/document-service/src/routes/documents.ts:10,27`), and `express.json({ limit: '10mb' })` bounds JSON bodies (`services/consolidated-api/src/index.ts:99`). **ITHC finding VUL-007 ("no request size limit on file upload endpoint") is inaccurate against the current code** and has been corrected in that report. |
 | **File extension allowlist** | Enforced. A fixed allowlist (`.pdf`, `.jpg`, `.jpeg`, `.png`, `.doc`, `.docx`, `.xls`, `.xlsx`) is applied in the multer `fileFilter` (`documents.ts:28-36`). Stored filenames are regenerated as UUIDs plus extension (`documents.ts:19-22`), preventing path traversal via `originalname`. |
 | **NI number validation** | Correct, including the genuine invalid-prefix list (`BG`, `GB`, `NK`, `KN`, `TN`, `NT`, `ZZ`), the disallowed suffix letters, and rejection of `O` as the second letter. |
-| **Security headers** | Helmet is applied (`services/consolidated-api/src/index.ts:60`), providing `X-Frame-Options`, `X-Content-Type-Options: nosniff`, and related headers. CSP is explicitly disabled for the POC (`contentSecurityPolicy: false`), consistent with ITHC finding VUL-001, which remains open. |
+| **Security headers** | Helmet is applied to both the deployed `consolidated-api` and the standalone `api-gateway` through a shared `securityHeaders()` middleware (`services/api-gateway/src/middleware/securityHeaders.ts`). As of the 1 October 2026 header remediation it sets a strict JSON-API CSP (`default-src 'none'; frame-ancestors 'none'`), HSTS (1 year, `includeSubDomains`, `preload`), `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, a `Permissions-Policy`, and COOP/CORP, and disables `X-Powered-By`. This closes ITHC finding VUL-001 (CSP) on the API surface. The GitHub Pages *frontend* cannot send HTTP response headers; it carries a best-effort `<meta>` CSP and referrer policy, with the full header set staged in `apps/web/public/_headers` and `apps/web/public/staticwebapp.config.json` for a header-capable host. See `docs/security-scan-report.md` §"External HTTP Header & DNS Scan". |
 | **Rate limiting present** | A global limiter is implemented and returns a correct 429 envelope with `RateLimit-*` and `Retry-After` headers (`services/consolidated-api/src/index.ts:73-98`). Its limitation is granularity, not absence — see GAP-008. |
 
 ---
@@ -740,6 +752,7 @@ is loaded with real debtor data.
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
 | 1.0 | 24 August 2026 | Leidos Delivery (internal) | Initial register from internal static code review; 10 findings recorded (3 Critical, 4 High, 2 Medium, 1 Low). |
+| 1.2 | 6 October 2026 | Leidos Delivery (internal) | Phase 1 security backbone delivered. Status column added to the summary. GAP-001/002/003/004/005/006/008/009/010 remediated; GAP-007 partially remediated (real server-side TOTP; IdP federation remains target); GAP-011 residual #1 fixed. Fixes proven in CI (no Node on the authoring host). See `docs/security-hardening-log.md` §"Phase 1 — Security Backbone". |
 
 ---
 

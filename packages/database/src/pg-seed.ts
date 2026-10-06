@@ -1,4 +1,6 @@
 import { Pool } from 'pg';
+import { DEMO_MFA_SECRET } from '@aib-iaas/auth';
+import { getDemoPasswordHash } from './schema';
 import { PERMISSIONS, ROLES, resolveGrants, seedRbacPostgres } from './rbac';
 
 export async function seedPgDatabase(pool: Pool): Promise<void> {
@@ -25,16 +27,24 @@ export async function seedPgDatabase(pool: Pool): Promise<void> {
     ON CONFLICT (id) DO NOTHING;
   `);
 
-  await pool.query(`
-    INSERT INTO users (id, email, first_name, last_name, role_id, organisation_id, status) VALUES
-    ('user-admin', 'admin@aib-poc.example.com', 'Admin', 'User', 'role-sysadmin', 'org-aib', 'active'),
-    ('user-demo', 'demo@example.com', 'Demo', 'User', 'role-officer', 'org-aib', 'active'),
-    ('user-adviser', 'adviser@cas.example.org', 'Karen', 'MacLeod', 'role-adviser', 'org-cas', 'active'),
-    ('user-debtor', 'john.testerton@example.com', 'John', 'Testerton', 'role-debtor', NULL, 'active'),
-    ('user-cyberops', 'david.chen@aib.gov.uk', 'David', 'Chen', 'role-cyberops', 'org-aib', 'active'),
-    ('user-stats', 'stats@aib.gov.uk', 'Analytics', 'User', 'role-statistician', 'org-aib', 'active')
-    ON CONFLICT (id) DO NOTHING;
-  `);
+  // Real bcrypt('demo') hash for every user; demo TOTP secret and mfa_enabled on
+  // the two accounts the demo/admin flow uses, matching the SQLite inline seed.
+  const demoHash = getDemoPasswordHash();
+  const pgUsers: Array<[string, string, string, string, string, string | null, boolean]> = [
+    ['user-admin', 'admin@aib-poc.example.com', 'Admin', 'User', 'role-sysadmin', 'org-aib', true],
+    ['user-demo', 'demo@example.com', 'Demo', 'User', 'role-officer', 'org-aib', true],
+    ['user-adviser', 'adviser@cas.example.org', 'Karen', 'MacLeod', 'role-adviser', 'org-cas', false],
+    ['user-debtor', 'john.testerton@example.com', 'John', 'Testerton', 'role-debtor', null, false],
+    ['user-cyberops', 'david.chen@aib.gov.uk', 'David', 'Chen', 'role-cyberops', 'org-aib', false],
+    ['user-stats', 'stats@aib.gov.uk', 'Analytics', 'User', 'role-statistician', 'org-aib', false],
+  ];
+  for (const [id, email, firstName, lastName, roleId, orgId, mfa] of pgUsers) {
+    await pool.query(
+      `INSERT INTO users (id, email, first_name, last_name, role_id, organisation_id, status, password_hash, mfa_enabled, mfa_secret)
+       VALUES ($1, $2, $3, $4, $5, $6, 'active', $7, $8, $9) ON CONFLICT (id) DO NOTHING`,
+      [id, email, firstName, lastName, roleId, orgId, demoHash, mfa, mfa ? DEMO_MFA_SECRET : null]
+    );
+  }
 
   console.log('[PostgreSQL] Seed data inserted (5 orgs, 6 users)');
 }

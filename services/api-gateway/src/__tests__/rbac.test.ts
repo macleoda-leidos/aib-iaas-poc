@@ -1,4 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
+import jwt from 'jsonwebtoken';
+import { signToken, buildClaims, DEV_JWT_SECRET } from '@aib-iaas/auth';
 import { authenticate, requirePermission, requireAnyPermission, requireRoleLevel, optionalAuth, AuthenticatedRequest } from '../middleware/rbac';
 import { Response, NextFunction } from 'express';
 
@@ -9,8 +11,22 @@ function mockResponse(): Response {
   return res as Response;
 }
 
-function createToken(payload: any): string {
-  return Buffer.from(JSON.stringify(payload)).toString('base64');
+// A real signed token, the same shape login mints. These tests carry no jti, so
+// authenticate skips the session-revocation check and needs no database.
+function createToken(claims: {
+  userId: string;
+  email: string;
+  role: string;
+  roleLevel?: number;
+  organisationId?: string;
+  permissions?: string[];
+}): string {
+  return signToken(
+    buildClaims(
+      { id: claims.userId, email: claims.email, roleName: claims.role, roleLevel: claims.roleLevel ?? 0, organisationId: claims.organisationId },
+      claims.permissions ?? []
+    )
+  );
 }
 
 describe('RBAC Middleware - authenticate', () => {
@@ -39,7 +55,7 @@ describe('RBAC Middleware - authenticate', () => {
     expect(next).not.toHaveBeenCalled();
   });
 
-  it('rejects invalid (non-JSON) token', () => {
+  it('rejects invalid (non-JWT) token', () => {
     const req = { headers: { authorization: 'Bearer not-valid-base64-json' } } as AuthenticatedRequest;
     const res = mockResponse();
     const next = vi.fn();
@@ -53,8 +69,28 @@ describe('RBAC Middleware - authenticate', () => {
     expect(next).not.toHaveBeenCalled();
   });
 
+  it('rejects a token tampered to add permissions (bad signature)', () => {
+    // Forge the old way: hand-built base64 JSON with elevated permissions. With
+    // signatures enforced this no longer verifies — the whole point of HS256.
+    const forged = Buffer.from(JSON.stringify({
+      userId: 'attacker', email: 'a@b.com', role: 'system_admin', roleLevel: 100,
+      permissions: ['system.admin'], exp: Math.floor(Date.now() / 1000) + 3600,
+    })).toString('base64');
+    const req = { headers: { authorization: `Bearer ${forged}` } } as AuthenticatedRequest;
+    const res = mockResponse();
+    const next = vi.fn();
+
+    authenticate(req, res, next);
+
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(next).not.toHaveBeenCalled();
+  });
+
   it('rejects expired token', () => {
-    const token = createToken({ userId: 'u1', email: 'a@b.com', role: 'admin', exp: Date.now() - 10000, permissions: [] });
+    const token = signToken(
+      buildClaims({ id: 'u1', email: 'a@b.com', roleName: 'admin', roleLevel: 100 }, []),
+      { expiresInSeconds: -10 }
+    );
     const req = { headers: { authorization: `Bearer ${token}` } } as AuthenticatedRequest;
     const res = mockResponse();
     const next = vi.fn();
@@ -68,9 +104,29 @@ describe('RBAC Middleware - authenticate', () => {
     expect(next).not.toHaveBeenCalled();
   });
 
+  it('rejects a validly-signed token that omits exp (L3 / GAP-016)', () => {
+    // Correct secret, issuer and audience, but no expiry — the hole that let a
+    // minted token live forever. verifyToken requires a numeric exp.
+    const noExp = jwt.sign(
+      { userId: 'u1', email: 'a@b.com', role: 'admin', roleLevel: 100, permissions: [] },
+      DEV_JWT_SECRET,
+      { algorithm: 'HS256', issuer: 'aib-iaas', audience: 'aib-iaas-api' }
+    );
+    const req = { headers: { authorization: `Bearer ${noExp}` } } as AuthenticatedRequest;
+    const res = mockResponse();
+    const next = vi.fn();
+
+    authenticate(req, res, next);
+
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+      error: expect.objectContaining({ code: 'INVALID_TOKEN' }),
+    }));
+    expect(next).not.toHaveBeenCalled();
+  });
+
   it('accepts valid token and attaches user to request', () => {
-    const payload = { userId: 'u1', email: 'test@example.com', role: 'admin', roleLevel: 100, permissions: ['applications.read'], exp: Date.now() + 60000 };
-    const token = createToken(payload);
+    const token = createToken({ userId: 'u1', email: 'test@example.com', role: 'admin', roleLevel: 100, permissions: ['applications.read'] });
     const req = { headers: { authorization: `Bearer ${token}` } } as AuthenticatedRequest;
     const res = mockResponse();
     const next = vi.fn();
@@ -82,19 +138,6 @@ describe('RBAC Middleware - authenticate', () => {
     expect(req.user!.userId).toBe('u1');
     expect(req.user!.email).toBe('test@example.com');
     expect(req.user!.permissions).toContain('applications.read');
-  });
-
-  it('accepts valid token without exp field (no expiry)', () => {
-    const payload = { userId: 'u2', email: 'noexp@example.com', role: 'debtor', permissions: [] };
-    const token = createToken(payload);
-    const req = { headers: { authorization: `Bearer ${token}` } } as AuthenticatedRequest;
-    const res = mockResponse();
-    const next = vi.fn();
-
-    authenticate(req, res, next);
-
-    expect(next).toHaveBeenCalled();
-    expect(req.user!.userId).toBe('u2');
   });
 });
 
@@ -238,8 +281,7 @@ describe('RBAC Middleware - optionalAuth', () => {
   });
 
   it('attaches user if valid token present', () => {
-    const payload = { userId: 'u1', email: 'opt@example.com', role: 'adviser', roleLevel: 50, permissions: ['applications.create'], exp: Date.now() + 60000 };
-    const token = createToken(payload);
+    const token = createToken({ userId: 'u1', email: 'opt@example.com', role: 'adviser', roleLevel: 50, permissions: ['applications.create'] });
     const req = { headers: { authorization: `Bearer ${token}` } } as AuthenticatedRequest;
     const res = mockResponse();
     const next = vi.fn();
@@ -252,8 +294,10 @@ describe('RBAC Middleware - optionalAuth', () => {
   });
 
   it('does not attach user if token is expired', () => {
-    const payload = { userId: 'u1', email: 'exp@example.com', role: 'adviser', roleLevel: 50, permissions: [], exp: Date.now() - 10000 };
-    const token = createToken(payload);
+    const token = signToken(
+      buildClaims({ id: 'u1', email: 'exp@example.com', roleName: 'adviser', roleLevel: 50 }, []),
+      { expiresInSeconds: -10 }
+    );
     const req = { headers: { authorization: `Bearer ${token}` } } as AuthenticatedRequest;
     const res = mockResponse();
     const next = vi.fn();

@@ -14,6 +14,7 @@ export interface User {
   status: string;
   passwordHash: string | null;
   mfaEnabled: boolean;
+  mfaSecret: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -60,6 +61,7 @@ export interface CreateUserInput {
   status?: string;
   passwordHash?: string;
   mfaEnabled?: boolean;
+  mfaSecret?: string | null;
 }
 
 export interface ListUsersParams {
@@ -88,6 +90,7 @@ export class UserRepository {
       status: row.status,
       passwordHash: row.password_hash,
       mfaEnabled: Boolean(row.mfa_enabled),
+      mfaSecret: row.mfa_secret ?? null,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };
@@ -177,8 +180,8 @@ export class UserRepository {
     const now = new Date().toISOString();
 
     this.db.prepare(`
-      INSERT INTO users (id, email, first_name, last_name, display_name, role_id, organisation_id, status, password_hash, mfa_enabled, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO users (id, email, first_name, last_name, display_name, role_id, organisation_id, status, password_hash, mfa_enabled, mfa_secret, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       id,
       input.email,
@@ -190,6 +193,7 @@ export class UserRepository {
       input.status || 'active',
       input.passwordHash || null,
       input.mfaEnabled ? 1 : 0,
+      input.mfaSecret ?? null,
       now,
       now
     );
@@ -211,6 +215,7 @@ export class UserRepository {
     if (data.status !== undefined) { sets.push('status = ?'); values.push(data.status); }
     if (data.passwordHash !== undefined) { sets.push('password_hash = ?'); values.push(data.passwordHash); }
     if (data.mfaEnabled !== undefined) { sets.push('mfa_enabled = ?'); values.push(data.mfaEnabled ? 1 : 0); }
+    if (data.mfaSecret !== undefined) { sets.push('mfa_secret = ?'); values.push(data.mfaSecret); }
 
     values.push(id);
     this.db.prepare(`UPDATE users SET ${sets.join(', ')} WHERE id = ?`).run(...values);

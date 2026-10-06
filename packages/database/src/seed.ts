@@ -1,5 +1,6 @@
 import { getDatabase } from './connection';
-import { initializeSchema } from './schema';
+import { initializeSchema, getDemoPasswordHash } from './schema';
+import { DEMO_MFA_SECRET } from '@aib-iaas/auth';
 import { PERMISSIONS, ROLES, resolveGrants, seedRbacSqlite } from './rbac';
 import { readFileSync } from 'fs';
 import { join } from 'path';
@@ -47,16 +48,21 @@ export function seedDatabase(): void {
 
   // ─── Users ───────────────────────────────────
   const users = loadJSON('users.json');
+  // Every seeded user gets a real bcrypt('demo') hash so login verifies a
+  // password; MFA accounts additionally carry the fixed demo TOTP secret so the
+  // server-side second-factor check is real and the demo can satisfy it.
+  const demoHash = getDemoPasswordHash();
   const insertUser = db.prepare(`
-    INSERT OR IGNORE INTO users (id, email, first_name, last_name, display_name, role_id, organisation_id, status, mfa_enabled, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+    INSERT OR IGNORE INTO users (id, email, first_name, last_name, display_name, role_id, organisation_id, status, password_hash, mfa_enabled, mfa_secret, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
   `);
   for (const user of users) {
     insertUser.run(
       user.id, user.email, user.firstName, user.lastName,
       user.displayName || `${user.firstName} ${user.lastName}`,
       user.roleId, user.organisationId || null,
-      user.status, user.mfaEnabled ? 1 : 0
+      user.status, demoHash, user.mfaEnabled ? 1 : 0,
+      user.mfaEnabled ? DEMO_MFA_SECRET : null
     );
   }
   console.log(`  [+] ${users.length} users`);

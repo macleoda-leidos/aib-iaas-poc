@@ -1,5 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { signToken, buildClaims } from '@aib-iaas/auth';
 import { app } from '../index';
+import { audit } from '../db';
 import http from 'http';
 
 // Integration tests for the API Gateway application endpoints
@@ -8,7 +10,15 @@ import http from 'http';
 let server: http.Server;
 let baseUrl: string;
 
-function request(method: string, path: string, body?: any): Promise<{ status: number; data: any }> {
+// A staff token for the routes that default-deny now protects (list, notes).
+// Not a debtor, so applications are not owner-scoped (see ownership tests).
+function staffToken(): string {
+  return signToken(
+    buildClaims({ id: 'USR-OFFICER', email: 'officer@aib.example', roleName: 'aib_officer', roleLevel: 60 }, ['applications.read', 'applications.update'])
+  );
+}
+
+function request(method: string, path: string, body?: any, headers?: Record<string, string>): Promise<{ status: number; data: any }> {
   return new Promise((resolve, reject) => {
     const url = new URL(path, baseUrl);
     const options = {
@@ -16,7 +26,7 @@ function request(method: string, path: string, body?: any): Promise<{ status: nu
       port: url.port,
       path: url.pathname + url.search,
       method,
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...headers },
     };
     const req = http.request(options, (res) => {
       let data = '';
@@ -106,8 +116,13 @@ describe('API Gateway - Applications', () => {
     expect(res.data.error.code).toBe('INVALID_STATE');
   });
 
-  it('GET /api/applications lists applications with pagination', async () => {
+  it('GET /api/applications requires authentication (default-deny)', async () => {
     const res = await request('GET', '/api/applications?page=1&pageSize=5');
+    expect(res.status).toBe(401);
+  });
+
+  it('GET /api/applications lists applications with pagination', async () => {
+    const res = await request('GET', '/api/applications?page=1&pageSize=5', undefined, { Authorization: `Bearer ${staffToken()}` });
     expect(res.status).toBe(200);
     expect(res.data.success).toBe(true);
     expect(res.data.meta).toBeDefined();
@@ -130,10 +145,53 @@ describe('API Gateway - Applications', () => {
     const res = await request('POST', `/api/applications/${id}/notes`, {
       content: 'Test note content',
       noteType: 'review',
-      authorName: 'Test Officer',
-    });
+    }, { Authorization: `Bearer ${staffToken()}` });
     expect(res.status).toBe(201);
     expect(res.data.data.content).toBe('Test note content');
     expect(res.data.data.noteType).toBe('review');
+  });
+
+  describe('ownership (H1) and attribution (H3)', () => {
+    const debtorA = signToken(buildClaims({ id: 'debtor-A', email: 'a@debtor.example', roleName: 'debtor', roleLevel: 10 }, ['applications.read']));
+    const debtorB = signToken(buildClaims({ id: 'debtor-B', email: 'b@debtor.example', roleName: 'debtor', roleLevel: 10 }, ['applications.read']));
+    const senior = signToken(buildClaims({ id: 'senior-1', email: 'senior@aib.example', roleName: 'aib_senior_officer', roleLevel: 80 }, ['applications.read', 'applications.update', 'applications.approve', 'applications.reject']));
+
+    it("a debtor cannot read another debtor's application (404, not 403)", async () => {
+      const create = await request('POST', '/api/applications', { applicant: { firstName: 'Own', lastName: 'Er' } }, { Authorization: `Bearer ${debtorA}` });
+      const id = create.data.data.id;
+
+      const asB = await request('GET', `/api/applications/${id}`, undefined, { Authorization: `Bearer ${debtorB}` });
+      expect(asB.status).toBe(404);
+
+      const asA = await request('GET', `/api/applications/${id}`, undefined, { Authorization: `Bearer ${debtorA}` });
+      expect(asA.status).toBe(200);
+
+      // Anonymous capability-URL read-back is still allowed (POC, pre-identity).
+      const anon = await request('GET', `/api/applications/${id}`);
+      expect(anon.status).toBe(200);
+    });
+
+    it('rejects an approve from a token without applications.approve (403)', async () => {
+      const create = await request('POST', '/api/applications', { applicant: { firstName: 'No', lastName: 'Approve' } }, { Authorization: `Bearer ${debtorA}` });
+      const id = create.data.data.id;
+      await request('POST', `/api/applications/${id}/submit`, {}, { Authorization: `Bearer ${debtorA}` });
+
+      // staffToken() is an officer: has applications.update, not applications.approve.
+      const res = await request('PATCH', `/api/applications/${id}/status`, { status: 'approved' }, { Authorization: `Bearer ${staffToken()}` });
+      expect(res.status).toBe(403);
+    });
+
+    it('attributes a status change to the token actor, not a literal', async () => {
+      const create = await request('POST', '/api/applications', { applicant: { firstName: 'Attr', lastName: 'Ib' } }, { Authorization: `Bearer ${debtorA}` });
+      const id = create.data.data.id;
+      await request('POST', `/api/applications/${id}/submit`, {}, { Authorization: `Bearer ${debtorA}` });
+
+      const res = await request('PATCH', `/api/applications/${id}/status`, { status: 'under_review' }, { Authorization: `Bearer ${senior}` });
+      expect(res.status).toBe(200);
+
+      const statusEvent = audit.findByApplication(id).find((e: any) => e.action === 'status_changed_to_under_review');
+      expect(statusEvent?.actorName).toBe('senior@aib.example');
+      expect(statusEvent?.actorName).not.toBe('aib_staff');
+    });
   });
 });

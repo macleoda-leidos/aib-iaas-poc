@@ -152,6 +152,46 @@
     "action": "export"
   },
   {
+    "id": "perm-documents-read",
+    "code": "documents.read",
+    "name": "Read Documents",
+    "description": "View and download uploaded documents",
+    "resource": "documents",
+    "action": "read"
+  },
+  {
+    "id": "perm-documents-create",
+    "code": "documents.create",
+    "name": "Upload Documents",
+    "description": "Upload supporting documents",
+    "resource": "documents",
+    "action": "create"
+  },
+  {
+    "id": "perm-documents-delete",
+    "code": "documents.delete",
+    "name": "Delete Documents",
+    "description": "Remove uploaded documents",
+    "resource": "documents",
+    "action": "delete"
+  },
+  {
+    "id": "perm-credit-check-read",
+    "code": "credit_check.read",
+    "name": "Read Credit Checks",
+    "description": "View credit check results",
+    "resource": "credit_check",
+    "action": "read"
+  },
+  {
+    "id": "perm-credit-check-run",
+    "code": "credit_check.run",
+    "name": "Run Credit Checks",
+    "description": "Initiate a credit reference agency check",
+    "resource": "credit_check",
+    "action": "run"
+  },
+  {
     "id": "perm-system-admin",
     "code": "system.admin",
     "name": "System Administration",

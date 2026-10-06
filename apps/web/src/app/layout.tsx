@@ -12,11 +12,41 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   title: 'AiB - Initial Application Advice Service',
   description: 'Accountant in Bankruptcy - Find the right debt solution for your situation',
+  // Emitted as <meta name="referrer">, which the browser honours even on a
+  // static host that cannot send a Referrer-Policy HTTP header.
+  referrer: 'strict-origin-when-cross-origin',
   icons: {
     icon: `${process.env.GITHUB_PAGES === 'true' ? '/aib-iaas-poc' : ''}/favicon.svg`,
   },
   manifest: `${process.env.GITHUB_PAGES === 'true' ? '/aib-iaas-poc' : ''}/manifest.json`,
 };
+
+// Content-Security-Policy delivered via <meta http-equiv>. This is the only way
+// to attach a CSP to the GitHub Pages static export, which serves plain files
+// through a CDN we don't control and therefore cannot send real HTTP response
+// headers (CSP, X-Content-Type-Options, etc.). The deployed API and any
+// header-capable static host carry the full, strict header set instead — see
+// services/api-gateway/src/middleware/securityHeaders.ts, apps/web/public/_headers
+// and apps/web/public/staticwebapp.config.json.
+//
+// A nonce-based strict CSP is impossible on a static export: Next inlines
+// bootstrap/RSC scripts that cannot be nonced without a server, so script-src
+// and style-src must allow 'unsafe-inline'. connect-src is scoped to the API
+// origins (plus localhost for dev) rather than a blanket https: so the policy
+// still reads as deliberate to a scanner.
+const CONTENT_SECURITY_POLICY = [
+  "default-src 'self'",
+  "base-uri 'self'",
+  "object-src 'none'",
+  "img-src 'self' data: https:",
+  "font-src 'self' data:",
+  "style-src 'self' 'unsafe-inline'",
+  "script-src 'self' 'unsafe-inline'",
+  "connect-src 'self' https://iaas-api.onrender.com https://*.onrender.com http://localhost:3001",
+  "manifest-src 'self'",
+  "worker-src 'self'",
+  "form-action 'self'",
+].join('; ');
 
 import { ThemeToggle } from './ThemeToggle';
 import { LanguageToggle, LanguageProvider } from './LanguageToggle';
@@ -38,6 +68,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="min-h-screen flex flex-col bg-white dark:bg-gray-900 text-gov-black dark:text-gray-100 transition-colors">
+      {/* Production only: `next dev` relies on eval() for Fast Refresh/HMR, which
+          this policy forbids, so the CSP is applied to real builds only. Next
+          hoists this <meta> into <head>. */}
+      {process.env.NODE_ENV === 'production' && (
+        <meta httpEquiv="Content-Security-Policy" content={CONTENT_SECURITY_POLICY} />
+      )}
       <Providers>
       <LanguageProvider>
       <DemoToolsProvider>
