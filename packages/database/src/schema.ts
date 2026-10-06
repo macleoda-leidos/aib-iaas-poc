@@ -1,6 +1,6 @@
 import type Database from 'better-sqlite3';
 import { hashPassword, DEMO_MFA_SECRET } from '@aib-iaas/auth';
-import { seedRbacSqlite } from './rbac';
+import { seedRbacSqlite, PERMISSIONS } from './rbac';
 
 /**
  * One real bcrypt hash of the demo password, computed lazily and once per
@@ -281,6 +281,18 @@ export function initializeSchema(db: Database.Database): void {
   // is how it came to omit three roles and use a permission vocabulary no other
   // file understood. Must run before the users below — role_id is a FK.
   seedRbacSqlite(db);
+
+  // Purge permission codes withdrawn from the canonical vocabulary (GAP-011
+  // residual #4). Seeding is INSERT OR IGNORE — it adds new codes but never
+  // deletes obsolete ones, so a persistent volume created before a vocabulary
+  // change keeps withdrawn codes (e.g. the old 'application.read.all',
+  // 'audit.view') and the grants built on them. Default-deny must not evaluate
+  // against stale grants. The FK on role_permissions is ON DELETE CASCADE, so
+  // deleting the permission drops its orphaned grants with it. A no-op on a
+  // freshly-seeded database (every code is already canonical).
+  const canonicalCodes = PERMISSIONS.map(p => p.code);
+  const placeholders = canonicalCodes.map(() => '?').join(', ');
+  db.prepare(`DELETE FROM permissions WHERE code NOT IN (${placeholders})`).run(...canonicalCodes);
 
   // Seed default organisations and users for testing (matches original
   // api-gateway behaviour, for callers that use createRepositories() without

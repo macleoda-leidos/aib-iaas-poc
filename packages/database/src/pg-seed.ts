@@ -14,6 +14,14 @@ export async function seedPgDatabase(pool: Pool): Promise<void> {
     `[PostgreSQL] RBAC seeded (${ROLES.length} roles, ${PERMISSIONS.length} permissions, ${resolveGrants().length} grants)`
   );
 
+  // Purge withdrawn permission codes (GAP-011 residual #4) — INSERT ... ON
+  // CONFLICT DO NOTHING adds new codes but never removes obsolete ones, so an
+  // existing Neon database keeps stale codes and their grants. role_permissions
+  // is ON DELETE CASCADE, so dropping the permission drops its grants too.
+  const canonicalCodes = PERMISSIONS.map(p => p.code);
+  const placeholders = canonicalCodes.map((_, i) => `$${i + 1}`).join(', ');
+  await pool.query(`DELETE FROM permissions WHERE code NOT IN (${placeholders})`, canonicalCodes);
+
   const { rows } = await pool.query('SELECT COUNT(*) as c FROM organisations');
   if (parseInt(rows[0].c) > 0) { console.log('[PostgreSQL] Already seeded — skipping'); return; }
 

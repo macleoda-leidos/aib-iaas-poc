@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { createRepositories, closeDatabase } from '../index';
+import { createRepositories, closeDatabase, getDatabase, initializeSchema } from '../index';
 import type { Repositories } from '../index';
 import { PERMISSIONS, ROLES, ROLE_GRANTS, resolveGrants, seedRbacPostgres } from '../rbac';
 import { initPgSchema } from '../pg-schema';
@@ -148,6 +148,27 @@ describe('RBAC seeding — SQLite', () => {
     const codes = new Set(PERMISSIONS.map(p => p.code));
     const seeded = ROLES.flatMap(r => repos.users.getPermissionsForRole(r.id).map(p => p.code));
     expect([...new Set(seeded.filter(c => !codes.has(c)))]).toEqual([]);
+  });
+
+  it('purges permission codes withdrawn from the canonical vocabulary (GAP-011 residual #4)', () => {
+    const db = getDatabase();
+    // Simulate a persistent database that predates a vocabulary change: it holds
+    // a withdrawn code and a grant to a real role, exactly as INSERT OR IGNORE
+    // would have left it.
+    db.prepare(
+      "INSERT OR IGNORE INTO permissions (id, code, name, description, resource, action) VALUES ('perm-legacy', 'application.read.all', 'Legacy', 'withdrawn', 'application', 'read.all')"
+    ).run();
+    db.prepare("INSERT OR IGNORE INTO role_permissions (role_id, permission_id) VALUES ('role-sysadmin', 'perm-legacy')").run();
+    expect(db.prepare("SELECT 1 FROM permissions WHERE code = 'application.read.all'").get()).toBeTruthy();
+
+    // Re-initialising the schema purges non-canonical codes...
+    initializeSchema(db);
+
+    expect(db.prepare("SELECT 1 FROM permissions WHERE code = 'application.read.all'").get()).toBeFalsy();
+    // ...and the ON DELETE CASCADE drops the orphaned grant with it.
+    expect(db.prepare("SELECT 1 FROM role_permissions WHERE permission_id = 'perm-legacy'").get()).toBeFalsy();
+    // Canonical grants are untouched.
+    expect(repos.users.getPermissionsForRole('role-sysadmin').length).toBeGreaterThan(0);
   });
 
   it('answers hasPermission from the seeded grants', () => {
