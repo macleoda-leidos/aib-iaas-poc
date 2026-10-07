@@ -5,6 +5,7 @@ import { initDatabase } from './db';
 import { applicationsRouter } from './routes/applications';
 import { postcodeRouter } from './routes/postcode';
 import { authRouter } from './routes/auth';
+import { oidcRouter } from './oidc/router';
 import { reportsRouter } from './routes/reports';
 import { reportsExportRouter } from './routes/reports-export';
 import { errorHandler } from './middleware/errorHandler';
@@ -51,6 +52,10 @@ initDatabase();
 app.use(enforceAuthentication);
 
 // Routes
+// OIDC federation leg mounted before /api/auth so the whole handshake is
+// unambiguously owned by oidcRouter (additive — the password endpoints on
+// authRouter are untouched).
+app.use('/api/auth/oidc', oidcRouter);
 app.use('/api/auth', authRouter);
 app.use('/api/applications', applicationsRouter);
 app.use('/api/postcode', postcodeRouter);

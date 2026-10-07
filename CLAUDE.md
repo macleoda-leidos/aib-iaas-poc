@@ -79,7 +79,9 @@ npm workspaces monorepo with three workspace directories (`apps/*`, `services/*`
 
 ## Testing
 
-`npx vitest run` from the repo root runs everything: **822 tests across 46 files** (584 backend across 38 files, 238 frontend across 8 files).
+`npx vitest run` from the repo root runs everything: **982 tests across 55 files** (667 backend across 43 files, 315 frontend across 12 files).
+
+Note: the jsdom frontend suites require **Node ≥ 20.19** (or ≥ 22.12) — jsdom 29 pulls in an ESM-only transitive dep (`@exodus/bytes`, via `html-encoding-sniffer`) that older Node reaches through `require()`. On Node 20.18 and earlier the frontend files fail to load with `ERR_REQUIRE_ESM`; the backend suites are unaffected. CI's `node-version: 20` resolves to a 20.19+ runtime, so this only bites local runs on an older Node.
 
 Backend suites read the SQLite database at `DATABASE_PATH`, defaulting to `data/iaas.db`
 (`packages/database/src/connection.ts:12`). Seeding is `INSERT OR IGNORE`, so it adds missing

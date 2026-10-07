@@ -21,6 +21,7 @@ import rateLimit from 'express-rate-limit';
 import { applicationsRouter } from '../../api-gateway/src/routes/applications';
 import { postcodeRouter } from '../../api-gateway/src/routes/postcode';
 import { authRouter as gatewayAuthRouter } from '../../api-gateway/src/routes/auth';
+import { oidcRouter } from '../../api-gateway/src/oidc/router';
 import { reportsRouter } from '../../api-gateway/src/routes/reports';
 import { reportsExportRouter } from '../../api-gateway/src/routes/reports-export';
 import { initDatabase } from '../../api-gateway/src/db';
@@ -311,6 +312,9 @@ app.use('/api/users/auth/verify-mfa', authRateLimiter);
 // guard is applied here.
 app.use('/api/applications', applicationsRouter);
 app.use('/api/postcode', postcodeRouter);
+// OIDC federation leg before /api/auth so the whole handshake is owned by
+// oidcRouter; additive, the password endpoints on gatewayAuthRouter are untouched.
+app.use('/api/auth/oidc', oidcRouter);
 app.use('/api/auth', gatewayAuthRouter);
 // Export (aggregate CSV) is public for the demo and must be matched before the
 // reports.read-guarded dashboard mount, or it would inherit that guard.

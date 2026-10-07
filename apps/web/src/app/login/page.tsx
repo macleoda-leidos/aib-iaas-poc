@@ -234,6 +234,18 @@ export default function LoginPage() {
     setError('');
   };
 
+  // Federated sign-in via GOV.UK One Login (OIDC authorization-code + PKCE). A
+  // full-page navigation to the gateway's /start, which bounces through the mock
+  // IdP and returns to /auth/callback with the session in the URL fragment. The
+  // redirect is this app's own callback, origin-checked server-side against the
+  // CORS allow-list to prevent an open redirect. Additive — the password form
+  // and the scripted demo path are untouched.
+  const handleOneLogin = () => {
+    const base = process.env.NEXT_PUBLIC_BASE_PATH || '';
+    const callbackUrl = `${window.location.origin}${base}/auth/callback`;
+    window.location.href = `${API_URL}/api/auth/oidc/start?redirect=${encodeURIComponent(callbackUrl)}`;
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-100 to-blue-50 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
@@ -455,6 +467,28 @@ export default function LoginPage() {
                     ) : 'Sign In'}
                   </button>
                 </form>
+
+                {/* Federated sign-in (GOV.UK One Login / OIDC). A real
+                    authorization-code + PKCE flow against the gateway's mock
+                    provider; the callback mints the same signed session as the
+                    password path. data-demo is present for parity but is NOT
+                    referenced by the scripted demo, which drives the password +
+                    MFA route. */}
+                <div className="flex items-center gap-3 my-4">
+                  <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700"></div>
+                  <span className="text-xs text-gray-400">or</span>
+                  <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700"></div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleOneLogin}
+                  data-demo="login-govuk-one-login"
+                  className="w-full flex items-center justify-center gap-2 bg-gray-900 dark:bg-black text-white font-bold py-3 rounded hover:bg-gray-800 transition-colors mb-4 border border-gray-900 dark:border-gray-700"
+                >
+                  <span className="bg-white text-gray-900 text-[10px] font-bold px-1.5 py-0.5 rounded-sm" aria-hidden="true">GOV.UK</span>
+                  Sign in with GOV.UK One Login
+                </button>
 
                 {/* Demo Accounts */}
                 <div className="flex items-center gap-3 mb-4">

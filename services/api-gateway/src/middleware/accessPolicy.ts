@@ -51,6 +51,13 @@ export function isPublicRequest(method: string, path: string): boolean {
     return true;
   }
 
+  // GOV.UK One Login (OIDC) federation leg. The entire authorization-code
+  // handshake (start → mock IdP authorize → callback), plus the IdP's JWKS and
+  // discovery document, runs before any app session exists, so it is necessarily
+  // pre-token. The callback itself mints the HS256 session; everything after it
+  // is gated as before (GAP-007).
+  if (method === 'GET' && p.startsWith('/api/auth/oidc')) return true;
+
   // ─── Anonymous applicant-intake surface (the public /apply journey) ──
   if (method === 'GET' && p.startsWith('/api/postcode')) return true;          // address lookup
   if (p.startsWith('/api/recommend')) return true;                              // rules engine
