@@ -38,6 +38,14 @@ jobs:
       - name: Add .nojekyll
         run: touch apps/web/out/.nojekyll
 
+      # Guarantee /.well-known/security.txt is published even if the static
+      # export does not copy the public/.well-known dotfolder. Served under the
+      # project sub-path (GitHub Pages project sites cannot use the domain root).
+      - name: Ensure security.txt is published
+        run: |
+          mkdir -p apps/web/out/.well-known
+          cp apps/web/public/.well-known/security.txt apps/web/out/.well-known/security.txt
+
       # Custom Domain: To enable a custom domain, create apps/web/public/CNAME
       # containing the domain (e.g., iaas.aib.gov.uk). The file will be copied
       # to the output directory automatically during build. Also configure the

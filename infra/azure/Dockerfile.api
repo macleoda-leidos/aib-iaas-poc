@@ -10,6 +10,7 @@ RUN apk add --no-cache python3 make g++
 WORKDIR /app
 # Copy root package.json and lockfile for workspace resolution
 COPY package.json package-lock.json ./
+COPY packages/auth/package.json ./packages/auth/
 COPY packages/database/package.json ./packages/database/
 COPY packages/integration-contracts/package.json ./packages/integration-contracts/
 COPY packages/shared-types/package.json ./packages/shared-types/
@@ -29,7 +30,7 @@ COPY services/recommendation-service/package.json ./services/recommendation-serv
 # them, so the 81 `import type` sites never touched the missing link. shared-types also
 # exports runtime helpers (rbac.ts hasPermission), so the first value import would have
 # failed on boot the same way statutory did. Keep this list and the COPY list in step.
-RUN npm ci --workspace=packages/database --workspace=packages/integration-contracts --workspace=packages/shared-types --workspace=packages/statutory --workspace=packages/validation --workspace=services/recommendation-service --workspace=services/consolidated-api --include-workspace-root || npm install --omit=dev
+RUN npm ci --workspace=packages/auth --workspace=packages/database --workspace=packages/integration-contracts --workspace=packages/shared-types --workspace=packages/statutory --workspace=packages/validation --workspace=services/recommendation-service --workspace=services/consolidated-api --include-workspace-root || npm install --omit=dev
 
 # Copy source and run
 FROM base AS runner

@@ -1,11 +1,20 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { signToken, buildClaims } from '@aib-iaas/auth';
 import { app } from '../index';
 import http from 'http';
 
 let server: http.Server;
 let baseUrl: string;
 
-function request(method: string, path: string, body?: any): Promise<{ status: number; data: any }> {
+// The audit endpoints now authenticate; reads additionally require audit.read.
+// A staff token carrying it covers both. No jti, so no session lookup.
+const AUTH = () => ({
+  Authorization: `Bearer ${signToken(
+    buildClaims({ id: 'USR-OFFICER', email: 'officer@aib.example', roleName: 'aib_officer', roleLevel: 60 }, ['audit.read'])
+  )}`,
+});
+
+function request(method: string, path: string, body?: any, headers: Record<string, string> = AUTH()): Promise<{ status: number; data: any }> {
   return new Promise((resolve, reject) => {
     const url = new URL(path, baseUrl);
     const opts = {
@@ -13,7 +22,7 @@ function request(method: string, path: string, body?: any): Promise<{ status: nu
       port: url.port,
       path: url.pathname + url.search,
       method,
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...headers },
     };
     const req = http.request(opts, (res) => {
       let d = '';
@@ -40,6 +49,28 @@ describe('Audit Service - /api/audit/events', () => {
   });
 
   afterAll(() => { server?.close(); });
+
+  describe('authentication & authorisation', () => {
+    it('rejects POST /events without a token', async () => {
+      const res = await request('POST', '/api/audit/events', { action: 'x', actorType: 'staff' }, { 'Content-Type': 'application/json' });
+      expect(res.status).toBe(401);
+    });
+
+    it('rejects GET /events for a token without audit.read', async () => {
+      const token = signToken(buildClaims({ id: 'u', email: 'e@x', roleName: 'debtor', roleLevel: 10 }, ['applications.read']));
+      const res = await request('GET', '/api/audit/events', undefined, { Authorization: `Bearer ${token}` });
+      expect(res.status).toBe(403);
+    });
+
+    it('derives the actor from the token, ignoring the body', async () => {
+      const appId = `app-actor-${Date.now()}`;
+      await request('POST', '/api/audit/events', { applicationId: appId, action: 'created', actor: 'spoofed@evil.example', actorType: 'system' });
+      const res = await request('GET', `/api/audit/events/${appId}`);
+      expect(res.status).toBe(200);
+      expect(res.data.data[0].actorName).toBe('officer@aib.example');
+      expect(res.data.data[0].actorName).not.toBe('spoofed@evil.example');
+    });
+  });
 
   describe('POST /api/audit/events', () => {
     it('creates an audit event with valid data', async () => {

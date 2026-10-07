@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { apiGet } from './apiClient';
+import { apiGet, getAuthToken } from './apiClient';
 import { useVisiblePolling } from './useVisiblePolling';
 
 export interface NotificationItem {
@@ -31,6 +31,16 @@ export function useNotifications() {
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
 
   const refresh = useCallback(() => {
+    // Notifications are a per-user, authenticated resource. When nobody is signed
+    // in (the public home page, the anonymous /apply journey) there is no token to
+    // send, so skip the call entirely and show representative demo data — hitting
+    // the now default-denied endpoint anonymously would 401 and surface a spurious
+    // "session expired" toast on pages the visitor never logged into.
+    if (!getAuthToken()) {
+      setNotifications(generateNotifications());
+      setLastUpdated(new Date());
+      return;
+    }
     // Try API first, fall back to generated data
     apiGet<any>('/api/notifications/user/user-demo')
       .then(res => {

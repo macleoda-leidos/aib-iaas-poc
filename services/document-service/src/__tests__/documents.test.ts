@@ -1,3 +1,7 @@
+// The scanner now fails closed: 'auto' with no ClamAV throws rather than
+// silently using the placeholder. Tests opt into the placeholder explicitly.
+process.env.SCANNER_MODE = 'placeholder';
+
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { app } from '../index';
 import http from 'http';
@@ -251,6 +255,37 @@ describe('Document Service - /api/documents', () => {
       expect(res.status).toBe(200);
       expect(res.data.success).toBe(true);
       expect(res.data.data.status).toBe('clean');
+    });
+  });
+
+  describe('GET /api/documents/:id/download (fail-closed, M5)', () => {
+    it('withholds a file that has not been scanned (409)', async () => {
+      const upload = await uploadFile('/api/documents/upload', 'unscanned.pdf', Buffer.from('safe content'), { applicationId: 'app-001' });
+      const docId = upload.data.data.id;
+
+      const res = await request('GET', `/api/documents/${docId}/download`);
+      expect(res.status).toBe(409);
+      expect(res.data.error.code).toBe('NOT_CLEAN');
+    });
+
+    it('withholds a quarantined file (409)', async () => {
+      const upload = await uploadFile('/api/documents/upload', 'infected.pdf', Buffer.from('this is a virus payload'), { applicationId: 'app-001' });
+      const docId = upload.data.data.id;
+      const scan = await request('POST', `/api/documents/${docId}/scan`);
+      expect(scan.data.data.status).toBe('quarantined');
+
+      const res = await request('GET', `/api/documents/${docId}/download`);
+      expect(res.status).toBe(409);
+    });
+
+    it('allows download once a scan has confirmed the file clean', async () => {
+      const upload = await uploadFile('/api/documents/upload', 'clean.pdf', Buffer.from('%PDF-1.4 entirely benign content'), { applicationId: 'app-001' });
+      const docId = upload.data.data.id;
+      const scan = await request('POST', `/api/documents/${docId}/scan`);
+      expect(scan.data.data.status).toBe('clean');
+
+      const res = await request('GET', `/api/documents/${docId}/download`);
+      expect(res.status).toBe(200);
     });
   });
 });

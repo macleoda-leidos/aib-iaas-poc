@@ -64,6 +64,9 @@ export interface Application {
   systemChecks: any | null;
   creditCheck: any | null;
   assignedTo: string | null;
+  /** The applicant who created it, when known. Null for anonymous intake and
+   *  pre-Phase-1 seed rows. Used to scope reads by ownership (IDOR / H1). */
+  ownerUserId: string | null;
   submittedAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -134,12 +137,14 @@ export interface CreateApplicationInput {
   systemChecks?: any;
   creditCheck?: any;
   assignedTo?: string;
+  ownerUserId?: string | null;
   submittedAt?: string;
 }
 
 export interface ListApplicationsParams {
   status?: string;
   assignedTo?: string;
+  ownerUserId?: string;
   page?: number;
   pageSize?: number;
 }
@@ -163,6 +168,7 @@ export class ApplicationRepository {
       systemChecks: row.system_checks ? JSON.parse(row.system_checks) : null,
       creditCheck: row.credit_check ? JSON.parse(row.credit_check) : null,
       assignedTo: row.assigned_to,
+      ownerUserId: row.owner_user_id ?? null,
       submittedAt: row.submitted_at,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
@@ -239,8 +245,8 @@ export class ApplicationRepository {
     const referenceNumber = input.referenceNumber || this.generateReferenceNumber();
 
     const insertApp = this.db.prepare(`
-      INSERT INTO applications (id, reference_number, status, system_checks, credit_check, assigned_to, submitted_at, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO applications (id, reference_number, status, system_checks, credit_check, assigned_to, owner_user_id, submitted_at, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     const transaction = this.db.transaction(() => {
@@ -251,6 +257,7 @@ export class ApplicationRepository {
         input.systemChecks ? JSON.stringify(input.systemChecks) : null,
         input.creditCheck ? JSON.stringify(input.creditCheck) : null,
         input.assignedTo || null,
+        input.ownerUserId ?? null,
         input.submittedAt || null,
         now,
         now
@@ -299,7 +306,7 @@ export class ApplicationRepository {
   }
 
   list(params: ListApplicationsParams = {}): { data: Application[]; total: number } {
-    const { status, assignedTo, page = 1, pageSize = 20 } = params;
+    const { status, assignedTo, ownerUserId, page = 1, pageSize = 20 } = params;
     const conditions: string[] = [];
     const values: any[] = [];
 
@@ -311,6 +318,12 @@ export class ApplicationRepository {
     if (assignedTo) {
       conditions.push('assigned_to = ?');
       values.push(assignedTo);
+    }
+
+    // Ownership scoping (IDOR / H1): a debtor only ever sees their own records.
+    if (ownerUserId) {
+      conditions.push('owner_user_id = ?');
+      values.push(ownerUserId);
     }
 
     const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';

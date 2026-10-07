@@ -55,6 +55,8 @@ describe('chatbot intent routing', () => {
     { question: 'How does the recommendation engine decide?', product: null, topic: 'engine' },
     { question: 'Can I keep my home under DAS?', product: 'das', topic: 'property' },
     { question: 'What is the Debt Arrangement Scheme?', product: 'das', topic: null },
+    { question: 'Which laws govern debt solutions in Scotland?', product: null, topic: 'legislation' },
+    { question: 'What legislation governs a protected trust deed?', product: 'ptd', topic: 'legislation' },
   ];
 
   it.each(PROBE)('routes "$question" to $product/$topic', ({ question, product, topic }) => {
@@ -104,6 +106,25 @@ describe('chatbot intent routing', () => {
     for (const question of SUGGESTED_QUESTIONS) {
       expect(answer(question).text, question).not.toBe(FALLBACK.text);
     }
+  });
+
+  it('answers the legislation topic with the governing instruments', () => {
+    const a = answer('Which laws govern debt solutions in Scotland?');
+    expect(a.text).toContain('Bankruptcy (Scotland) Act 2016');
+    expect(a.text).toContain('Debt Arrangement Scheme (Scotland) Regulations 2011');
+    expect(a.text).toContain('Protected Trust Deeds (Scotland) Regulations 2013');
+    // The current reform bill AiB's systems must track.
+    expect(a.text).toContain('Bankruptcy and Diligence (Scotland) Act 2024');
+    expect(a.citations.length).toBeGreaterThan(0);
+  });
+
+  it('scopes a legislation question to the product named', () => {
+    expect(answer('What law governs a protected trust deed?').text).toBe(
+      PRODUCT_SPECIFIC_FOR_TEST.legislation!.ptd.text
+    );
+    expect(answer('What legislation covers sequestration?').text).toBe(
+      PRODUCT_SPECIFIC_FOR_TEST.legislation!.sequestration.text
+    );
   });
 });
 

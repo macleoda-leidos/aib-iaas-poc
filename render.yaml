@@ -28,6 +28,10 @@ services:
         value: "200"
       - key: CORS_ORIGIN
         value: "https://macleoda-leidos.github.io"
+      # HS256 token-signing secret. sync:false → set in the Render dashboard, not
+      # committed. The service refuses to sign tokens in production without it.
+      - key: JWT_SECRET
+        sync: false
     disk:
       name: iaas-data
       mountPath: /data
@@ -46,4 +50,8 @@ services:
       - key: ASPNETCORE_ENVIRONMENT
         value: Production
       - key: DATABASE_URL
+        sync: false
+      # The .NET API reaches token/MFA parity separately (tracked as follow-on);
+      # the secret is wired here so both services verify against the same key.
+      - key: JWT_SECRET
         sync: false

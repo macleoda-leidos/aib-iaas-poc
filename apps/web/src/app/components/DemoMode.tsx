@@ -436,7 +436,7 @@ function buildDemoSteps(app: GeneratedApplication): DemoStep[] {
       path: '/admin/users',
       duration: 18,
       title: '\u{1F465} User Management',
-      narration: '500 users across 14 external organisations. 9 role levels from System Administrator down to Debtor, with an 11-permission RBAC matrix. Add User writes through to the live API.',
+      narration: '500 users across 14 external organisations. The RBAC matrix now loads live from the API — 10 roles from System Administrator down to Debtor across 25 permission codes, the model authorisation is actually enforced against. Add User writes through to the live API.',
       actions: [
         { delay: 1000, action: { type: 'HIGHLIGHT', selector: '[data-demo="users-table"]', durationMs: 3000 } },
         { delay: 4500, action: { type: 'SCROLL_TO', selector: '[data-demo="users-rbac-matrix"]', block: 'start' } },

@@ -21,6 +21,11 @@
       "audit.export",
       "reports.read",
       "reports.export",
+      "documents.read",
+      "documents.create",
+      "documents.delete",
+      "credit_check.read",
+      "credit_check.run",
       "system.admin"
     ]
   },
@@ -40,7 +45,10 @@
       "audit.read",
       "audit.export",
       "reports.read",
-      "reports.export"
+      "reports.export",
+      "documents.read",
+      "documents.create",
+      "credit_check.read"
     ]
   },
   {
@@ -62,7 +70,10 @@
       "users.read",
       "organisations.read",
       "audit.read",
-      "reports.read"
+      "reports.read",
+      "documents.read",
+      "documents.create",
+      "credit_check.read"
     ]
   },
   {
@@ -73,7 +84,9 @@
       "applications.update",
       "applications.submit",
       "organisations.read",
-      "audit.read"
+      "audit.read",
+      "documents.read",
+      "credit_check.read"
     ]
   },
   {

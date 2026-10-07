@@ -4,9 +4,16 @@ import { useState, useRef, useEffect } from 'react';
 import { setAuthToken } from '../../lib/apiClient';
 import { navigateTo } from '../../lib/navigation';
 import { onDemoAction } from '../../lib/demoEvents';
+import { generateTotp } from '../../lib/totp';
 import Link from 'next/link';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://iaas-api.onrender.com';
+
+// The fixed TOTP secret the demo accounts are seeded with — the same literal as
+// @aib-iaas/auth.DEMO_MFA_SECRET. The scripted demo computes a live code from it
+// so it can satisfy real server-side MFA. Only the demo accounts use it; it is a
+// deliberate, documented POC concession, not how real accounts work.
+const DEMO_MFA_SECRET = 'JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP';
 
 const DEMO_ACCOUNTS = [
   { id: 'system-admin', email: 'admin@aib-poc.example.com', role: 'System Admin', description: 'Full system access' },
@@ -53,6 +60,10 @@ export default function LoginPage() {
   const [mfaCode, setMfaCode] = useState(['', '', '', '', '', '']);
   const [mfaVerifying, setMfaVerifying] = useState(false);
   const [rememberDevice, setRememberDevice] = useState(false);
+  // The short-lived challenge token returned by /login for an MFA account. It is
+  // exchanged for a real access token by /verify-mfa — no access token exists
+  // until the second factor is proven (fixes H4).
+  const [mfaChallenge, setMfaChallenge] = useState('');
   const mfaRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   // Demo mode types the code for us. This page owns the digit state, so it
@@ -65,8 +76,15 @@ export default function LoginPage() {
   useEffect(() =>
     onDemoAction(action => {
       if (action.type !== 'FILL_MFA_CODE') return;
-      const digits = action.code.replace(/\D/g, '').slice(0, 6).split('');
-      setMfaCode(['', '', '', '', '', ''].map((_, i) => digits[i] ?? ''));
+      // Ignore the action's placeholder code and compute a live TOTP from the
+      // known demo secret, so the scripted run passes real server-side
+      // verification rather than posting a code that would be rejected.
+      generateTotp(DEMO_MFA_SECRET)
+        .then(code => {
+          const digits = code.replace(/\D/g, '').slice(0, 6).split('');
+          setMfaCode(['', '', '', '', '', ''].map((_, i) => digits[i] ?? ''));
+        })
+        .catch(() => { /* demo helper only — never block the UI */ });
     }), []);
 
   // Focus the first digit box once the code screen appears, so a presenter (or
@@ -95,27 +113,40 @@ export default function LoginPage() {
         return;
       }
 
-      // Store token temporarily
-      const token = data.data?.token || data.token;
-      if (token) {
-        setAuthToken(token);
-        localStorage.setItem('iaas-auth-token', token);
+      // MFA account: no token yet — carry the challenge to the second-factor
+      // screen and exchange it there. This is the fix for H4 (the old flow
+      // stored a token before MFA was ever verified).
+      if (data.data?.mfaRequired) {
+        setMfaChallenge(data.data.challenge);
+        setLoading(false);
+        setMfaStep(true);
+        return;
       }
 
-      // Store user info
-      const user = data.data?.user || data.user;
-      if (user) {
-        localStorage.setItem('iaas-current-user', JSON.stringify(user));
-        sessionStorage.setItem('iaas-current-user', JSON.stringify(user));
-      }
-
-      // Move to MFA step instead of redirecting
+      // Non-MFA account: the token is final. Store it and go.
+      completeSignIn(data.data?.token || data.token, data.data?.user || data.user);
       setLoading(false);
-      setMfaStep(true);
     } catch (err) {
       setError('Unable to connect to server. Please try again.');
       setLoading(false);
     }
+  };
+
+  // Persist the finished session and redirect. Only ever called once a token has
+  // actually been issued — after a non-MFA login, or after MFA verification.
+  const completeSignIn = (token?: string, user?: unknown) => {
+    if (token) {
+      setAuthToken(token);
+      localStorage.setItem('iaas-auth-token', token);
+    }
+    if (user) {
+      localStorage.setItem('iaas-current-user', JSON.stringify(user));
+      sessionStorage.setItem('iaas-current-user', JSON.stringify(user));
+    }
+    localStorage.setItem('iaas-session-start', Date.now().toString());
+    if (rememberDevice) localStorage.setItem('iaas-remember-device', 'true');
+    setSuccess(true);
+    setTimeout(() => navigateTo('/dashboard'), 1000);
   };
 
   const handleMfaInput = (index: number, value: string) => {
@@ -165,7 +196,7 @@ export default function LoginPage() {
     setError('');
   };
 
-  const handleMfaVerify = () => {
+  const handleMfaVerify = async () => {
     const code = mfaCode.join('');
     if (code.length !== 6) {
       setError('Please enter a 6-digit code');
@@ -173,19 +204,28 @@ export default function LoginPage() {
     }
     setMfaVerifying(true);
     setError('');
-    // Simulate verification delay
-    setTimeout(() => {
-      setMfaVerifying(false);
-      setSuccess(true);
-      // Store session info
-      localStorage.setItem('iaas-session-start', Date.now().toString());
-      if (rememberDevice) {
-        localStorage.setItem('iaas-remember-device', 'true');
+    try {
+      // Real second-factor check: exchange the challenge + code for an access
+      // token. The code is verified server-side (TOTP); a wrong code is a 401.
+      const res = await fetch(`${API_URL}/api/auth/verify-mfa`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ challenge: mfaChallenge, code }),
+      });
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        setError(data.error?.message || 'Incorrect verification code');
+        setMfaVerifying(false);
+        return;
       }
-      setTimeout(() => {
-        navigateTo('/dashboard');
-      }, 1000);
-    }, 1200);
+
+      setMfaVerifying(false);
+      completeSignIn(data.data?.token, data.data?.user);
+    } catch (err) {
+      setError('Unable to connect to server. Please try again.');
+      setMfaVerifying(false);
+    }
   };
 
   const fillDemoAccount = (demoEmail: string) => {
@@ -292,7 +332,8 @@ export default function LoginPage() {
                 </button>
 
                 <p className="text-xs text-center text-gray-500 dark:text-gray-400 mt-3">
-                  MFA is enforced for all staff accounts by Keycloak policy.
+                  MFA is enforced for all staff accounts. The code is a time-based
+                  one-time password, verified server-side.
                 </p>
               </div>
             ) : mfaStep ? (
@@ -451,10 +492,10 @@ export default function LoginPage() {
               POC Authentication — connects to live API
             </p>
             <div className="flex items-center gap-1.5">
-              <div className="w-4 h-4 rounded bg-[#4d4d4d] flex items-center justify-center">
-                <span className="text-white text-[8px] font-bold">K</span>
+              <div className="w-4 h-4 rounded bg-blue-700 flex items-center justify-center">
+                <span className="text-white text-[9px] font-bold" aria-hidden="true">&#128274;</span>
               </div>
-              <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">Powered by Keycloak</span>
+              <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">Signed tokens &middot; server-side TOTP</span>
             </div>
           </div>
         </div>

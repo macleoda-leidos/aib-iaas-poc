@@ -2,17 +2,19 @@
 
 import Link from 'next/link';
 
+// Reflects the real Helmet configuration applied to the API by
+// services/api-gateway/src/middleware/securityHeaders.ts (shared by the deployed
+// consolidated-api). The API serves only JSON, so the CSP can be maximally strict.
 const HEADERS = [
-  { name: 'X-Frame-Options', value: 'DENY', status: 'applied', description: 'Prevents clickjacking by disabling iframe embedding' },
+  { name: 'Content-Security-Policy', value: "default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'", status: 'applied', description: "Strict policy for a JSON API — nothing may load, embed, or submit. The HTML frontend uses a looser, static-export-compatible policy." },
+  { name: 'Strict-Transport-Security', value: 'max-age=31536000; includeSubDomains; preload', status: 'applied', description: 'Enforces HTTPS for 1 year with subdomains; preload-eligible' },
   { name: 'X-Content-Type-Options', value: 'nosniff', status: 'applied', description: 'Prevents MIME-type sniffing' },
-  { name: 'X-XSS-Protection', value: '0', status: 'applied', description: 'Disabled (CSP is the modern replacement)' },
-  { name: 'Strict-Transport-Security', value: 'max-age=31536000; includeSubDomains', status: 'applied', description: 'Enforces HTTPS for 1 year with subdomains' },
-  { name: 'Content-Security-Policy', value: 'Not configured (POC)', status: 'recommended', description: 'Controls which resources can load. Needed for production.' },
-  { name: 'Referrer-Policy', value: 'strict-origin-when-cross-origin', status: 'applied', description: 'Controls referrer information sent with requests' },
-  { name: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()', status: 'applied', description: 'Restricts browser feature access' },
+  { name: 'X-Frame-Options', value: 'DENY', status: 'applied', description: 'Prevents clickjacking by disabling iframe embedding' },
+  { name: 'Referrer-Policy', value: 'no-referrer', status: 'applied', description: 'The API sends no referrer to any origin' },
+  { name: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(), payment=(), usb=(), browsing-topics=()', status: 'applied', description: 'Denies powerful browser features the API never uses' },
   { name: 'Cross-Origin-Opener-Policy', value: 'same-origin', status: 'applied', description: 'Isolates browsing context from cross-origin popups' },
-  { name: 'Cross-Origin-Resource-Policy', value: 'same-origin', status: 'recommended', description: 'Prevents cross-origin reads of resources' },
-  { name: 'X-DNS-Prefetch-Control', value: 'off', status: 'applied', description: 'Disables DNS prefetching to prevent data leakage' },
+  { name: 'Cross-Origin-Resource-Policy', value: 'cross-origin', status: 'applied', description: 'Allows the separate frontend origin to read API responses; the CORS allow-list remains the access control' },
+  { name: 'X-Powered-By', value: 'removed', status: 'applied', description: 'Framework/version banner suppressed (app.disable)' },
 ];
 
 export default function SecurityHeadersPage() {
@@ -70,7 +72,7 @@ export default function SecurityHeadersPage() {
       </div>
 
       <div className="mt-6 bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-lg p-4 text-sm text-amber-800 dark:text-amber-200">
-        <p><strong>POC Note:</strong> Headers are applied by Helmet.js in the Express API. Content-Security-Policy requires careful configuration per environment and will be set during production hardening. HSTS is automatically applied by Render.com and GitHub Pages over HTTPS.</p>
+        <p><strong>POC Note:</strong> These headers are applied by Helmet.js on every Express API response (shared config in <code>securityHeaders.ts</code>, used by both the standalone gateway and the deployed consolidated API). The static frontend is hosted on GitHub Pages, which cannot send custom response headers; it carries a best-effort <code>&lt;meta&gt;</code> CSP and referrer policy instead, and ships the full header set as <code>_headers</code> / <code>staticwebapp.config.json</code> ready for any header-capable host.</p>
       </div>
     </div>
   );

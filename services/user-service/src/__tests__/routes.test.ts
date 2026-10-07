@@ -2,6 +2,7 @@
 process.env.USER_DB_PATH = ':memory:';
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { signToken, buildClaims, currentTotpCode, DEMO_MFA_SECRET } from '@aib-iaas/auth';
 import { app } from '../index';
 import http from 'http';
 
@@ -54,32 +55,45 @@ describe('User Service - Routes', () => {
   });
 
   describe('POST /api/auth/login', () => {
-    it('returns token for seeded admin user', async () => {
-      const res = await request('POST', '/api/auth/login', { email: 'admin@aib-poc.example.com', password: 'any' });
+    it('returns mfaRequired (not a token) for the MFA-enabled admin', async () => {
+      const res = await request('POST', '/api/auth/login', { email: 'admin@aib-poc.example.com', password: 'demo' });
       expect(res.status).toBe(200);
       expect(res.data.success).toBe(true);
+      expect(res.data.data.mfaRequired).toBe(true);
+      expect(res.data.data.challenge).toBeDefined();
+      expect(res.data.data.token).toBeUndefined();
+    });
+
+    it('returns a token for the non-MFA adviser user', async () => {
+      const res = await request('POST', '/api/auth/login', { email: 'adviser@cas.example.org', password: 'demo' });
+      expect(res.status).toBe(200);
       expect(res.data.data.token).toBeDefined();
-      expect(res.data.data.user.role).toBe('system_admin');
-      expect(res.data.data.user.permissions).toBeDefined();
+      expect(res.data.data.user.role).toBe('money_adviser');
       expect(res.data.data.user.permissions.length).toBeGreaterThan(0);
     });
 
-    it('returns token for seeded adviser user', async () => {
-      const res = await request('POST', '/api/auth/login', { email: 'adviser@cas.example.org', password: 'any' });
-      expect(res.status).toBe(200);
-      expect(res.data.data.user.role).toBe('money_adviser');
-    });
-
-    it('returns token for seeded debtor user', async () => {
-      const res = await request('POST', '/api/auth/login', { email: 'john.testerton@example.com', password: 'any' });
+    it('returns a token for the non-MFA debtor user', async () => {
+      const res = await request('POST', '/api/auth/login', { email: 'john.testerton@example.com', password: 'demo' });
       expect(res.status).toBe(200);
       expect(res.data.data.user.role).toBe('debtor');
+    });
+
+    it('rejects a wrong password', async () => {
+      const res = await request('POST', '/api/auth/login', { email: 'adviser@cas.example.org', password: 'not-it' });
+      expect(res.status).toBe(401);
+      expect(res.data.error.code).toBe('INVALID_CREDENTIALS');
+    });
+
+    it('rejects missing password', async () => {
+      const res = await request('POST', '/api/auth/login', { email: 'adviser@cas.example.org' });
+      expect(res.status).toBe(400);
+      expect(res.data.error.code).toBe('VALIDATION_ERROR');
     });
 
     it('rejects missing email', async () => {
       const res = await request('POST', '/api/auth/login', { password: 'test' });
       expect(res.status).toBe(400);
-      expect(res.data.error.code).toBe('INVALID_INPUT');
+      expect(res.data.error.code).toBe('VALIDATION_ERROR');
     });
 
     it('rejects unknown email', async () => {
@@ -89,15 +103,38 @@ describe('User Service - Routes', () => {
     });
   });
 
+  describe('POST /api/auth/verify-mfa', () => {
+    it('issues a token for a correct TOTP code', async () => {
+      const login = await request('POST', '/api/auth/login', { email: 'admin@aib-poc.example.com', password: 'demo' });
+      const res = await request('POST', '/api/auth/verify-mfa', { challenge: login.data.data.challenge, code: currentTotpCode(DEMO_MFA_SECRET) });
+      expect(res.status).toBe(200);
+      expect(res.data.data.token).toBeDefined();
+      expect(res.data.data.user.role).toBe('system_admin');
+      expect(res.data.data.user.permissions.length).toBeGreaterThan(0);
+    });
+
+    it('rejects an incorrect TOTP code', async () => {
+      const login = await request('POST', '/api/auth/login', { email: 'admin@aib-poc.example.com', password: 'demo' });
+      const res = await request('POST', '/api/auth/verify-mfa', { challenge: login.data.data.challenge, code: '000000' });
+      expect(res.status).toBe(401);
+      expect(res.data.error.code).toBe('INVALID_MFA_CODE');
+    });
+
+    it('rejects a missing/garbage challenge', async () => {
+      const res = await request('POST', '/api/auth/verify-mfa', { challenge: 'nope', code: currentTotpCode(DEMO_MFA_SECRET) });
+      expect(res.status).toBe(401);
+    });
+  });
+
   describe('GET /api/auth/me', () => {
     it('returns user from valid token', async () => {
-      const loginRes = await request('POST', '/api/auth/login', { email: 'admin@aib-poc.example.com', password: 'test' });
+      const loginRes = await request('POST', '/api/auth/login', { email: 'adviser@cas.example.org', password: 'demo' });
       const token = loginRes.data.data.token;
 
       const res = await request('GET', '/api/auth/me', undefined, { Authorization: `Bearer ${token}` });
       expect(res.status).toBe(200);
       expect(res.data.success).toBe(true);
-      expect(res.data.data.email).toBe('admin@aib-poc.example.com');
+      expect(res.data.data.email).toBe('adviser@cas.example.org');
     });
 
     it('rejects missing token', async () => {
@@ -113,12 +150,10 @@ describe('User Service - Routes', () => {
     });
 
     it('rejects expired token', async () => {
-      const expiredToken = Buffer.from(JSON.stringify({
-        userId: 'user-admin',
-        email: 'admin@aib-poc.example.com',
-        role: 'system_admin',
-        exp: Date.now() - 10000,
-      })).toString('base64');
+      const expiredToken = signToken(
+        buildClaims({ id: 'user-admin', email: 'admin@aib-poc.example.com', roleName: 'system_admin', roleLevel: 100 }, []),
+        { expiresInSeconds: -10 }
+      );
 
       const res = await request('GET', '/api/auth/me', undefined, { Authorization: `Bearer ${expiredToken}` });
       expect(res.status).toBe(401);
@@ -127,14 +162,16 @@ describe('User Service - Routes', () => {
   });
 
   describe('POST /api/auth/logout', () => {
-    it('logs out successfully', async () => {
-      const loginRes = await request('POST', '/api/auth/login', { email: 'admin@aib-poc.example.com', password: 'test' });
+    it('logs out successfully and revokes the token', async () => {
+      const loginRes = await request('POST', '/api/auth/login', { email: 'adviser@cas.example.org', password: 'demo' });
       const token = loginRes.data.data.token;
 
       const res = await request('POST', '/api/auth/logout', {}, { Authorization: `Bearer ${token}` });
       expect(res.status).toBe(200);
       expect(res.data.success).toBe(true);
       expect(res.data.data.message).toBe('Logged out');
+      // Revocation is enforced by the gateway's authenticate (it checks the jti
+      // against the session store); that end-to-end case is covered there.
     });
 
     it('returns success even without token', async () => {

@@ -104,5 +104,50 @@ export const applicationSubmissionSchema = z.object({
   assets: z.array(assetSchema).optional(),
 });
 
+// ─── Request body schemas (wired via the validate() middleware) ──
+// These guard the fully-formed payloads the API accepts. (The incremental
+// draft create/update endpoints keep their lenient field-level validation —
+// their bodies are partial by design, so a strict whole-object schema would
+// reject a part-finished application.)
+
+export const loginSchema = z
+  .object({
+    email: z.string().email('A valid email address is required'),
+    password: z.string().min(1, 'Password is required'),
+  })
+  .strict();
+
+export const verifyMfaSchema = z
+  .object({
+    challenge: z.string().min(1, 'Challenge is required'),
+    code: z.string().regex(/^\d{4,8}$/, 'Code must be 4-8 digits'),
+  })
+  .strict();
+
+export const auditEventSchema = z
+  .object({
+    applicationId: z.string().optional(),
+    action: z.string().min(1, 'action is required'),
+    details: z.record(z.any()).optional(),
+    // Accepted for backward compatibility but ignored by the handler — the actor
+    // is always derived from the verified token, never the request body.
+    actor: z.string().optional(),
+    actorId: z.string().optional(),
+    actorName: z.string().optional(),
+    actorType: z.string().optional(),
+  })
+  .strict();
+
+export const applicationNotesSchema = z
+  .object({
+    content: z.string().min(1, 'Note content is required').max(5000),
+    noteType: z.string().max(50).optional(),
+    // Ignored — the author is taken from the token — but tolerated if sent.
+    authorName: z.string().max(200).optional(),
+  })
+  .strict();
+
 export type DebtorDetailsInput = z.infer<typeof debtorDetailsSchema>;
 export type ApplicationSubmissionInput = z.infer<typeof applicationSubmissionSchema>;
+export type LoginInput = z.infer<typeof loginSchema>;
+export type VerifyMfaInput = z.infer<typeof verifyMfaSchema>;

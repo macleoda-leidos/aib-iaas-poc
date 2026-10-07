@@ -78,11 +78,23 @@ documentsRouter.get('/:id', (req: Request, res: Response) => {
   res.json({ success: true, data: metadata });
 });
 
-// Download document
+// Download document — only ever serve a file that passed a virus scan.
+// Previously any uploaded file could be downloaded, including one that was never
+// scanned or was quarantined (M5 / GAP-014). Authentication/authorisation for
+// this route is enforced upstream by the gateway (documents.read); this gate is
+// the content-safety half: withhold anything not confirmed clean.
 documentsRouter.get('/:id/download', (req: Request, res: Response) => {
   const doc = documentRegistry.get(req.params.id);
   if (!doc) {
     res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Document not found' } });
+    return;
+  }
+  const scanned = doc.scanResult && doc.scanResult.scanned === true;
+  if (doc.status !== 'clean' || !scanned) {
+    res.status(409).json({
+      success: false,
+      error: { code: 'NOT_CLEAN', message: 'Document is not available until it has passed a virus scan.' },
+    });
     return;
   }
   res.download(doc.filePath, doc.fileName);
@@ -115,7 +127,16 @@ documentsRouter.post('/:id/scan', async (req: Request, res: Response) => {
     const scanner = await getScanner();
     const result = await scanner.scanFile(doc.filePath, doc.id, doc.fileName);
 
-    doc.status = result.infected ? 'quarantined' : 'clean';
+    // Compute status from BOTH flags. 'clean' requires a scan that actually ran
+    // and found nothing; a scan that did not run is 'scan_failed', never clean
+    // (closes the fail-open where !scanned was recorded as clean).
+    if (!result.scanned) {
+      doc.status = 'scan_failed';
+    } else if (result.infected) {
+      doc.status = 'quarantined';
+    } else {
+      doc.status = 'clean';
+    }
     doc.scanResult = result;
 
     res.json({

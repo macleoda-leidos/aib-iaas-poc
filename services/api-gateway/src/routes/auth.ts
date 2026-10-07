@@ -1,78 +1,135 @@
 import { Router, Request, Response } from 'express';
+import { randomUUID } from 'crypto';
+import {
+  signToken,
+  verifyToken,
+  buildClaims,
+  verifyPassword,
+  verifyTotpCode,
+  TokenError,
+  MFA_CHALLENGE_TTL_SECONDS,
+  type AccessTokenClaims,
+} from '@aib-iaas/auth';
 import { users } from '../db';
+import { recordSession, revokeSession } from '../middleware/sessionStore';
+import { validate, loginSchema, verifyMfaSchema } from '@aib-iaas/validation';
+import type { UserWithRole } from '@aib-iaas/database';
 
 export const authRouter = Router();
 
 /**
- * Simple mock authentication for POC purposes.
- * In production, this would integrate with Scottish Government Identity Service
- * or similar SSO/OIDC provider.
+ * Authentication for the deployed gateway surface.
+ *
+ * This used to emit a thin, unsigned base64 token (no permissions, no role
+ * level) and accept any password — including a hardcoded demo@example.com/demo
+ * fallback that minted a token for a user that need not exist. All three are
+ * gone: the token is a signed JWT whose claims are built through the same
+ * buildClaims() the user-service uses, the password is verified with bcrypt,
+ * and MFA accounts must clear a real second factor before any token is issued.
+ *
+ * Production target remains federation with ScotAccount / GOV.UK One Login
+ * (GAP-007); HS256 closes the forgeability gap for the POC.
  */
 
-authRouter.post('/login', (req: Request, res: Response) => {
-  try {
-    const { email, password } = req.body;
+const ACCESS_TOKEN_TTL_MS = 8 * 60 * 60 * 1000;
+const INVALID = { code: 'INVALID_CREDENTIALS', message: 'Invalid email or password' };
 
-    if (!email || !password) {
-      res.status(400).json({
-        success: false,
-        error: { code: 'INVALID_CREDENTIALS', message: 'Email and password are required' },
-      });
-      return;
-    }
+function issueAccessToken(userWithRole: UserWithRole): { token: string; permissions: string[] } {
+  const permissions = users.getPermissionsForRole(userWithRole.roleId).map(p => p.code);
+  const jti = randomUUID();
+  const token = signToken(
+    buildClaims(
+      {
+        id: userWithRole.id,
+        email: userWithRole.email,
+        roleName: userWithRole.roleName,
+        roleLevel: userWithRole.roleLevel,
+        organisationId: userWithRole.organisationId,
+      },
+      permissions,
+      jti
+    )
+  );
+  recordSession(jti, userWithRole.id, new Date(Date.now() + ACCESS_TOKEN_TTL_MS).toISOString());
+  return { token, permissions };
+}
+
+function userPayload(userWithRole: UserWithRole, permissions: string[]) {
+  return {
+    id: userWithRole.id,
+    email: userWithRole.email,
+    name: userWithRole.displayName || `${userWithRole.firstName} ${userWithRole.lastName}`,
+    role: userWithRole.roleName,
+    roleDisplayName: userWithRole.roleDisplayName,
+    organisationId: userWithRole.organisationId,
+    permissions,
+  };
+}
+
+authRouter.post('/login', validate(loginSchema), (req: Request, res: Response) => {
+  try {
+    const { email, password } = req.body ?? {};
 
     const user = users.findByEmail(email);
 
-    // POC: accept any password for known users, or 'demo'/'demo' for public
-    if (user || (email === 'demo@example.com' && password === 'demo')) {
-      const userData = user || {
-        id: 'USR-DEMO-001',
-        email: 'demo@example.com',
-        firstName: 'Demo',
-        lastName: 'User',
-        displayName: 'Demo User',
-        roleId: 'applicant',
-        organisationId: null,
-        status: 'active',
-        passwordHash: null,
-        mfaEnabled: false,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-
-      // Determine role name
-      let roleName = 'applicant';
-      if (user) {
-        const withRole = users.findByIdWithRole(user.id);
-        if (withRole) roleName = withRole.roleName;
-      }
-
-      // Generate simple POC token (NOT production-safe)
-      const token = Buffer.from(JSON.stringify({
-        userId: userData.id,
-        email: userData.email,
-        role: roleName,
-        exp: Date.now() + 24 * 60 * 60 * 1000,
-      })).toString('base64');
-
-      res.json({
-        success: true,
-        data: {
-          token,
-          user: {
-            id: userData.id,
-            email: userData.email,
-            name: userData.displayName || `${userData.firstName} ${userData.lastName}`,
-            role: roleName,
-          },
-        },
-      });
-    } else {
-      res.status(401).json({
-        success: false,
-        error: { code: 'INVALID_CREDENTIALS', message: 'Invalid email or password' },
-      });
+    if (!user || user.status !== 'active') {
+      verifyPassword(password, user?.passwordHash ?? null); // constant-time-ish reject
+      res.status(401).json({ success: false, error: INVALID });
+      return;
     }
+    if (!verifyPassword(password, user.passwordHash)) {
+      res.status(401).json({ success: false, error: INVALID });
+      return;
+    }
+
+    const userWithRole = users.findByIdWithRole(user.id);
+    if (!userWithRole) {
+      res.status(401).json({ success: false, error: INVALID });
+      return;
+    }
+
+    if (userWithRole.mfaEnabled) {
+      const challenge = signToken(
+        { purpose: 'mfa', userId: user.id, email: user.email },
+        { expiresInSeconds: MFA_CHALLENGE_TTL_SECONDS }
+      );
+      res.json({ success: true, data: { mfaRequired: true, challenge } });
+      return;
+    }
+
+    const { token, permissions } = issueAccessToken(userWithRole);
+    res.json({ success: true, data: { token, user: userPayload(userWithRole, permissions) } });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: error.message } });
+  }
+});
+
+authRouter.post('/verify-mfa', validate(verifyMfaSchema), (req: Request, res: Response) => {
+  try {
+    const { challenge, code } = req.body ?? {};
+
+    let claims: AccessTokenClaims & { purpose?: string; userId: string };
+    try {
+      claims = verifyToken(challenge);
+    } catch (err) {
+      const expired = err instanceof TokenError && err.code === 'TOKEN_EXPIRED';
+      res.status(401).json({ success: false, error: { code: expired ? 'CHALLENGE_EXPIRED' : 'INVALID_CHALLENGE', message: 'MFA challenge invalid or expired. Please sign in again.' } });
+      return;
+    }
+
+    if (claims.purpose !== 'mfa') {
+      res.status(401).json({ success: false, error: { code: 'INVALID_CHALLENGE', message: 'Not an MFA challenge token.' } });
+      return;
+    }
+
+    const userWithRole = users.findByIdWithRole(claims.userId);
+    if (!userWithRole || userWithRole.status !== 'active' || !verifyTotpCode(userWithRole.mfaSecret, String(code))) {
+      res.status(401).json({ success: false, error: { code: 'INVALID_MFA_CODE', message: 'Incorrect verification code.' } });
+      return;
+    }
+
+    const { token, permissions } = issueAccessToken(userWithRole);
+    res.json({ success: true, data: { token, user: userPayload(userWithRole, permissions) } });
   } catch (error: any) {
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: error.message } });
   }
@@ -87,19 +144,24 @@ authRouter.get('/me', (req: Request, res: Response) => {
   }
 
   try {
-    const token = authHeader.slice(7);
-    const payload = JSON.parse(Buffer.from(token, 'base64').toString());
-
-    if (payload.exp < Date.now()) {
-      res.status(401).json({ success: false, error: { code: 'TOKEN_EXPIRED', message: 'Token has expired' } });
-      return;
-    }
-
+    const payload = verifyToken<AccessTokenClaims>(authHeader.slice(7));
     res.json({
       success: true,
-      data: { userId: payload.userId, email: payload.email, role: payload.role },
+      data: { userId: payload.userId, email: payload.email, role: payload.role, permissions: payload.permissions },
     });
-  } catch {
-    res.status(401).json({ success: false, error: { code: 'INVALID_TOKEN', message: 'Invalid token' } });
+  } catch (err) {
+    const expired = err instanceof TokenError && err.code === 'TOKEN_EXPIRED';
+    res.status(401).json({ success: false, error: expired ? { code: 'TOKEN_EXPIRED', message: 'Token has expired' } : { code: 'INVALID_TOKEN', message: 'Invalid token' } });
   }
+});
+
+authRouter.post('/logout', (req: Request, res: Response) => {
+  const authHeader = req.headers.authorization;
+  if (authHeader?.startsWith('Bearer ')) {
+    try {
+      const payload = verifyToken<AccessTokenClaims>(authHeader.slice(7));
+      if (payload.jti) revokeSession(payload.jti);
+    } catch { /* already invalid/expired */ }
+  }
+  res.json({ success: true, data: { message: 'Logged out' } });
 });

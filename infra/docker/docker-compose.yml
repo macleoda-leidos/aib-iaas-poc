@@ -30,7 +30,7 @@ services:
       - "3001:3001"
     environment:
       - PORT=3001
-      - DATABASE_URL=postgresql://iaas:iaas_dev@postgres:5432/iaas
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-iaas}:${POSTGRES_PASSWORD:-iaas_dev}@postgres:5432/${POSTGRES_DB:-iaas}
       - DATABASE_PATH=/app/data/iaas.db
       - RECOMMENDATION_SERVICE_URL=http://recommendation-service:3002
       - DOCUMENT_SERVICE_URL=http://document-service:3003
@@ -161,10 +161,13 @@ services:
     image: postgres:16-alpine
     ports:
       - "5432:5432"
+    # Credentials default to the local dev values but can be overridden from the
+    # environment (or an .env file) so a shared/remote stack is not pinned to a
+    # well-known password committed to the repo (L4).
     environment:
-      - POSTGRES_DB=iaas
-      - POSTGRES_USER=iaas
-      - POSTGRES_PASSWORD=iaas_dev
+      - POSTGRES_DB=${POSTGRES_DB:-iaas}
+      - POSTGRES_USER=${POSTGRES_USER:-iaas}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-iaas_dev}
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -178,15 +181,17 @@ services:
   keycloak:
     image: quay.io/keycloak/keycloak:25.0
     command: start-dev --import-realm
+    # Admin and DB credentials default to local dev values but are overridable
+    # from the environment, so they are not hard-committed secrets (L4).
     environment:
       - KC_DB=postgres
-      - KC_DB_URL=jdbc:postgresql://postgres:5432/iaas
-      - KC_DB_USERNAME=iaas
-      - KC_DB_PASSWORD=iaas_dev
+      - KC_DB_URL=jdbc:postgresql://postgres:5432/${POSTGRES_DB:-iaas}
+      - KC_DB_USERNAME=${POSTGRES_USER:-iaas}
+      - KC_DB_PASSWORD=${POSTGRES_PASSWORD:-iaas_dev}
       - KC_HOSTNAME_STRICT=false
       - KC_HTTP_ENABLED=true
-      - KEYCLOAK_ADMIN=admin
-      - KEYCLOAK_ADMIN_PASSWORD=admin
+      - KEYCLOAK_ADMIN=${KEYCLOAK_ADMIN:-admin}
+      - KEYCLOAK_ADMIN_PASSWORD=${KEYCLOAK_ADMIN_PASSWORD:-admin}
     ports:
       - "8080:8080"
     volumes:

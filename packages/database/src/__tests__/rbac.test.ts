@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { createRepositories, closeDatabase } from '../index';
+import { createRepositories, closeDatabase, getDatabase, initializeSchema } from '../index';
 import type { Repositories } from '../index';
 import { PERMISSIONS, ROLES, ROLE_GRANTS, resolveGrants, seedRbacPostgres } from '../rbac';
 import { initPgSchema } from '../pg-schema';
@@ -58,6 +58,27 @@ describe('RBAC reference data', () => {
     ).map(g => g.roleId);
 
     expect(duplicated).toEqual([]);
+  });
+
+  it('models the documents and credit_check resources (Phase 1 / GAP-011 residual)', () => {
+    // These resources were ungoverned until Phase 1 wired default-deny; the
+    // codes have to exist before any route can require them.
+    const codes = new Set(PERMISSIONS.map(p => p.code));
+    for (const code of ['documents.read', 'documents.create', 'documents.delete', 'credit_check.read', 'credit_check.run']) {
+      expect(codes.has(code), `missing permission ${code}`).toBe(true);
+    }
+
+    const grantsFor = (roleId: string) =>
+      new Set(ROLE_GRANTS.find(g => g.roleId === roleId)?.permissions ?? []);
+
+    // sysadmin holds every new code; officer/senior read+create docs and read
+    // credit; the run code is reserved to sysadmin.
+    expect(grantsFor('role-sysadmin').has('credit_check.run')).toBe(true);
+    expect(grantsFor('role-officer').has('documents.read')).toBe(true);
+    expect(grantsFor('role-officer').has('documents.create')).toBe(true);
+    expect(grantsFor('role-officer').has('credit_check.read')).toBe(true);
+    expect(grantsFor('role-officer').has('credit_check.run')).toBe(false);
+    expect(grantsFor('role-adviser').has('documents.read')).toBe(true);
   });
 
   it('names every permission code after its own resource and action', () => {
@@ -127,6 +148,27 @@ describe('RBAC seeding — SQLite', () => {
     const codes = new Set(PERMISSIONS.map(p => p.code));
     const seeded = ROLES.flatMap(r => repos.users.getPermissionsForRole(r.id).map(p => p.code));
     expect([...new Set(seeded.filter(c => !codes.has(c)))]).toEqual([]);
+  });
+
+  it('purges permission codes withdrawn from the canonical vocabulary (GAP-011 residual #4)', () => {
+    const db = getDatabase();
+    // Simulate a persistent database that predates a vocabulary change: it holds
+    // a withdrawn code and a grant to a real role, exactly as INSERT OR IGNORE
+    // would have left it.
+    db.prepare(
+      "INSERT OR IGNORE INTO permissions (id, code, name, description, resource, action) VALUES ('perm-legacy', 'application.read.all', 'Legacy', 'withdrawn', 'application', 'read.all')"
+    ).run();
+    db.prepare("INSERT OR IGNORE INTO role_permissions (role_id, permission_id) VALUES ('role-sysadmin', 'perm-legacy')").run();
+    expect(db.prepare("SELECT 1 FROM permissions WHERE code = 'application.read.all'").get()).toBeTruthy();
+
+    // Re-initialising the schema purges non-canonical codes...
+    initializeSchema(db);
+
+    expect(db.prepare("SELECT 1 FROM permissions WHERE code = 'application.read.all'").get()).toBeFalsy();
+    // ...and the ON DELETE CASCADE drops the orphaned grant with it.
+    expect(db.prepare("SELECT 1 FROM role_permissions WHERE permission_id = 'perm-legacy'").get()).toBeFalsy();
+    // Canonical grants are untouched.
+    expect(repos.users.getPermissionsForRole('role-sysadmin').length).toBeGreaterThan(0);
   });
 
   it('answers hasPermission from the seeded grants', () => {

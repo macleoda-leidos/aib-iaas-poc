@@ -15,7 +15,6 @@
 
 import express from 'express';
 import cors from 'cors';
-import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 
 // Import route modules from sibling services
@@ -25,6 +24,10 @@ import { authRouter as gatewayAuthRouter } from '../../api-gateway/src/routes/au
 import { reportsRouter } from '../../api-gateway/src/routes/reports';
 import { reportsExportRouter } from '../../api-gateway/src/routes/reports-export';
 import { initDatabase } from '../../api-gateway/src/db';
+import { securityHeaders } from '../../api-gateway/src/middleware/securityHeaders';
+import { enforceAuthentication } from '../../api-gateway/src/middleware/accessPolicy';
+import { requirePermission, requireAnyPermission, requirePermissionByMethod } from '../../api-gateway/src/middleware/rbac';
+import { authRateLimiter } from '../../api-gateway/src/middleware/authRateLimit';
 
 import { recommendRouter } from '../../recommendation-service/src/routes/recommend';
 import { documentsRouter } from '../../document-service/src/routes/documents';
@@ -59,8 +62,13 @@ import { latencyMiddleware } from '../../mock-integrations/src/middleware/latenc
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Security
-app.use(helmet({ contentSecurityPolicy: false })); // Relaxed CSP for POC
+// Never advertise the framework/version to a scanner or an attacker.
+app.disable('x-powered-by');
+
+// Security headers (CSP, HSTS, nosniff, frame-deny, referrer, permissions,
+// COOP/CORP). Shared with the standalone api-gateway so the two can't drift.
+// The API serves only JSON, so the strict `default-src 'none'` CSP is safe.
+securityHeaders().forEach((mw) => app.use(mw));
 const corsOrigins = process.env.CORS_ORIGIN
   ? process.env.CORS_ORIGIN.split(',')
   : ['https://macleoda-leidos.github.io', 'http://localhost:3000', 'http://localhost:3010'];
@@ -117,6 +125,14 @@ app.use(rateLimit({
   },
 }));
 app.use(express.json({ limit: '10mb' }));
+
+// Default-deny authentication. Every request must carry a valid signed token
+// except the small public allow-list in accessPolicy (health/root, login +
+// verify-mfa, and the anonymous applicant-intake the public /apply journey
+// drives). This is the fix for C2 — previously no deployed route applied any
+// authentication at all. Per-resource authorisation is applied at each mount
+// below; this gate only decides authenticated-vs-anonymous.
+app.use(enforceAuthentication);
 
 // Initialize databases
 initDatabase();
@@ -275,24 +291,45 @@ if (process.env.DATABASE_URL?.startsWith('postgresql://')) {
 
 console.log('[Consolidated API] All databases initialized');
 
+// Brute-force protection on the authentication endpoints (M1). Registered after
+// the body parser (so the email is available for keying) and scoped to exactly
+// the login + verify-mfa paths, separate from the loose global limiter.
+app.use('/api/auth/login', authRateLimiter);
+app.use('/api/auth/verify-mfa', authRateLimiter);
+app.use('/api/users/auth/login', authRateLimiter);
+app.use('/api/users/auth/verify-mfa', authRateLimiter);
+
 // ===== API GATEWAY ROUTES =====
+// Authorisation guards are applied per-mount. The global gate above has already
+// rejected anonymous requests to anything outside the public allow-list; these
+// add the per-resource permission check for authenticated callers.
+//
+// The applications router mixes public intake (create/update/submit, and the
+// capability-URL GET /:id) with staff routes (list, notes, approve/reject). The
+// public parts are allow-listed in accessPolicy, and the staff parts enforce
+// their own ownership/permission checks inside the router, so no blanket mount
+// guard is applied here.
 app.use('/api/applications', applicationsRouter);
 app.use('/api/postcode', postcodeRouter);
 app.use('/api/auth', gatewayAuthRouter);
-app.use('/api/reports', reportsRouter);
+// Export (aggregate CSV) is public for the demo and must be matched before the
+// reports.read-guarded dashboard mount, or it would inherit that guard.
 app.use('/api/reports/export', reportsExportRouter);
+app.use('/api/reports', requirePermission('reports.read'), reportsRouter);
 
 // ===== SERVICE ROUTES =====
 app.use('/api/recommend', recommendRouter);
-app.use('/api/documents', documentsRouter);
+app.use('/api/documents', requirePermissionByMethod({ GET: 'documents.read', DELETE: 'documents.delete' }), documentsRouter);
 app.use('/api/integrations', orchestrateRouter);
 app.use('/api/payments', paymentsRouter);
 app.use('/api/audit', auditRouter);
-app.use('/api/credit-check', creditCheckRouter);
-app.use('/api/organisations', organisationRouter);
-app.use('/api/users', usersRouter);
+app.use('/api/credit-check', requirePermissionByMethod({ GET: 'credit_check.read' }), creditCheckRouter);
+app.use('/api/organisations', requirePermissionByMethod({ GET: 'organisations.read', POST: 'organisations.admin', PUT: 'organisations.admin', PATCH: 'organisations.admin', DELETE: 'organisations.admin' }), organisationRouter);
+// /api/users/auth must be registered before /api/users so the auth sub-routes
+// are not swallowed by the users.* permission guard on the parent prefix.
 app.use('/api/users/auth', userAuthRouter);
-app.use('/api/roles', rolesRouter);
+app.use('/api/users', requirePermissionByMethod({ GET: 'users.read', POST: 'users.create', PUT: 'users.update', PATCH: 'users.update', DELETE: 'users.delete' }), usersRouter);
+app.use('/api/roles', requireAnyPermission('users.read', 'system.admin'), rolesRouter);
 app.use('/api/notifications', notificationRouter);
 app.use('/api/identity', verifyRouter);
 app.use('/api/identity', federationRouter);
@@ -375,15 +412,27 @@ app.get('/api/smoke-test', (_req, res) => {
   }
 });
 
-// Error handler
+// Error handler. The detail is logged server-side; the client gets a generic
+// message in production so an internal error (a stack-trace-y DB message, a file
+// path) is never leaked to callers (L2).
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  console.error('[API Error]', err.message);
-  res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: err.message } });
+  console.error('[API Error]', err.stack || err.message);
+  res.status(500).json({
+    success: false,
+    error: {
+      code: 'INTERNAL_ERROR',
+      message: process.env.NODE_ENV === 'production' ? 'An unexpected error occurred' : err.message,
+    },
+  });
 });
 
-app.listen(PORT, () => {
-  console.log(`[Consolidated API] Running on port ${PORT}`);
-  console.log(`[Consolidated API] All 12 services mounted on single instance`);
-});
+// Guarded so importing the app in a test does not bind the production port
+// (the integration tests boot their own ephemeral listener on port 0).
+if (process.env.NODE_ENV !== 'test') {
+  app.listen(PORT, () => {
+    console.log(`[Consolidated API] Running on port ${PORT}`);
+    console.log(`[Consolidated API] All 12 services mounted on single instance`);
+  });
+}
 
 export { app };

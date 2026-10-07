@@ -1,20 +1,20 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { signToken, buildClaims } from '@aib-iaas/auth';
 import { app } from '../index';
 import http from 'http';
 
 let server: http.Server;
 let baseUrl: string;
 
-// Create a valid admin token with reports.read permission
+// A real signed admin token carrying reports.read. No jti, so authenticate does
+// not consult the session store.
 function adminToken(): string {
-  return Buffer.from(JSON.stringify({
-    userId: 'USR-001',
-    email: 'admin@aib.example.gov.scot',
-    role: 'system_admin',
-    roleLevel: 100,
-    permissions: ['reports.read', 'applications.read'],
-    exp: Date.now() + 60 * 60 * 1000,
-  })).toString('base64');
+  return signToken(
+    buildClaims(
+      { id: 'USR-001', email: 'admin@aib.example.gov.scot', roleName: 'system_admin', roleLevel: 100, organisationId: 'org-aib' },
+      ['reports.read', 'applications.read']
+    )
+  );
 }
 
 function request(method: string, path: string, headers?: Record<string, string>): Promise<{ status: number; data: any }> {
@@ -59,15 +59,10 @@ describe('API Gateway - Reports Routes', () => {
     });
 
     it('GET /api/reports/dashboard rejects user without reports.read permission', async () => {
-      const token = Buffer.from(JSON.stringify({
-        userId: 'USR-009',
-        email: 'debtor@example.com',
-        role: 'debtor',
-        roleLevel: 10,
-        // A real debtor's grant set: applications.read, but no reports.read.
-        permissions: ['applications.read'],
-        exp: Date.now() + 60000,
-      })).toString('base64');
+      // A real debtor's grant set: applications.read, but no reports.read.
+      const token = signToken(
+        buildClaims({ id: 'USR-009', email: 'debtor@example.com', roleName: 'debtor', roleLevel: 10 }, ['applications.read'])
+      );
 
       const res = await request('GET', '/api/reports/dashboard', { Authorization: `Bearer ${token}` });
       expect(res.status).toBe(403);
