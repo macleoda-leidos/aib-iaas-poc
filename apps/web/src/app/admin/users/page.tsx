@@ -1,7 +1,11 @@
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
-import { apiPost, apiGet } from '../../../lib/apiClient';
+import { apiPost, apiGet, getAuthToken } from '../../../lib/apiClient';
+
+// Shape returned by GET /api/roles/matrix/full.
+interface MatrixRole { id: string; name: string; displayName: string; level: number; permissions: { code: string }[]; }
+interface RolesMatrix { roles: unknown[]; matrix: MatrixRole[]; }
 
 // ===== SYNTHETIC USER GENERATION (500 users across 12 orgs) =====
 
@@ -84,9 +88,16 @@ export default function UsersPage() {
   const [createStatus, setCreateStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
   const [createError, setCreateError] = useState('');
   const [liveUsers, setLiveUsers] = useState<Array<{ id: string; name: string; email: string; role: string; status: string }>>([]);
+  // The real role→permission matrix the API enforces against (GAP-011 residual #2).
+  // Null until loaded; the hardcoded table below is the logged-out/offline fallback.
+  const [liveMatrix, setLiveMatrix] = useState<RolesMatrix | null>(null);
 
-  // Fetch real users from API on mount
+  // Fetch real users + the enforced RBAC matrix from the API on mount. Both are
+  // staff/authenticated endpoints under default-deny, so only fetch when signed
+  // in — hitting them anonymously would 401 and surface a spurious session-expired
+  // toast on a page the visitor may just be browsing.
   useEffect(() => {
+    if (!getAuthToken()) return;
     apiGet<any>('/api/users').then(res => {
       if (res.data) {
         const users = (Array.isArray(res.data) ? res.data : res.data.users || []).map((u: any) => ({
@@ -94,6 +105,9 @@ export default function UsersPage() {
         }));
         setLiveUsers(users);
       }
+    }).catch(() => {});
+    apiGet<RolesMatrix>('/api/roles/matrix/full').then(res => {
+      if (res.data?.matrix?.length) setLiveMatrix(res.data);
     }).catch(() => {});
   }, []);
 
@@ -132,6 +146,12 @@ export default function UsersPage() {
 
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
   const pageUsers = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  // Distinct permission codes across the live matrix, as the table's rows.
+  const liveMatrixCodes = useMemo(
+    () => (liveMatrix ? [...new Set(liveMatrix.matrix.flatMap(r => r.permissions.map(p => p.code)))].sort() : []),
+    [liveMatrix]
+  );
 
   const toggleSelect = (id: string) => {
     const next = new Set(selectedIds);
@@ -244,52 +264,84 @@ export default function UsersPage() {
         </div>
       </div>
 
-      {/* RBAC Matrix — hardcoded illustration, NOT the enforcement surface.
-          The rows below are 11 capability groups over this page's 9 role tiers.
-          The seeded model is different: 20 permission codes over 10 roles, in
-          packages/database/src/seed-data/. Reconciling the two by driving this
-          table from GET /api/roles/matrix/full is GAP-011 residual item 2 —
-          until then the caption must say so, because a screenshot of this table
-          reads as evidence of the access controls actually in force. */}
+      {/* RBAC Matrix. When signed in this is driven by GET /api/roles/matrix/full
+          — the seeded model authorisation is actually enforced against (GAP-011
+          residual #2, now reconciled). The hardcoded table is only a fallback for
+          a logged-out/offline viewer, and labels itself as such so a screenshot of
+          it is never mistaken for the live controls. */}
       <div data-demo="users-rbac-matrix" className="mt-8 bg-white border border-gray-200 rounded p-4">
-        <h2 className="font-bold mb-2">Role Hierarchy & Permissions ({ALL_ROLES.length} levels)</h2>
-        <p className="text-xs text-gray-600 mb-3">
-          Illustrative summary — {ALL_ROLES.length} role tiers against 11 grouped capabilities,
-          held in this page for demonstration. It is not the enforcement surface. The seeded
-          model that authorisation checks against is 20 permission codes across 10 roles, defined
-          in <code className="bg-gray-100 px-1">packages/database/src/seed-data/</code>; the two
-          are not yet reconciled (GAP-011).
-        </p>
-        <div className="overflow-x-auto">
-          <table className="w-full text-xs">
-            <thead><tr>
-              <th className="text-left p-2 border-b">Permission</th>
-              {ALL_ROLES.map(r => <th key={r} className="text-center p-1.5 border-b whitespace-nowrap text-xs">{r.replace('AiB ', '')}</th>)}
-            </tr></thead>
-            <tbody>
-              {[
-                ['Create Application', true, false, false, false, false, true, false, false, true],
-                ['View All Applications', true, true, true, true, true, false, false, false, false],
-                ['Approve/Reject', true, true, false, false, false, false, false, false, false],
-                ['Run Credit Check', true, false, true, true, false, true, false, false, false],
-                ['Manage Users', true, true, false, false, false, false, false, false, false],
-                ['Manage Organisations', true, true, false, false, false, false, false, false, false],
-                ['View Audit Trail', true, true, true, true, true, false, false, false, false],
-                ['Generate Reports', true, true, false, false, true, false, false, false, false],
-                ['View DAS Cases', true, true, true, true, false, true, false, false, false],
-                ['File Claims', true, false, false, false, false, false, true, false, false],
-                ['Manage Trust Deeds', true, true, false, false, false, false, false, true, false],
-              ].map(([perm, ...vals]) => (
-                <tr key={String(perm)} className="border-b border-gray-100">
-                  <td className="p-1.5 font-bold">{String(perm)}</td>
-                  {(vals as boolean[]).map((v, i) => (
-                    <td key={i} className={`text-center p-1.5 ${v ? 'text-green-700' : 'text-gray-300'}`}>{v ? '✓' : '—'}</td>
+        {liveMatrix ? (
+          <>
+            <h2 className="font-bold mb-2">Role Hierarchy &amp; Permissions ({liveMatrix.matrix.length} roles, {liveMatrixCodes.length} permissions)</h2>
+            <p className="text-xs text-gray-600 mb-3">
+              Live from <code className="bg-gray-100 px-1">GET /api/roles/matrix/full</code> — this
+              is the seeded model that authorisation is enforced against, defined in
+              <code className="bg-gray-100 px-1">packages/database/src/seed-data/</code>, not an illustration.
+            </p>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead><tr>
+                  <th className="text-left p-2 border-b">Permission</th>
+                  {liveMatrix.matrix.map(r => (
+                    <th key={r.id} className="text-center p-1.5 border-b whitespace-nowrap" title={`${r.displayName} (level ${r.level})`}>
+                      {(r.displayName || r.name).replace('AiB ', '')}
+                    </th>
                   ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                </tr></thead>
+                <tbody>
+                  {liveMatrixCodes.map(code => (
+                    <tr key={code} className="border-b border-gray-100">
+                      <td className="p-1.5 font-mono">{code}</td>
+                      {liveMatrix.matrix.map(r => {
+                        const has = r.permissions.some(p => p.code === code);
+                        return <td key={r.id} className={`text-center p-1.5 ${has ? 'text-green-700' : 'text-gray-300'}`}>{has ? '✓' : '—'}</td>;
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        ) : (
+          <>
+            <h2 className="font-bold mb-2">Role Hierarchy &amp; Permissions ({ALL_ROLES.length} levels)</h2>
+            <p className="text-xs text-gray-600 mb-3">
+              Illustrative summary (fallback) — shown when signed out or the API is unreachable.
+              The live, enforced matrix loads from <code className="bg-gray-100 px-1">GET /api/roles/matrix/full</code>
+              {' '}when authenticated; sign in to see it.
+            </p>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead><tr>
+                  <th className="text-left p-2 border-b">Permission</th>
+                  {ALL_ROLES.map(r => <th key={r} className="text-center p-1.5 border-b whitespace-nowrap text-xs">{r.replace('AiB ', '')}</th>)}
+                </tr></thead>
+                <tbody>
+                  {[
+                    ['Create Application', true, false, false, false, false, true, false, false, true],
+                    ['View All Applications', true, true, true, true, true, false, false, false, false],
+                    ['Approve/Reject', true, true, false, false, false, false, false, false, false],
+                    ['Run Credit Check', true, false, true, true, false, true, false, false, false],
+                    ['Manage Users', true, true, false, false, false, false, false, false, false],
+                    ['Manage Organisations', true, true, false, false, false, false, false, false, false],
+                    ['View Audit Trail', true, true, true, true, true, false, false, false, false],
+                    ['Generate Reports', true, true, false, false, true, false, false, false, false],
+                    ['View DAS Cases', true, true, true, true, false, true, false, false, false],
+                    ['File Claims', true, false, false, false, false, false, true, false, false],
+                    ['Manage Trust Deeds', true, true, false, false, false, false, false, true, false],
+                  ].map(([perm, ...vals]) => (
+                    <tr key={String(perm)} className="border-b border-gray-100">
+                      <td className="p-1.5 font-bold">{String(perm)}</td>
+                      {(vals as boolean[]).map((v, i) => (
+                        <td key={i} className={`text-center p-1.5 ${v ? 'text-green-700' : 'text-gray-300'}`}>{v ? '✓' : '—'}</td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Live Users from API */}
