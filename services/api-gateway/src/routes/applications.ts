@@ -1,5 +1,5 @@
 import { Router, Response } from 'express';
-import { applications, audit, notes, users } from '../db';
+import { applications, audit, notes, users, notifications } from '../db';
 import { optionalAuth, type AuthenticatedRequest } from '../middleware/rbac';
 import { signToken, verifyToken } from '@aib-iaas/auth';
 import { validate, applicationNotesSchema, applicationAssignSchema } from '@aib-iaas/validation';
@@ -60,6 +60,18 @@ function enforceOwnership(req: AuthenticatedRequest, res: Response, ownerUserId:
     return false;
   }
   return true;
+}
+
+/**
+ * Fire an in-app notification, swallowing any failure so a notification problem
+ * can never break the core action (status change, submit, assign) it accompanies.
+ */
+function notify(input: { userId: string; type?: 'info' | 'success' | 'warning' | 'error' | 'action_required'; subject: string; body: string; link?: string }): void {
+  try {
+    notifications.create({ channel: 'in_app', ...input });
+  } catch (e) {
+    console.error('[Applications] notification failed', e);
+  }
 }
 
 /** Derive the audit actor from the verified token, never from the request body. */
@@ -311,6 +323,16 @@ applicationsRouter.post('/:id/submit', (req: AuthenticatedRequest, res: Response
       ...auditActor(req),
     });
 
+    if (existing.ownerUserId) {
+      notify({
+        userId: existing.ownerUserId,
+        type: 'success',
+        subject: 'Application submitted',
+        body: `We have received your application ${existing.referenceNumber}.`,
+        link: '/my-application',
+      });
+    }
+
     res.json({
       success: true,
       data: { id, status: 'submitted', submittedAt: new Date().toISOString(), referenceNumber: existing.referenceNumber },
@@ -378,6 +400,17 @@ applicationsRouter.patch('/:id/status', (req: AuthenticatedRequest, res: Respons
       details: { previousStatus: existing.status, notes },
     });
 
+    if (existing.ownerUserId) {
+      const human = status.replace(/_/g, ' ');
+      notify({
+        userId: existing.ownerUserId,
+        type: status === 'approved' ? 'success' : status === 'rejected' ? 'warning' : 'info',
+        subject: `Application ${human}`,
+        body: `Your application ${existing.referenceNumber} is now ${human}.`,
+        link: '/my-application',
+      });
+    }
+
     res.json({ success: true, data: { id, status, updatedAt: new Date().toISOString() } });
   } catch (error: any) {
     console.error('[Applications]', error);
@@ -433,6 +466,16 @@ applicationsRouter.patch('/:id/assign', validate(applicationAssignSchema), (req:
       ...auditActor(req),
       details: { previousAssignee: existing.assignedTo ?? null, assignedTo: assigneeId, assigneeName },
     });
+
+    if (assigneeId) {
+      notify({
+        userId: assigneeId,
+        type: 'action_required',
+        subject: 'Case assigned to you',
+        body: `Case ${existing.referenceNumber} has been assigned to you.`,
+        link: `/case/${existing.referenceNumber}`,
+      });
+    }
 
     res.json({ success: true, data: { id, assignedTo: assigneeId, assigneeName } });
   } catch (error: any) {

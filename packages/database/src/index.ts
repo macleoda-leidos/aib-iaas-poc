@@ -25,6 +25,7 @@ export { RecommendationRepository } from './repositories/recommendations';
 export { UserRepository } from './repositories/users';
 export { DocumentRepository } from './repositories/documents';
 export { NoteRepository } from './repositories/notes';
+export { NotificationRepository } from './repositories/notifications';
 export { OrganisationRepository } from './repositories/organisations';
 export { PaymentRepository } from './repositories/payments';
 
@@ -82,6 +83,14 @@ export type {
   CreateNoteInput,
 } from './repositories/notes';
 
+// Types - Notifications
+export type {
+  Notification,
+  CreateNotificationInput,
+  NotificationType,
+  NotificationChannel,
+} from './repositories/notifications';
+
 // Types - Organisations
 export type {
   Organisation,
@@ -105,6 +114,7 @@ import { RecommendationRepository } from './repositories/recommendations';
 import { UserRepository } from './repositories/users';
 import { DocumentRepository } from './repositories/documents';
 import { NoteRepository } from './repositories/notes';
+import { NotificationRepository } from './repositories/notifications';
 import { OrganisationRepository } from './repositories/organisations';
 import { PaymentRepository } from './repositories/payments';
 
@@ -115,6 +125,7 @@ export interface Repositories {
   users: UserRepository;
   documents: DocumentRepository;
   notes: NoteRepository;
+  notifications: NotificationRepository;
   organisations: OrganisationRepository;
   payments: PaymentRepository;
 }
@@ -139,6 +150,7 @@ export function createRepositories(): Repositories {
     users: new UserRepository(db),
     documents: new DocumentRepository(db),
     notes: new NoteRepository(db),
+    notifications: new NotificationRepository(db),
     organisations: new OrganisationRepository(db),
     payments: new PaymentRepository(db),
   };

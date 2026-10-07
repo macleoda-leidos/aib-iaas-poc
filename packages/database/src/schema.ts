@@ -265,6 +265,28 @@ export function initializeSchema(db: Database.Database): void {
       FOREIGN KEY (application_id) REFERENCES applications(id)
     );
 
+    -- ─── Notifications ─────────────────────────
+    -- Unified in-app / email / sms notification store. This previously lived in a
+    -- separate notification-service SQLite file the gateway could not reach, so
+    -- lifecycle notifications were never surfaced. It is now part of the shared
+    -- schema: the gateway writes (via NotificationRepository) and the notification
+    -- routes read the same table.
+
+    CREATE TABLE IF NOT EXISTS notifications (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      type TEXT NOT NULL DEFAULT 'info',
+      channel TEXT NOT NULL DEFAULT 'in_app',
+      subject TEXT NOT NULL,
+      body TEXT NOT NULL,
+      link TEXT,
+      read INTEGER NOT NULL DEFAULT 0,
+      sent_at TEXT NOT NULL DEFAULT (datetime('now')),
+      read_at TEXT,
+      expires_at TEXT,
+      metadata TEXT
+    );
+
     -- ─── Indexes ───────────────────────────────
 
     CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
@@ -281,6 +303,8 @@ export function initializeSchema(db: Database.Database): void {
     CREATE INDEX IF NOT EXISTS idx_assets_app ON assets(application_id);
     CREATE INDEX IF NOT EXISTS idx_documents_app ON documents(application_id);
     CREATE INDEX IF NOT EXISTS idx_notes_app ON notes(application_id);
+    CREATE INDEX IF NOT EXISTS idx_notif_user ON notifications(user_id);
+    CREATE INDEX IF NOT EXISTS idx_notif_read ON notifications(user_id, read);
     CREATE INDEX IF NOT EXISTS idx_audit_app ON audit_events(application_id);
     CREATE INDEX IF NOT EXISTS idx_audit_action ON audit_events(action);
     CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON audit_events(timestamp);

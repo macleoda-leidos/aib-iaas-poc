@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { signToken, buildClaims } from '@aib-iaas/auth';
 import { app } from '../index';
-import { audit } from '../db';
+import { audit, notifications } from '../db';
 import http from 'http';
 
 // Integration tests for the API Gateway application endpoints
@@ -231,6 +231,20 @@ describe('API Gateway - Applications', () => {
 
     const list = await request('GET', '/api/applications?assignedTo=unassigned&pageSize=100', undefined, { Authorization: `Bearer ${assignerToken()}` });
     expect(list.data.data.some((a: any) => a.id === id)).toBe(true);
+  });
+
+  it('fires an in-app notification to the owner on submit and on a status change', async () => {
+    const owner = signToken(buildClaims({ id: 'owner-notif', email: 'o@debtor.example', roleName: 'debtor', roleLevel: 10 }, ['applications.read', 'applications.create', 'applications.submit']));
+    const create = await request('POST', '/api/applications', { applicant: { firstName: 'Notif', lastName: 'Owner' } }, { Authorization: `Bearer ${owner}` });
+    const id = create.data.data.id;
+
+    await request('POST', `/api/applications/${id}/submit`, {}, { Authorization: `Bearer ${owner}` });
+    expect(notifications.findByUser('owner-notif', { limit: 50 }).some(n => n.subject === 'Application submitted')).toBe(true);
+
+    // A senior moving it to under_review fires a second notification to the owner.
+    const senior = signToken(buildClaims({ id: 'senior-n', email: 'sn@aib.example', roleName: 'aib_senior_officer', roleLevel: 80 }, ['applications.update']));
+    await request('PATCH', `/api/applications/${id}/status`, { status: 'under_review' }, { Authorization: `Bearer ${senior}` });
+    expect(notifications.findByUser('owner-notif', { limit: 50 }).some(n => n.subject.includes('under review'))).toBe(true);
   });
 
   describe('ownership (H1) and attribution (H3)', () => {
