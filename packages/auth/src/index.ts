@@ -18,6 +18,7 @@
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { authenticator } from 'otplib';
+import { generateKeyPairSync, createPublicKey } from 'node:crypto';
 
 // ─── Configuration ─────────────────────────────
 
@@ -229,4 +230,88 @@ export function verifyTotpCode(secret: string | null | undefined, code: string):
 /** Current TOTP code for a secret. Used by tests and the demo only. */
 export function currentTotpCode(secret: string): string {
   return authenticator.generate(secret);
+}
+
+// ─── RS256 / JWKS (federation foundation) ──────
+//
+// The POC signs HS256 with a shared secret because one service both mints and
+// verifies (see the module header). Real IdP federation (ScotAccount / GOV.UK
+// One Login) is asymmetric: the IdP signs RS256 with its private key and the API
+// verifies against the IdP's published JWKS, holding no signing key. These
+// helpers are that verification path, so the production shape is proven and
+// tested now; they are opt-in and do not change the HS256 default. See
+// docs/identity-federation-plan.md for how they slot into an OIDC flow.
+
+export interface RsaKeyPair {
+  privateKey: string;
+  publicKey: string;
+}
+
+/** Generate a 2048-bit RSA keypair in PEM. Stands in for the IdP's keys in the
+ *  POC; in production the public half comes from the IdP's JWKS. */
+export function generateRsaKeyPair(): RsaKeyPair {
+  const { privateKey, publicKey } = generateKeyPairSync('rsa', {
+    modulusLength: 2048,
+    publicKeyEncoding: { type: 'spki', format: 'pem' },
+    privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
+  });
+  return { privateKey, publicKey };
+}
+
+export interface Rs256SignOptions extends SignOptions {
+  kid?: string;
+}
+
+/** Sign an RS256 token with a PEM private key (the IdP's role). */
+export function signRs256(claims: Record<string, unknown>, privateKeyPem: string, options: Rs256SignOptions = {}): string {
+  return jwt.sign(claims, privateKeyPem, {
+    algorithm: 'RS256',
+    issuer: ISSUER,
+    audience: AUDIENCE,
+    expiresIn: options.expiresInSeconds ?? ACCESS_TOKEN_TTL_SECONDS,
+    ...(options.kid ? { keyid: options.kid } : {}),
+  });
+}
+
+/**
+ * Verify an RS256 token against a PEM public key (or the one resolved from a
+ * JWKS). Same guarantees as verifyToken: pinned algorithm, issuer, audience, and
+ * a mandatory numeric exp.
+ */
+export function verifyRs256<T = AccessTokenClaims>(token: string, publicKeyPem: string): T {
+  let decoded: jwt.JwtPayload | string;
+  try {
+    decoded = jwt.verify(token, publicKeyPem, {
+      algorithms: ['RS256'],
+      issuer: ISSUER,
+      audience: AUDIENCE,
+    });
+  } catch (err) {
+    if (err instanceof jwt.TokenExpiredError) throw new TokenError(TOKEN_EXPIRED);
+    throw new TokenError(INVALID_TOKEN);
+  }
+  if (typeof decoded !== 'object' || decoded === null || typeof decoded.exp !== 'number') {
+    throw new TokenError(INVALID_TOKEN);
+  }
+  return decoded as T;
+}
+
+export interface Jwk {
+  kty: string;
+  n?: string;
+  e?: string;
+  kid: string;
+  alg: string;
+  use: string;
+}
+
+/** Export a PEM public key as a JWK (the entry a JWKS endpoint publishes). */
+export function publicKeyToJwk(publicKeyPem: string, kid = 'aib-iaas-rs256'): Jwk {
+  const jwk = createPublicKey(publicKeyPem).export({ format: 'jwk' }) as Record<string, string>;
+  return { ...(jwk as any), kid, alg: 'RS256', use: 'sig' };
+}
+
+/** Build a JWKS document ({ keys: [...] }) for serving at /.well-known/jwks.json. */
+export function buildJwks(publicKeyPem: string, kid = 'aib-iaas-rs256'): { keys: Jwk[] } {
+  return { keys: [publicKeyToJwk(publicKeyPem, kid)] };
 }
