@@ -72,11 +72,18 @@ describe('API Gateway - Applications', () => {
     expect(res.data.data.status).toBe('draft');
   });
 
-  it('GET /api/applications/:id retrieves the application', async () => {
+  it('GET /api/applications/:id requires the capability token when anonymous', async () => {
     const create = await request('POST', '/api/applications', { applicant: { firstName: 'Get', lastName: 'Test' } });
     const id = create.data.data.id;
+    const cap = create.data.data.capabilityToken;
+    expect(cap).toBeDefined();
 
-    const res = await request('GET', `/api/applications/${id}`);
+    // A guessed id with no capability is refused (read-IDOR closed), as a 404.
+    const noCap = await request('GET', `/api/applications/${id}`);
+    expect(noCap.status).toBe(404);
+
+    // The capability token issued at create reads it back.
+    const res = await request('GET', `/api/applications/${id}`, undefined, { 'X-Application-Capability': cap });
     expect(res.status).toBe(200);
     expect(res.data.success).toBe(true);
     expect(res.data.data.applicant.firstName).toBe('Get');
@@ -166,9 +173,13 @@ describe('API Gateway - Applications', () => {
       const asA = await request('GET', `/api/applications/${id}`, undefined, { Authorization: `Bearer ${debtorA}` });
       expect(asA.status).toBe(200);
 
-      // Anonymous capability-URL read-back is still allowed (POC, pre-identity).
+      // Anonymous without the capability token is now refused (read-IDOR closed)...
       const anon = await request('GET', `/api/applications/${id}`);
-      expect(anon.status).toBe(200);
+      expect(anon.status).toBe(404);
+
+      // ...but the capability token issued at create still reads it back.
+      const withCap = await request('GET', `/api/applications/${id}`, undefined, { 'X-Application-Capability': create.data.data.capabilityToken });
+      expect(withCap.status).toBe(200);
     });
 
     it('rejects an approve from a token without applications.approve (403)', async () => {

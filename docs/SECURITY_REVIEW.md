@@ -65,9 +65,11 @@ register (GAP‑001..010 + GAP‑008/009); 6 are new (M3, M4, M5, L2, L3, L4). G
 > **Phase 1 status (6 October 2026).** All 16 findings are now addressed in code (M3 was
 > already done). HS256 shared-secret signing and server-side TOTP are the POC closures; RS256/JWKS
 > against a real IdP (ScotAccount / GOV.UK One Login) and full applicant identity remain the
-> production target. The staff surface and the statutory approve/reject decision are fully gated;
-> `GET /applications/:id` stays a public capability-URL read-back pending applicant identity, so
-> applicant read-IDOR is deferred under GAP-007 rather than closed. The authoring host has no Node
+> production target. The staff surface and the statutory approve/reject decision are fully gated.
+> A follow-up closed the applicant read-IDOR too: `GET /applications/:id` now requires a signed,
+> application-scoped capability token (issued at create) for an anonymous caller, so a guessed id
+> no longer reads a record back; only the anonymous create/update/submit write-intake remains open
+> by design, pending full applicant identity under GAP-007. The authoring host has no Node
 > runtime, so the fixes are proven by CI (`npx vitest run`, `npx tsc -b`) and an image build + smoke
 > test, not locally. Per-item delivery detail: `docs/security-hardening-log.md` §"Phase 1 — Security
 > Backbone".

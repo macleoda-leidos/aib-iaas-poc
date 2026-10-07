@@ -22,11 +22,15 @@ import { authenticate, AuthenticatedRequest } from './rbac';
  *   - the reports CSV export (aggregate figures only, no personal data), kept
  *     public for the POC demo's one-click downloads
  *
- * Documented limitation: the applicant-intake routes stay public because the
- * POC has no applicant identity yet, so GET /api/applications/:id is a
- * capability-URL read-back. This defers applicant read-IDOR to GAP-007
- * (federation) while fully gating the staff surface and the statutory
- * approve/reject decision — the substance of C2.
+ * Applicant-intake routes stay reachable without a login because the POC has no
+ * applicant identity yet. The single-application read GET /api/applications/:id
+ * is allow-listed only at this gate: the handler then requires a *signed,
+ * application-scoped capability token* (issued at create) for an anonymous
+ * caller, so a guessed id no longer suffices — the applicant read-IDOR (H1 /
+ * GAP-005) is closed without forcing login. The anonymous create/update/submit
+ * write surface remains open by design (lower-risk, pending full applicant
+ * identity under GAP-007); the staff surface and the statutory approve/reject
+ * decision are fully gated — the substance of C2.
  */
 export function isPublicRequest(method: string, path: string): boolean {
   // Normalise a single trailing slash so '/api/applications/' is treated as the
@@ -57,7 +61,7 @@ export function isPublicRequest(method: string, path: string): boolean {
   if (method === 'POST' && p === '/api/applications') return true;              // create
   if (method === 'PUT' && /^\/api\/applications\/[^/]+$/.test(p)) return true;  // update draft
   if (method === 'POST' && /^\/api\/applications\/[^/]+\/submit$/.test(p)) return true; // submit
-  if (method === 'GET' && /^\/api\/applications\/[^/]+$/.test(p)) return true;  // capability-URL read-back
+  if (method === 'GET' && /^\/api\/applications\/[^/]+$/.test(p)) return true;  // read-back; handler requires a capability token when anonymous
 
   // Aggregate reports CSV export — kept public for the demo's downloads.
   if (method === 'GET' && p.startsWith('/api/reports/export')) return true;

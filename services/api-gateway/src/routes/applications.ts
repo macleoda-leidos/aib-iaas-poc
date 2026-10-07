@@ -2,7 +2,31 @@ import { Router, Response } from 'express';
 import { randomUUID } from 'crypto';
 import { applications, audit } from '../db';
 import { optionalAuth, type AuthenticatedRequest } from '../middleware/rbac';
+import { signToken, verifyToken } from '@aib-iaas/auth';
 import { validate, applicationNotesSchema } from '@aib-iaas/validation';
+
+// A read capability for a single application. Issued (signed) at create time and
+// returned to the creator; required to read an application back anonymously, so a
+// guessed/enumerated id is no longer sufficient on its own. This closes the read
+// half of the applicant IDOR (H1 / GAP-005) without forcing login into the
+// anonymous /apply journey — the capability travels with whoever created the record.
+const CAPABILITY_TTL_SECONDS = 60 * 60 * 24 * 90; // 90 days
+
+function issueCapabilityToken(applicationId: string): string {
+  return signToken({ purpose: 'application-capability', applicationId }, { expiresInSeconds: CAPABILITY_TTL_SECONDS });
+}
+
+function hasValidCapability(req: AuthenticatedRequest, applicationId: string): boolean {
+  const header = req.headers['x-application-capability'];
+  const token = Array.isArray(header) ? header[0] : header;
+  if (!token) return false;
+  try {
+    const claims = verifyToken<{ purpose?: string; applicationId?: string }>(token);
+    return claims.purpose === 'application-capability' && claims.applicationId === applicationId;
+  } catch {
+    return false;
+  }
+}
 
 export const applicationsRouter = Router();
 
@@ -179,9 +203,11 @@ applicationsRouter.post('/', (req: AuthenticatedRequest, res: Response) => {
       details: { referenceNumber: app.referenceNumber },
     });
 
+    // Return the read capability so the creator can retrieve this application
+    // later without staff credentials (sent as the X-Application-Capability header).
     res.status(201).json({
       success: true,
-      data: app,
+      data: { ...app, capabilityToken: issueCapabilityToken(app.id) },
     });
   } catch (error: any) {
     console.error('[Applications]', error);
@@ -200,7 +226,15 @@ applicationsRouter.get('/:id', (req: AuthenticatedRequest, res: Response) => {
       return;
     }
 
-    if (!enforceOwnership(req, res, app.ownerUserId)) return;
+    if (req.user) {
+      // Authenticated: a debtor sees only their own record; staff may read any.
+      if (!enforceOwnership(req, res, app.ownerUserId)) return;
+    } else if (!hasValidCapability(req, id)) {
+      // Anonymous: a valid, application-scoped capability token is required.
+      // 404 (not 403) so a bad/absent capability never confirms the id exists.
+      res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Application not found' } });
+      return;
+    }
 
     res.json({ success: true, data: app });
   } catch (error: any) {

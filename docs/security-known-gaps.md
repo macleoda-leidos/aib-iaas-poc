@@ -71,7 +71,7 @@ whatever data the system holds, and they compound: an attacker needs only one of
 | GAP-002 | Deployed service applies no authentication or authorisation to any route | Critical | Yes | Remediated (Phase 1) — staff surface + approve/reject; applicant-intake public by design |
 | GAP-003 | Login accepts any password; passwords are never verified | Critical | Yes | Remediated (Phase 1) |
 | GAP-004 | Malware scanning is fail-open and filename-based in deployment | High | Yes | Remediated (Phase 1) — fail-closed; real engine still a deployment dependency |
-| GAP-005 | Insecure direct object reference on all application routes, including approve/reject | High | Yes | Remediated (Phase 1) — staff/approve gated; applicant read-IDOR deferred to GAP-007 |
+| GAP-005 | Insecure direct object reference on all application routes, including approve/reject | High | Yes | Remediated — staff/owner scoping + approve/reject permission (Phase 1); anonymous read-IDOR closed via signed per-application capability tokens (follow-up). Anonymous create/update/submit write-intake remains open by design. |
 | GAP-006 | Audit events are unauthenticated and attacker-attributable | High | Yes | Remediated (Phase 1) |
 | GAP-007 | No multi-factor authentication implemented | High | Yes | Partially remediated (Phase 1) — real server-side TOTP enforced; IdP federation still target |
 | GAP-008 | No brute-force protection or account lockout on login | Medium | Yes | Remediated (Phase 1) |
