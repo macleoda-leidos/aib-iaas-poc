@@ -314,11 +314,37 @@ export const applications = {
   updateStatus: (id: string, status: string, notes?: string) =>
     apiPatch<{ id: string; status: string; updatedAt: string }>(`/api/applications/${id}/status`, { status, notes }),
 
+  assign: (id: string, assignedTo: string | null) =>
+    apiPatch<{ id: string; assignedTo: string | null; assigneeName: string | null }>(`/api/applications/${id}/assign`, { assignedTo }),
+
   addNote: (id: string, content: string, noteType?: string, authorName?: string) =>
     apiPost<any>(`/api/applications/${id}/notes`, { content, noteType, authorName }),
 
   listNotes: (id: string) =>
     apiGet<Array<{ id: string; authorId: string | null; authorName: string | null; noteType: string; content: string; createdAt: string }>>(`/api/applications/${id}/notes`),
+};
+
+// ─── Users (staff directory — used e.g. to populate the case assignment list) ─
+
+export interface DirectoryUser {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  displayName: string | null;
+  roleId: string;
+  status: string;
+}
+
+export const users = {
+  list: (params?: { role?: string; organisationId?: string; status?: string }) => {
+    const query = new URLSearchParams();
+    if (params?.role) query.set('role', params.role);
+    if (params?.organisationId) query.set('organisationId', params.organisationId);
+    if (params?.status) query.set('status', params.status);
+    const qs = query.toString();
+    return apiGet<DirectoryUser[]>(`/api/users${qs ? `?${qs}` : ''}`);
+  },
 };
 
 // ─── Integration / System Checks ────────────────────────────────────────────

@@ -1,8 +1,8 @@
 import { Router, Response } from 'express';
-import { applications, audit, notes } from '../db';
+import { applications, audit, notes, users } from '../db';
 import { optionalAuth, type AuthenticatedRequest } from '../middleware/rbac';
 import { signToken, verifyToken } from '@aib-iaas/auth';
-import { validate, applicationNotesSchema } from '@aib-iaas/validation';
+import { validate, applicationNotesSchema, applicationAssignSchema } from '@aib-iaas/validation';
 
 // A read capability for a single application. Issued (signed) at create time and
 // returned to the creator; required to read an application back anonymously, so a
@@ -385,6 +385,62 @@ applicationsRouter.patch('/:id/status', (req: AuthenticatedRequest, res: Respons
   }
 });
 
+// Assign or reassign a case to a staff user (casework operation). Gated by
+// applications.assign — the permission existed and was granted to sysadmin/senior/
+// officer, but until now no route consumed it. `assignedTo` null/'' clears the
+// assignment; otherwise it must resolve to an active, non-applicant user.
+applicationsRouter.patch('/:id/assign', validate(applicationAssignSchema), (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { assignedTo } = req.body as { assignedTo: string | null };
+
+    if (!req.user) {
+      res.status(401).json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Authentication required.' } });
+      return;
+    }
+    if (!req.user.permissions.includes('applications.assign')) {
+      res.status(403).json({
+        success: false,
+        error: { code: 'FORBIDDEN', message: 'You do not have permission to assign cases.', details: { required: ['applications.assign'] } },
+      });
+      return;
+    }
+
+    const existing = applications.findById(id);
+    if (!existing) {
+      res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Application not found' } });
+      return;
+    }
+
+    // Resolve/validate the assignee (null or '' clears the assignment).
+    let assigneeId: string | null = null;
+    let assigneeName: string | null = null;
+    if (assignedTo) {
+      const assignee = users.findByIdWithRole(assignedTo);
+      if (!assignee || assignee.status !== 'active' || assignee.roleName === 'debtor') {
+        res.status(400).json({ success: false, error: { code: 'INVALID_ASSIGNEE', message: 'assignedTo must be an active staff user.' } });
+        return;
+      }
+      assigneeId = assignee.id;
+      assigneeName = assignee.displayName || `${assignee.firstName} ${assignee.lastName}`;
+    }
+
+    applications.update(id, { assignedTo: assigneeId });
+
+    audit.create({
+      applicationId: id,
+      action: assigneeId ? 'assigned' : 'unassigned',
+      ...auditActor(req),
+      details: { previousAssignee: existing.assignedTo ?? null, assignedTo: assigneeId, assigneeName },
+    });
+
+    res.json({ success: true, data: { id, assignedTo: assigneeId, assigneeName } });
+  } catch (error: any) {
+    console.error('[Applications]', error);
+    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: process.env.NODE_ENV === 'production' ? 'An unexpected error occurred' : error.message } });
+  }
+});
+
 // List applications (staff queue). Default-deny already required a token to get
 // here; a debtor only ever sees their own records (H1), everyone else sees all.
 applicationsRouter.get('/', (req: AuthenticatedRequest, res: Response) => {
@@ -392,10 +448,14 @@ applicationsRouter.get('/', (req: AuthenticatedRequest, res: Response) => {
     const page = parseInt(req.query.page as string) || 1;
     const pageSize = parseInt(req.query.pageSize as string) || 20;
     const status = req.query.status as string | undefined;
-    const assignedTo = req.query.assignedTo as string | undefined;
+    // `assignedTo=unassigned` is a sentinel for the "no assignee" work queue;
+    // `assignedTo=me` resolves to the caller. Anything else is a literal user id.
+    const assignedToParam = req.query.assignedTo as string | undefined;
+    const unassigned = assignedToParam === 'unassigned';
+    const assignedTo = assignedToParam === 'me' ? req.user?.userId : (unassigned ? undefined : assignedToParam);
     const ownerUserId = isDebtor(req) ? req.user!.userId : undefined;
 
-    const result = applications.list({ status, assignedTo, ownerUserId, page, pageSize });
+    const result = applications.list({ status, assignedTo, unassigned, ownerUserId, page, pageSize });
 
     // Enrich with applicant summary where possible
     const enrichedData = result.data.map(app => {

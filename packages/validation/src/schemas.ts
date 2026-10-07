@@ -147,6 +147,15 @@ export const applicationNotesSchema = z
   })
   .strict();
 
+// Assign / reassign a case. `assignedTo` is the target staff user's id, or null
+// (or an empty string) to clear the assignment. The handler additionally checks
+// the id resolves to an active, non-applicant user.
+export const applicationAssignSchema = z
+  .object({
+    assignedTo: z.string().max(100).nullable(),
+  })
+  .strict();
+
 export type DebtorDetailsInput = z.infer<typeof debtorDetailsSchema>;
 export type ApplicationSubmissionInput = z.infer<typeof applicationSubmissionSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;

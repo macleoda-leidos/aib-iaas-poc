@@ -18,6 +18,13 @@ function staffToken(): string {
   );
 }
 
+// A token that additionally holds applications.assign (senior/officer in RBAC).
+function assignerToken(): string {
+  return signToken(
+    buildClaims({ id: 'USR-SENIOR', email: 'senior@aib.example', roleName: 'aib_senior_officer', roleLevel: 80 }, ['applications.read', 'applications.update', 'applications.assign'])
+  );
+}
+
 function request(method: string, path: string, body?: any, headers?: Record<string, string>): Promise<{ status: number; data: any }> {
   return new Promise((resolve, reject) => {
     const url = new URL(path, baseUrl);
@@ -181,6 +188,49 @@ describe('API Gateway - Applications', () => {
     const res = await request('GET', `/api/applications/${id}/notes`, undefined, { Authorization: `Bearer ${debtor}` });
     expect(res.status).toBe(403);
     expect(res.data.error.code).toBe('FORBIDDEN');
+  });
+
+  it('PATCH /api/applications/:id/assign assigns to a staff user and persists', async () => {
+    const create = await request('POST', '/api/applications', { applicant: { firstName: 'Assign', lastName: 'Me' } });
+    const id = create.data.data.id;
+
+    const res = await request('PATCH', `/api/applications/${id}/assign`, { assignedTo: 'user-demo' }, { Authorization: `Bearer ${assignerToken()}` });
+    expect(res.status).toBe(200);
+    expect(res.data.data.assignedTo).toBe('user-demo');
+
+    const list = await request('GET', '/api/applications?assignedTo=user-demo&pageSize=100', undefined, { Authorization: `Bearer ${assignerToken()}` });
+    expect(list.data.data.some((a: any) => a.id === id)).toBe(true);
+  });
+
+  it('PATCH /api/applications/:id/assign rejects a token without applications.assign (403)', async () => {
+    const create = await request('POST', '/api/applications', { applicant: { firstName: 'No', lastName: 'Assign' } });
+    const id = create.data.data.id;
+
+    const res = await request('PATCH', `/api/applications/${id}/assign`, { assignedTo: 'user-demo' }, { Authorization: `Bearer ${staffToken()}` });
+    expect(res.status).toBe(403);
+    expect(res.data.error.details.required).toContain('applications.assign');
+  });
+
+  it('PATCH /api/applications/:id/assign rejects an unknown assignee (400)', async () => {
+    const create = await request('POST', '/api/applications', { applicant: { firstName: 'Bad', lastName: 'Assignee' } });
+    const id = create.data.data.id;
+
+    const res = await request('PATCH', `/api/applications/${id}/assign`, { assignedTo: 'nope-not-a-user' }, { Authorization: `Bearer ${assignerToken()}` });
+    expect(res.status).toBe(400);
+    expect(res.data.error.code).toBe('INVALID_ASSIGNEE');
+  });
+
+  it('PATCH assign with null clears the assignment, and ?assignedTo=unassigned finds it', async () => {
+    const create = await request('POST', '/api/applications', { applicant: { firstName: 'Un', lastName: 'Assign' } });
+    const id = create.data.data.id;
+    await request('PATCH', `/api/applications/${id}/assign`, { assignedTo: 'user-demo' }, { Authorization: `Bearer ${assignerToken()}` });
+
+    const clear = await request('PATCH', `/api/applications/${id}/assign`, { assignedTo: null }, { Authorization: `Bearer ${assignerToken()}` });
+    expect(clear.status).toBe(200);
+    expect(clear.data.data.assignedTo).toBeNull();
+
+    const list = await request('GET', '/api/applications?assignedTo=unassigned&pageSize=100', undefined, { Authorization: `Bearer ${assignerToken()}` });
+    expect(list.data.data.some((a: any) => a.id === id)).toBe(true);
   });
 
   describe('ownership (H1) and attribution (H3)', () => {

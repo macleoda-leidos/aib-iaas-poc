@@ -11,7 +11,7 @@ import EmailLog from './components/EmailLog';
 import StatutoryDeadlines from './components/StatutoryDeadlines';
 import { auditRepo } from '../../../lib/persistence';
 import { seedApplications } from '../../../lib/seedData';
-import { applications as applicationsApi, audit as auditApi } from '../../../lib/apiClient';
+import { applications as applicationsApi, audit as auditApi, users as usersApi, type DirectoryUser } from '../../../lib/apiClient';
 
 // ─── Feature 7: Predictive Processing Time ─────────────────────────────────────
 const PROCESSING_TIMES: Record<string, string> = {
@@ -219,6 +219,11 @@ function SeedCaseView({ seedApp, caseRef }: { seedApp: any; caseRef: string }) {
   const [toast, setToast] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
   const [noteText, setNoteText] = useState('');
   const [notes, setNotes] = useState<Array<{ text: string; author: string; time: string }>>([]);
+  // Assignment: the current assignee id, the staff directory for the dropdown, and
+  // a saving flag. Falls back to the seed's display string when the API is absent.
+  const [assigneeId, setAssigneeId] = useState<string>('');
+  const [staff, setStaff] = useState<DirectoryUser[]>([]);
+  const [assignSaving, setAssignSaving] = useState(false);
 
   // Load the persisted notes from the API. Degrades silently offline/in the demo
   // (the input still works and prepends optimistically), so the scripted run is
@@ -237,6 +242,32 @@ function SeedCaseView({ seedApp, caseRef }: { seedApp: any; caseRef: string }) {
       .catch(() => { /* offline / no session — leave notes empty */ });
     return () => { cancelled = true; };
   }, [seedApp.id, caseRef]);
+
+  // Load the staff directory for the assignment dropdown. Staff only (the API
+  // returns active users); degrades to a read-only label offline/in the demo.
+  useEffect(() => {
+    let cancelled = false;
+    usersApi.list()
+      .then(res => {
+        if (cancelled || !Array.isArray(res.data)) return;
+        setStaff(res.data.filter(u => u.status === 'active' && u.roleId !== 'role-debtor'));
+      })
+      .catch(() => { /* offline — dropdown falls back to the seed label */ });
+    return () => { cancelled = true; };
+  }, []);
+
+  const handleAssign = async (newAssigneeId: string) => {
+    setAssignSaving(true);
+    try {
+      await applicationsApi.assign(seedApp.id || caseRef, newAssigneeId || null);
+      setAssigneeId(newAssigneeId);
+      setToast({ text: newAssigneeId ? 'Case assigned' : 'Case unassigned', type: 'success' });
+    } catch {
+      setToast({ text: 'Could not update assignment (offline)', type: 'error' });
+    }
+    setAssignSaving(false);
+    setTimeout(() => setToast(null), 3000);
+  };
 
   const handleStatusChange = async (newStatus: string) => {
     setActionLoading(newStatus);
@@ -368,11 +399,29 @@ function SeedCaseView({ seedApp, caseRef }: { seedApp: any; caseRef: string }) {
           </div>
         </div>
 
-        {/* Assignment */}
+        {/* Assignment — wired to PATCH /:id/assign */}
         <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
           <div className="p-4 bg-gray-50 dark:bg-gray-800 font-bold text-sm">👤 Assignment</div>
-          <div className="p-4 text-sm">
-            <p>Assigned to: <strong>{seedApp.assignedTo}</strong></p>
+          <div className="p-4 text-sm space-y-2">
+            {staff.length > 0 ? (
+              <label className="flex flex-wrap items-center gap-2">
+                <span className="text-gray-500">Assigned to</span>
+                <select
+                  value={assigneeId}
+                  disabled={assignSaving}
+                  onChange={e => handleAssign(e.target.value)}
+                  className="border border-gray-300 dark:border-gray-600 rounded px-2 py-1 text-sm dark:bg-gray-800 disabled:opacity-50"
+                >
+                  <option value="">Unassigned</option>
+                  {staff.map(u => (
+                    <option key={u.id} value={u.id}>{u.displayName || `${u.firstName} ${u.lastName}`}</option>
+                  ))}
+                </select>
+                {assignSaving && <span className="text-xs text-gray-400">saving…</span>}
+              </label>
+            ) : (
+              <p>Assigned to: <strong>{seedApp.assignedTo}</strong></p>
+            )}
             <p className="text-gray-500">Source system: {seedApp.source}</p>
           </div>
         </div>

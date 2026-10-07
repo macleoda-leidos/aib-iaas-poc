@@ -136,7 +136,7 @@ export interface CreateApplicationInput {
   incomeExpenditure?: CreateIncomeExpenditureInput;
   systemChecks?: any;
   creditCheck?: any;
-  assignedTo?: string;
+  assignedTo?: string | null;
   ownerUserId?: string | null;
   submittedAt?: string;
 }
@@ -144,6 +144,8 @@ export interface CreateApplicationInput {
 export interface ListApplicationsParams {
   status?: string;
   assignedTo?: string;
+  /** Filter to applications with no assignee (the "unassigned" work queue). */
+  unassigned?: boolean;
   ownerUserId?: string;
   page?: number;
   pageSize?: number;
@@ -306,7 +308,7 @@ export class ApplicationRepository {
   }
 
   list(params: ListApplicationsParams = {}): { data: Application[]; total: number } {
-    const { status, assignedTo, ownerUserId, page = 1, pageSize = 20 } = params;
+    const { status, assignedTo, unassigned, ownerUserId, page = 1, pageSize = 20 } = params;
     const conditions: string[] = [];
     const values: any[] = [];
 
@@ -315,7 +317,9 @@ export class ApplicationRepository {
       values.push(status);
     }
 
-    if (assignedTo) {
+    if (unassigned) {
+      conditions.push("(assigned_to IS NULL OR assigned_to = '')");
+    } else if (assignedTo) {
       conditions.push('assigned_to = ?');
       values.push(assignedTo);
     }
