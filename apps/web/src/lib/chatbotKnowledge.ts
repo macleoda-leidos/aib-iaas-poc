@@ -44,7 +44,8 @@ export type Topic =
   | 'eligibility'
   | 'property'
   | 'process'
-  | 'engine';
+  | 'engine'
+  | 'legislation';
 
 export interface Answer {
   text: string;
@@ -109,6 +110,7 @@ const TOPIC_PATTERNS: Array<[Topic, RegExp]> = [
   ['property', /\b(house|home|property|mortgage|my flat)\b/],
   ['process', /\b(apply|application|process|what happens|next steps|after)\b/],
   ['engine', /\b(recommendation engine|algorithm|how does it decide|rules engine)\b/],
+  ['legislation', /\b(legislation|legal basis|governing law|law|laws|act|acts|regulation|regulations|statute|statutes|statutory|bill|bills)\b/],
 ];
 
 function longestMatch(input: string, patterns: Array<[string, RegExp]>): string | null {
@@ -223,6 +225,28 @@ const PROPERTY: Record<Product, Answer> = {
   },
 };
 
+// The legal basis for each solution. Citations reuse provisions already held in
+// @aib-iaas/statutory, so the instrument named in the text is the one the figures
+// elsewhere are read from.
+const LEGISLATION: Record<Product, Answer> = {
+  das: {
+    text: 'The Debt Arrangement Scheme is a statutory scheme under the Debt Arrangement Scheme (Scotland) Regulations 2011 (as amended), administered by the Accountant in Bankruptcy. The Debt Payment Programme, the freezing of interest and charges, and the creditor objection window all derive from those regulations.',
+    citations: cite(DAS.minDebts),
+  },
+  map: {
+    text: "The Minimal Asset Process is a form of bankruptcy under the Bankruptcy (Scotland) Act 2016 — the Act that consolidated Scotland's personal-insolvency law — with its debt and asset limits set by that Act and its subordinate regulations.",
+    citations: cite(MAP.maxDebt, MAP.maxTotalAssets),
+  },
+  sequestration: {
+    text: "Sequestration is governed by the Bankruptcy (Scotland) Act 2016, which the Accountant in Bankruptcy administers. The debtor-application debt threshold, the trustee's control of the estate, and the discharge period all sit in that Act.",
+    citations: cite(SEQUESTRATION_MIN_DEBT, SEQ_DISCHARGE),
+  },
+  ptd: {
+    text: 'Protected Trust Deeds are governed by the Protected Trust Deeds (Scotland) Regulations 2013; the objection thresholds that determine whether a trust deed becomes protected are set there.',
+    citations: cite(PTD_OBJECTION.majorityInNumber, PTD_OBJECTION.fractionInValue),
+  },
+};
+
 const TOPIC_GENERIC: Record<Topic, Answer> = {
   cost: FEES_NOT_HELD,
   duration: {
@@ -256,6 +280,10 @@ const TOPIC_GENERIC: Record<Topic, Answer> = {
     text: 'The recommendation engine is rules-based rather than a machine-learning model, so every outcome can be traced to the criteria that produced it. It evaluates your debts, income, outgoings and assets against the statutory criteria for each available option and returns a primary recommendation with a confidence rating of high, medium or low, the factors behind it, and the alternatives considered. A case officer reviews it before you receive it.',
     citations: [],
   },
+  legislation: {
+    text: "Scotland has its own personal-insolvency law, administered by the Accountant in Bankruptcy. The main instruments are the Bankruptcy (Scotland) Act 2016, which governs sequestration, the Minimal Asset Process and the statutory moratorium on diligence; the Debt Arrangement Scheme (Scotland) Regulations 2011, which govern the Debt Arrangement Scheme and Debt Payment Programmes; and the Protected Trust Deeds (Scotland) Regulations 2013, which govern trust deeds. This framework is being reformed by the Bankruptcy and Diligence (Scotland) Act 2024, which modernises diligence — the legal process of enforcing debts — and introduces a statutory mental-health moratorium on debt recovery. Every figure and period this service quotes is read from these instruments, and the provision is shown with the answer; ask about a specific solution and I will name the one that applies.",
+    citations: cite(MAP.maxDebt, DAS.minDebts, PTD_OBJECTION.majorityInNumber, SEQUESTRATION_MIN_DEBT),
+  },
 };
 
 /** Topics whose answer is meaningfully product-specific. */
@@ -263,6 +291,7 @@ const PRODUCT_SPECIFIC: Partial<Record<Topic, Record<Product, Answer>>> = {
   duration: DURATION,
   eligibility: ELIGIBILITY,
   property: PROPERTY,
+  legislation: LEGISLATION,
 };
 
 export const FALLBACK: Answer = {
@@ -293,6 +322,7 @@ export const SUGGESTED_QUESTIONS = [
   'Am I eligible for MAP?',
   'How long does sequestration last?',
   'What documents do I need?',
+  'Which laws govern debt solutions in Scotland?',
 ];
 
 export const PRODUCT_OVERVIEWS_FOR_TEST = PRODUCT_OVERVIEW;
