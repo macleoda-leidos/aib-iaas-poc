@@ -20,11 +20,13 @@ export async function initPgSchema(pool: Pool): Promise<void> {
     CREATE TABLE IF NOT EXISTS recommendations (id TEXT PRIMARY KEY, application_id TEXT UNIQUE REFERENCES applications(id) ON DELETE CASCADE, product TEXT NOT NULL, confidence TEXT NOT NULL, confidence_pct INTEGER NOT NULL, reasoning TEXT NOT NULL, factors TEXT NOT NULL, alternatives TEXT NOT NULL, engine_version TEXT NOT NULL, generated_at TIMESTAMPTZ DEFAULT NOW());
     CREATE TABLE IF NOT EXISTS audit_events (id TEXT PRIMARY KEY, application_id TEXT, action TEXT NOT NULL, actor_id TEXT, actor_name TEXT, actor_type TEXT NOT NULL, details TEXT, timestamp TIMESTAMPTZ DEFAULT NOW());
     CREATE TABLE IF NOT EXISTS payments (id TEXT PRIMARY KEY, application_id TEXT REFERENCES applications(id), amount DOUBLE PRECISION NOT NULL, currency TEXT DEFAULT 'GBP', status TEXT DEFAULT 'pending', provider TEXT, provider_ref TEXT, paid_at TIMESTAMPTZ, created_at TIMESTAMPTZ DEFAULT NOW());
+    CREATE TABLE IF NOT EXISTS notes (id TEXT PRIMARY KEY, application_id TEXT REFERENCES applications(id) ON DELETE CASCADE, author_id TEXT, author_name TEXT, note_type TEXT NOT NULL DEFAULT 'general', content TEXT NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW());
+    CREATE INDEX IF NOT EXISTS idx_notes_app ON notes(application_id);
     CREATE INDEX IF NOT EXISTS idx_applications_status ON applications(status);
     CREATE INDEX IF NOT EXISTS idx_applications_ref ON applications(reference_number);
     CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
     CREATE INDEX IF NOT EXISTS idx_audit_app ON audit_events(application_id);
     CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON audit_events(timestamp);
   `);
-  console.log('[PostgreSQL] Schema initialized (16 tables + 5 indexes)');
+  console.log('[PostgreSQL] Schema initialized (17 tables + 6 indexes)');
 }

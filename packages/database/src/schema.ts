@@ -204,6 +204,22 @@ export function initializeSchema(db: Database.Database): void {
       FOREIGN KEY (application_id) REFERENCES applications(id) ON DELETE CASCADE
     );
 
+    -- ─── Staff notes ───────────────────────────
+    -- Persisted case notes. Before this, POST /:id/notes only wrote the content
+    -- into an audit event's details and returned an ephemeral object, so a note
+    -- never survived to be read back. This is the first-class store.
+
+    CREATE TABLE IF NOT EXISTS notes (
+      id TEXT PRIMARY KEY,
+      application_id TEXT NOT NULL,
+      author_id TEXT,
+      author_name TEXT,
+      note_type TEXT NOT NULL DEFAULT 'general',
+      content TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (application_id) REFERENCES applications(id) ON DELETE CASCADE
+    );
+
     -- ─── Recommendations ───────────────────────
 
     CREATE TABLE IF NOT EXISTS recommendations (
@@ -264,6 +280,7 @@ export function initializeSchema(db: Database.Database): void {
     CREATE INDEX IF NOT EXISTS idx_debts_app ON debts(application_id);
     CREATE INDEX IF NOT EXISTS idx_assets_app ON assets(application_id);
     CREATE INDEX IF NOT EXISTS idx_documents_app ON documents(application_id);
+    CREATE INDEX IF NOT EXISTS idx_notes_app ON notes(application_id);
     CREATE INDEX IF NOT EXISTS idx_audit_app ON audit_events(application_id);
     CREATE INDEX IF NOT EXISTS idx_audit_action ON audit_events(action);
     CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON audit_events(timestamp);

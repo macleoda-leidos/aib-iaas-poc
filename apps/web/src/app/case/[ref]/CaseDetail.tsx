@@ -220,6 +220,24 @@ function SeedCaseView({ seedApp, caseRef }: { seedApp: any; caseRef: string }) {
   const [noteText, setNoteText] = useState('');
   const [notes, setNotes] = useState<Array<{ text: string; author: string; time: string }>>([]);
 
+  // Load the persisted notes from the API. Degrades silently offline/in the demo
+  // (the input still works and prepends optimistically), so the scripted run is
+  // unaffected when the backend is cold or unreachable.
+  useEffect(() => {
+    let cancelled = false;
+    applicationsApi.listNotes(seedApp.id || caseRef)
+      .then(res => {
+        if (cancelled || !Array.isArray(res.data)) return;
+        setNotes(res.data.map(n => ({
+          text: n.content,
+          author: n.authorName || 'AiB Staff',
+          time: new Date(n.createdAt).toLocaleString('en-GB'),
+        })));
+      })
+      .catch(() => { /* offline / no session — leave notes empty */ });
+    return () => { cancelled = true; };
+  }, [seedApp.id, caseRef]);
+
   const handleStatusChange = async (newStatus: string) => {
     setActionLoading(newStatus);
     try {

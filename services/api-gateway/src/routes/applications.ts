@@ -1,6 +1,5 @@
 import { Router, Response } from 'express';
-import { randomUUID } from 'crypto';
-import { applications, audit } from '../db';
+import { applications, audit, notes } from '../db';
 import { optionalAuth, type AuthenticatedRequest } from '../middleware/rbac';
 import { signToken, verifyToken } from '@aib-iaas/auth';
 import { validate, applicationNotesSchema } from '@aib-iaas/validation';
@@ -423,7 +422,9 @@ applicationsRouter.get('/', (req: AuthenticatedRequest, res: Response) => {
 });
 
 // Add staff note. The author is taken from the verified token, not the body —
-// previously any caller could claim to be anyone (H3).
+// previously any caller could claim to be anyone (H3). The note is now PERSISTED
+// to the notes table (it previously lived only inside an audit event's details,
+// so it could never be read back); the audit event is still written alongside.
 applicationsRouter.post('/:id/notes', validate(applicationNotesSchema), (req: AuthenticatedRequest, res: Response) => {
   try {
     const { id } = req.params;
@@ -440,24 +441,52 @@ applicationsRouter.post('/:id/notes', validate(applicationNotesSchema), (req: Au
       return;
     }
 
-    const noteId = randomUUID();
-    const note = {
-      id: noteId,
+    const saved = notes.create({
+      applicationId: id,
       authorId: req.user.userId,
       authorName: req.user.email,
-      content,
-      createdAt: new Date().toISOString(),
       noteType: noteType || 'general',
-    };
+      content,
+    });
 
     audit.create({
       applicationId: id,
       action: 'note_added',
       ...auditActor(req),
-      details: { noteType, noteId, content },
+      details: { noteType: saved.noteType, noteId: saved.id, content },
     });
 
-    res.status(201).json({ success: true, data: note });
+    res.status(201).json({ success: true, data: saved });
+  } catch (error: any) {
+    console.error('[Applications]', error);
+    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: process.env.NODE_ENV === 'production' ? 'An unexpected error occurred' : error.message } });
+  }
+});
+
+// Read the persisted notes for an application (staff queue view). This route is
+// not on the public allow-list, so the global gate has already required a token.
+// Notes are staff-internal, so an authenticated debtor is refused — a debtor must
+// not read case-worker notes about their own application.
+applicationsRouter.get('/:id/notes', (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    if (!req.user) {
+      res.status(401).json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Authentication required.' } });
+      return;
+    }
+    if (isDebtor(req)) {
+      res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'Staff notes are not available to applicants.' } });
+      return;
+    }
+
+    const existing = applications.findById(id);
+    if (!existing) {
+      res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Application not found' } });
+      return;
+    }
+
+    res.json({ success: true, data: notes.findByApplication(id) });
   } catch (error: any) {
     console.error('[Applications]', error);
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: process.env.NODE_ENV === 'production' ? 'An unexpected error occurred' : error.message } });

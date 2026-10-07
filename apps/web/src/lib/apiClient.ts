@@ -316,6 +316,9 @@ export const applications = {
 
   addNote: (id: string, content: string, noteType?: string, authorName?: string) =>
     apiPost<any>(`/api/applications/${id}/notes`, { content, noteType, authorName }),
+
+  listNotes: (id: string) =>
+    apiGet<Array<{ id: string; authorId: string | null; authorName: string | null; noteType: string; content: string; createdAt: string }>>(`/api/applications/${id}/notes`),
 };
 
 // ─── Integration / System Checks ────────────────────────────────────────────

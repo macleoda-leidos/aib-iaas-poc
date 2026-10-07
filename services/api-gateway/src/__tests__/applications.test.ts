@@ -158,6 +158,31 @@ describe('API Gateway - Applications', () => {
     expect(res.data.data.noteType).toBe('review');
   });
 
+  it('GET /api/applications/:id/notes returns the persisted note (survives the request)', async () => {
+    const create = await request('POST', '/api/applications', { applicant: { firstName: 'Persist', lastName: 'Note' } });
+    const id = create.data.data.id;
+
+    await request('POST', `/api/applications/${id}/notes`, { content: 'A persisted note', noteType: 'review' }, { Authorization: `Bearer ${staffToken()}` });
+
+    const res = await request('GET', `/api/applications/${id}/notes`, undefined, { Authorization: `Bearer ${staffToken()}` });
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.data.data)).toBe(true);
+    expect(res.data.data.length).toBe(1);
+    expect(res.data.data[0].content).toBe('A persisted note');
+    expect(res.data.data[0].noteType).toBe('review');
+    expect(res.data.data[0].authorName).toBe('officer@aib.example');
+  });
+
+  it('GET /api/applications/:id/notes refuses an applicant (debtor) — notes are staff-internal', async () => {
+    const debtor = signToken(buildClaims({ id: 'debtor-notes', email: 'd@debtor.example', roleName: 'debtor', roleLevel: 10 }, ['applications.read']));
+    const create = await request('POST', '/api/applications', { applicant: { firstName: 'Deb', lastName: 'Tor' } }, { Authorization: `Bearer ${debtor}` });
+    const id = create.data.data.id;
+
+    const res = await request('GET', `/api/applications/${id}/notes`, undefined, { Authorization: `Bearer ${debtor}` });
+    expect(res.status).toBe(403);
+    expect(res.data.error.code).toBe('FORBIDDEN');
+  });
+
   describe('ownership (H1) and attribution (H3)', () => {
     const debtorA = signToken(buildClaims({ id: 'debtor-A', email: 'a@debtor.example', roleName: 'debtor', roleLevel: 10 }, ['applications.read']));
     const debtorB = signToken(buildClaims({ id: 'debtor-B', email: 'b@debtor.example', roleName: 'debtor', roleLevel: 10 }, ['applications.read']));

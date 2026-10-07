@@ -24,6 +24,7 @@ export { AuditRepository } from './repositories/audit';
 export { RecommendationRepository } from './repositories/recommendations';
 export { UserRepository } from './repositories/users';
 export { DocumentRepository } from './repositories/documents';
+export { NoteRepository } from './repositories/notes';
 export { OrganisationRepository } from './repositories/organisations';
 export { PaymentRepository } from './repositories/payments';
 
@@ -75,6 +76,12 @@ export type {
   CreateDocumentInput,
 } from './repositories/documents';
 
+// Types - Notes
+export type {
+  Note,
+  CreateNoteInput,
+} from './repositories/notes';
+
 // Types - Organisations
 export type {
   Organisation,
@@ -97,6 +104,7 @@ import { AuditRepository } from './repositories/audit';
 import { RecommendationRepository } from './repositories/recommendations';
 import { UserRepository } from './repositories/users';
 import { DocumentRepository } from './repositories/documents';
+import { NoteRepository } from './repositories/notes';
 import { OrganisationRepository } from './repositories/organisations';
 import { PaymentRepository } from './repositories/payments';
 
@@ -106,6 +114,7 @@ export interface Repositories {
   recommendations: RecommendationRepository;
   users: UserRepository;
   documents: DocumentRepository;
+  notes: NoteRepository;
   organisations: OrganisationRepository;
   payments: PaymentRepository;
 }
@@ -129,6 +138,7 @@ export function createRepositories(): Repositories {
     recommendations: new RecommendationRepository(db),
     users: new UserRepository(db),
     documents: new DocumentRepository(db),
+    notes: new NoteRepository(db),
     organisations: new OrganisationRepository(db),
     payments: new PaymentRepository(db),
   };
