@@ -1,0 +1,13 @@
+{
+  "name": "AiB Initial Application Advice Service",
+  "short_name": "AiB IAAS",
+  "description": "Find the right debt solution for your situation",
+  "start_url": "/aib-iaas-poc/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#d32205",
+  "orientation": "portrait-primary",
+  "icons": [
+    { "src": "/aib-iaas-poc/favicon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}

@@ -1,0 +1,9 @@
+# Convenience copy. The canonical location is /.well-known/security.txt
+# (served under the /aib-iaas-poc/ project sub-path on GitHub Pages).
+
+Contact: mailto:security@aib.gov.uk
+Contact: https://www.aib.gov.uk/contact-us
+Expires: 2027-10-01T00:00:00.000Z
+Preferred-Languages: en
+Policy: https://www.aib.gov.uk/privacy-notice
+Canonical: https://macleoda-leidos.github.io/aib-iaas-poc/.well-known/security.txt
