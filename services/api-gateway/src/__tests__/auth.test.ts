@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { currentTotpCode, DEMO_MFA_SECRET } from '@aib-iaas/auth';
+import { currentTotpCode, DEMO_MFA_SECRET, signToken, buildClaims } from '@aib-iaas/auth';
 import { app } from '../index';
 import http from 'http';
 
@@ -104,5 +104,43 @@ describe('API Gateway - Auth', () => {
   it('GET /api/auth/me rejects invalid token', async () => {
     const res = await request('GET', '/api/auth/me', undefined, { Authorization: 'Bearer invalidtoken' });
     expect(res.status).toBe(401);
+  });
+
+  // ─── Self-service: invite → set-password → login (E9) ──
+  const adminToken = () => signToken(buildClaims({ id: 'USR-ADMIN', email: 'admin@aib.example', roleName: 'system_admin', roleLevel: 100 }, ['system.admin', 'users.create']));
+
+  it('invite → set-password → login works end to end', async () => {
+    // user-stats (stats@aib.gov.uk) is a seeded non-MFA account.
+    const invite = await request('POST', '/api/auth/invite', { userId: 'user-stats' }, { Authorization: `Bearer ${adminToken()}` });
+    expect(invite.status).toBe(200);
+    const token = invite.data.data.setPasswordToken;
+    expect(token).toBeTruthy();
+
+    const set = await request('POST', '/api/auth/set-password', { token, password: 'newpassword123' });
+    expect(set.status).toBe(200);
+
+    const login = await request('POST', '/api/auth/login', { email: 'stats@aib.gov.uk', password: 'newpassword123' });
+    expect(login.status).toBe(200);
+    expect(login.data.data.token).toBeDefined();
+  });
+
+  it('POST /api/auth/invite requires users.create / system.admin (403)', async () => {
+    const weak = signToken(buildClaims({ id: 'u-weak', email: 'weak@aib.example', roleName: 'aib_readonly', roleLevel: 20 }, ['applications.read']));
+    const res = await request('POST', '/api/auth/invite', { userId: 'user-stats' }, { Authorization: `Bearer ${weak}` });
+    expect(res.status).toBe(403);
+  });
+
+  it('POST /api/auth/set-password rejects a bad token (400)', async () => {
+    const res = await request('POST', '/api/auth/set-password', { token: 'not-a-token', password: 'whatever123' });
+    expect(res.status).toBe(400);
+  });
+
+  it('POST /api/auth/forgot-password always succeeds (no user enumeration)', async () => {
+    const known = await request('POST', '/api/auth/forgot-password', { email: 'stats@aib.gov.uk' });
+    const unknown = await request('POST', '/api/auth/forgot-password', { email: 'nobody@nowhere.example' });
+    expect(known.status).toBe(200);
+    expect(unknown.status).toBe(200);
+    expect(known.data.success).toBe(true);
+    expect(unknown.data.success).toBe(true);
   });
 });

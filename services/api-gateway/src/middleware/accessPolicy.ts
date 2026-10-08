@@ -46,7 +46,12 @@ export function isPublicRequest(method: string, path: string): boolean {
     (p === '/api/auth/login' ||
       p === '/api/users/auth/login' ||
       p === '/api/auth/verify-mfa' ||
-      p === '/api/users/auth/verify-mfa')
+      p === '/api/users/auth/verify-mfa' ||
+      // Self-service password set/reset: pre-token by necessity (the whole point
+      // is the user cannot yet authenticate). The token in the body is the
+      // signed, single-purpose authorisation; /invite stays gated.
+      p === '/api/auth/set-password' ||
+      p === '/api/auth/forgot-password')
   ) {
     return true;
   }

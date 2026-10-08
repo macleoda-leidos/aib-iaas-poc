@@ -178,3 +178,27 @@ describe('Database Repositories', () => {
     });
   });
 });
+
+describe('UserRepository — role permission editing (E8)', () => {
+  let repos: Repositories;
+  beforeAll(() => { repos = createRepositories(); });
+  afterAll(() => { closeDatabase(); });
+
+  it('grants an existing permission code to a role (idempotent)', () => {
+    expect(repos.users.getPermissionsForRole('role-readonly').some(p => p.code === 'applications.update')).toBe(false);
+    expect(repos.users.grantPermission('role-readonly', 'applications.update')).toBe(true);
+    expect(repos.users.getPermissionsForRole('role-readonly').some(p => p.code === 'applications.update')).toBe(true);
+    expect(repos.users.grantPermission('role-readonly', 'applications.update')).toBe(true); // idempotent
+  });
+
+  it('revokes a permission from a role', () => {
+    repos.users.grantPermission('role-readonly', 'applications.export');
+    expect(repos.users.revokePermission('role-readonly', 'applications.export')).toBe(true);
+    expect(repos.users.getPermissionsForRole('role-readonly').some(p => p.code === 'applications.export')).toBe(false);
+  });
+
+  it('rejects an unknown permission code and an unknown role', () => {
+    expect(repos.users.grantPermission('role-readonly', 'not.a.real.permission')).toBe(false);
+    expect(repos.users.grantPermission('role-does-not-exist', 'applications.read')).toBe(false);
+  });
+});

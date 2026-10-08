@@ -156,6 +156,27 @@ export const applicationAssignSchema = z
   })
   .strict();
 
+// ─── User self-service (invite / password reset) ──
+
+export const setPasswordSchema = z
+  .object({
+    token: z.string().min(1, 'A set-password token is required'),
+    password: z.string().min(8, 'Password must be at least 8 characters').max(200),
+  })
+  .strict();
+
+export const forgotPasswordSchema = z
+  .object({
+    email: z.string().email('A valid email address is required'),
+  })
+  .strict();
+
+export const inviteUserSchema = z
+  .object({
+    userId: z.string().min(1, 'A userId is required'),
+  })
+  .strict();
+
 export type DebtorDetailsInput = z.infer<typeof debtorDetailsSchema>;
 export type ApplicationSubmissionInput = z.infer<typeof applicationSubmissionSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;

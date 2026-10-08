@@ -280,6 +280,34 @@ export class UserRepository {
     return !!row;
   }
 
+  /**
+   * Grant an existing permission (by code) to a role. Only grants are editable —
+   * the permission CODE set itself is fixed (the schema purges any code not in the
+   * canonical list on boot), so an unknown code returns false rather than being
+   * created. Idempotent. Returns false if the role or permission code is unknown.
+   */
+  grantPermission(roleId: string, permissionCode: string): boolean {
+    const perm = this.db.prepare('SELECT id FROM permissions WHERE code = ?').get(permissionCode) as any;
+    const role = this.db.prepare('SELECT id FROM roles WHERE id = ?').get(roleId) as any;
+    if (!perm || !role) return false;
+    this.db.prepare('INSERT OR IGNORE INTO role_permissions (role_id, permission_id) VALUES (?, ?)').run(roleId, perm.id);
+    return true;
+  }
+
+  /** Revoke a permission (by code) from a role. Returns true if a grant was removed. */
+  revokePermission(roleId: string, permissionCode: string): boolean {
+    const perm = this.db.prepare('SELECT id FROM permissions WHERE code = ?').get(permissionCode) as any;
+    if (!perm) return false;
+    const result = this.db.prepare('DELETE FROM role_permissions WHERE role_id = ? AND permission_id = ?').run(roleId, perm.id);
+    return result.changes > 0;
+  }
+
+  /** Set (or clear) a user's password hash — used by the invite / reset flow. */
+  setPasswordHash(userId: string, passwordHash: string): void {
+    const now = new Date().toISOString();
+    this.db.prepare('UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?').run(passwordHash, now, userId);
+  }
+
   // ─── Sessions ───────────────────────────────
 
   createSession(userId: string, token: string, expiresAt: string): Session {
