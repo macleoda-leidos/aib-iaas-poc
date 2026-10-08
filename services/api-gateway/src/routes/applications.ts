@@ -1,8 +1,8 @@
 import { Router, Response } from 'express';
-import { applications, audit, notes, users, notifications } from '../db';
+import { applications, audit, notes, users, notifications, claims } from '../db';
 import { optionalAuth, type AuthenticatedRequest } from '../middleware/rbac';
 import { signToken, verifyToken } from '@aib-iaas/auth';
-import { validate, applicationNotesSchema, applicationAssignSchema } from '@aib-iaas/validation';
+import { validate, applicationNotesSchema, applicationAssignSchema, claimCreateSchema } from '@aib-iaas/validation';
 
 // A read capability for a single application. Issued (signed) at create time and
 // returned to the creator; required to read an application back anonymously, so a
@@ -209,22 +209,32 @@ applicationsRouter.post('/', (req: AuthenticatedRequest, res: Response) => {
       return;
     }
 
+    // Adviser submit-on-behalf (UC-09 / US-011): a user who may create
+    // applications and declares authority to act for the client is recorded as
+    // the submitter, with the moment authority was declared. These are stamped
+    // from the verified token — never the request body — so they are stripped
+    // from the spread below along with ownership.
+    const onBehalf = Boolean(req.user && req.user.permissions.includes('applications.create') && req.body?.authorityDeclared === true);
+    const { authorityDeclared: _ad, submittedByUserId: _sb, authorityDeclaredAt: _at, ownerUserId: _ow, ...safeBody } = (req.body ?? {}) as Record<string, unknown>;
+
     const app = applications.create({
       status: 'draft',
-      ...req.body,
+      ...safeBody,
       // Stamp ownership from the verified token when present. Anonymous intake
       // (the public /apply journey) leaves it null, by design.
       ownerUserId: req.user?.userId ?? null,
+      submittedByUserId: onBehalf ? req.user!.userId : null,
+      authorityDeclaredAt: onBehalf ? new Date().toISOString() : null,
     });
 
     const actor = auditActor(req);
     audit.create({
       applicationId: app.id,
-      action: 'application_created',
+      action: onBehalf ? 'application_created_on_behalf' : 'application_created',
       actorId: actor.actorId,
       actorName: actor.actorName,
       actorType: actor.actorType,
-      details: { referenceNumber: app.referenceNumber },
+      details: { referenceNumber: app.referenceNumber, onBehalf },
     });
 
     // Return the read capability so the creator can retrieve this application
@@ -511,8 +521,10 @@ applicationsRouter.get('/', (req: AuthenticatedRequest, res: Response) => {
     const unassigned = assignedToParam === 'unassigned';
     const assignedTo = assignedToParam === 'me' ? req.user?.userId : (unassigned ? undefined : assignedToParam);
     const ownerUserId = isDebtor(req) ? req.user!.userId : undefined;
+    // Advisers see only the applications they submitted on behalf of clients.
+    const submittedByUserId = req.user?.role === 'money_adviser' ? req.user.userId : undefined;
 
-    const result = applications.list({ status, assignedTo, unassigned, ownerUserId, page, pageSize });
+    const result = applications.list({ status, assignedTo, unassigned, ownerUserId, submittedByUserId, page, pageSize });
 
     // Enrich with applicant summary where possible
     const enrichedData = result.data.map(app => {
@@ -604,6 +616,68 @@ applicationsRouter.get('/:id/notes', (req: AuthenticatedRequest, res: Response) 
     }
 
     res.json({ success: true, data: notes.findByApplication(existing.id) });
+  } catch (error: any) {
+    console.error('[Applications]', error);
+    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: process.env.NODE_ENV === 'production' ? 'An unexpected error occurred' : error.message } });
+  }
+});
+
+// Submit a creditor claim against an application (creditor action). The claim is
+// attributed to the creditor's organisation from the verified token, never the body.
+applicationsRouter.post('/:id/claims', validate(claimCreateSchema), (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    if (!req.user) {
+      res.status(401).json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Authentication required.' } });
+      return;
+    }
+    if (!req.user.permissions.includes('claims.create')) {
+      res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'You do not have permission to submit claims.', details: { required: ['claims.create'] } } });
+      return;
+    }
+    const existing = resolveApplication(id);
+    if (!existing) {
+      res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Application not found' } });
+      return;
+    }
+    const claim = claims.create({
+      applicationId: existing.id,
+      creditorOrgId: req.user.organisationId ?? null,
+      creditorUserId: req.user.userId,
+      amount: req.body.amount,
+      basis: req.body.basis ?? null,
+    });
+    audit.create({ applicationId: existing.id, action: 'claim_submitted', ...auditActor(req), details: { claimId: claim.id, amount: claim.amount } });
+    res.status(201).json({ success: true, data: claim });
+  } catch (error: any) {
+    console.error('[Applications]', error);
+    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: process.env.NODE_ENV === 'production' ? 'An unexpected error occurred' : error.message } });
+  }
+});
+
+// List the creditor claims on an application (claims.read). A creditor sees only
+// their own organisation's claims; staff see all.
+applicationsRouter.get('/:id/claims', (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    if (!req.user) {
+      res.status(401).json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Authentication required.' } });
+      return;
+    }
+    if (!req.user.permissions.includes('claims.read')) {
+      res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'You do not have permission to view claims.', details: { required: ['claims.read'] } } });
+      return;
+    }
+    const existing = resolveApplication(id);
+    if (!existing) {
+      res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Application not found' } });
+      return;
+    }
+    let list = claims.findByApplication(existing.id);
+    if (req.user.role === 'creditor') {
+      list = list.filter(c => c.creditorOrgId === req.user!.organisationId);
+    }
+    res.json({ success: true, data: list });
   } catch (error: any) {
     console.error('[Applications]', error);
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: process.env.NODE_ENV === 'production' ? 'An unexpected error occurred' : error.message } });

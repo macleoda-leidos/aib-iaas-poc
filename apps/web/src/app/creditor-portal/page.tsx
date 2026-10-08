@@ -1,9 +1,32 @@
 'use client';
 
 import { useState } from 'react';
+import { claims as claimsApi } from '../../lib/apiClient';
 
 export default function CreditorPortalPage() {
   const [showClaimForm, setShowClaimForm] = useState(false);
+  // Real claim-submission state (wired to POST /api/applications/:ref/claims).
+  const [claimRef, setClaimRef] = useState('');
+  const [claimDebtor, setClaimDebtor] = useState('');
+  const [claimAmount, setClaimAmount] = useState('');
+  const [claimBasis, setClaimBasis] = useState('');
+  const [claimState, setClaimState] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
+  const [claimMsg, setClaimMsg] = useState('');
+
+  const submitClaim = async () => {
+    if (!claimRef.trim() || !claimAmount.trim()) { setClaimState('error'); setClaimMsg('Enter a case reference and amount.'); return; }
+    const amount = parseFloat(claimAmount.replace(/[^0-9.]/g, ''));
+    if (!amount || amount <= 0) { setClaimState('error'); setClaimMsg('Enter a valid amount.'); return; }
+    setClaimState('saving'); setClaimMsg('');
+    try {
+      await claimsApi.submit(claimRef.trim(), amount, claimBasis.trim() || undefined);
+      setClaimState('success'); setClaimMsg(`Claim for £${amount.toLocaleString()} submitted against ${claimRef.trim()}.`);
+      setClaimRef(''); setClaimDebtor(''); setClaimAmount(''); setClaimBasis('');
+    } catch (e: any) {
+      setClaimState('error');
+      setClaimMsg(e?.status === 401 || e?.status === 403 ? 'Sign in as a creditor to submit a real claim.' : (e?.message || 'Could not submit claim.'));
+    }
+  };
 
   const kpis = [
     { label: 'Active Cases', value: '23', icon: '📋' },
@@ -47,9 +70,11 @@ export default function CreditorPortalPage() {
         <div data-demo="creditor-notice" className="bg-gray-800 border border-gray-700 border-l-4 border-l-blue-500 rounded-lg p-4">
           <p className="text-sm font-semibold text-white">Interface demonstration</p>
           <p className="text-sm text-gray-300 mt-1">
-            This screen shows the intended creditor interface using synthetic data. Cases,
-            dividend figures and proposals are illustrative only. Claim submission and voting on
-            proposals are not yet implemented.
+            This screen shows the creditor interface using synthetic data for the case list,
+            dividend figures and proposals. <strong>Claim submission is wired to the live claims
+            API</strong> — signed in as a creditor, &ldquo;Submit New Claim&rdquo; records a real
+            claim against the referenced application. Proposal voting and dividend schedules remain
+            illustrative.
           </p>
         </div>
 
@@ -87,27 +112,35 @@ export default function CreditorPortalPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm text-gray-400 mb-1">Debtor Name</label>
-                  <input type="text" className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white" placeholder="Enter debtor name" />
+                  <input value={claimDebtor} onChange={e => setClaimDebtor(e.target.value)} type="text" className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white" placeholder="Enter debtor name" />
                 </div>
                 <div>
                   <label className="block text-sm text-gray-400 mb-1">Case Reference</label>
-                  <input type="text" className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white" placeholder="IAAS-2026-XXXXX" />
+                  <input value={claimRef} onChange={e => setClaimRef(e.target.value)} type="text" className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white" placeholder="IAAS-2026-XXXXX" />
                 </div>
                 <div>
                   <label className="block text-sm text-gray-400 mb-1">Amount Owed</label>
-                  <input type="text" className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white" placeholder="£0.00" />
+                  <input value={claimAmount} onChange={e => setClaimAmount(e.target.value)} type="text" className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white" placeholder="£0.00" />
                 </div>
                 <div>
-                  <label className="block text-sm text-gray-400 mb-1">Debt Type</label>
-                  <select className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white">
-                    <option>Loan</option>
-                    <option>Credit Card</option>
-                    <option>Overdraft</option>
-                    <option>Mortgage Shortfall</option>
-                  </select>
+                  <label className="block text-sm text-gray-400 mb-1">Basis of claim</label>
+                  <input value={claimBasis} onChange={e => setClaimBasis(e.target.value)} type="text" className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white" placeholder="e.g. Credit card arrears" />
                 </div>
               </div>
-              <p data-demo="creditor-claim-placeholder" className="text-gray-500 text-sm mt-4 italic">This form is a placeholder for demonstration purposes.</p>
+              <div className="mt-4 flex flex-wrap items-center gap-3">
+                <button
+                  onClick={submitClaim}
+                  disabled={claimState === 'saving'}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors disabled:opacity-60"
+                >
+                  {claimState === 'saving' ? 'Submitting…' : 'Submit claim'}
+                </button>
+                {/* Status line; keeps the demo hook. Submits for real to the claims
+                    API when signed in as a creditor, otherwise explains why not. */}
+                <p data-demo="creditor-claim-placeholder" className={`text-sm italic ${claimState === 'success' ? 'text-green-400' : claimState === 'error' ? 'text-amber-400' : 'text-gray-400'}`}>
+                  {claimMsg || 'Submits to the claims API when signed in as a creditor.'}
+                </p>
+              </div>
             </div>
           )}
 

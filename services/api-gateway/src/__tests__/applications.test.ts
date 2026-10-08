@@ -262,6 +262,57 @@ describe('API Gateway - Applications', () => {
     expect(notesRes.data.data.some((n: any) => n.content === 'via ref')).toBe(true);
   });
 
+  it('creditor submits a claim; staff reads and accepts it (E7b)', async () => {
+    const creditor = signToken(buildClaims({ id: 'cred-1', email: 'c@rbs.example', roleName: 'creditor', roleLevel: 30, organisationId: 'org-rbs' }, ['applications.read', 'claims.create', 'claims.read']));
+    const manager = signToken(buildClaims({ id: 'mgr-1', email: 'm@aib.example', roleName: 'aib_officer', roleLevel: 60, organisationId: 'org-aib' }, ['applications.read', 'claims.read', 'claims.manage']));
+    const create = await request('POST', '/api/applications', { applicant: { firstName: 'Claim', lastName: 'Target' } });
+    const id = create.data.data.id;
+
+    const submit = await request('POST', `/api/applications/${id}/claims`, { amount: 5000, basis: 'Credit card arrears' }, { Authorization: `Bearer ${creditor}` });
+    expect(submit.status).toBe(201);
+    expect(submit.data.data.status).toBe('submitted');
+    const claimId = submit.data.data.id;
+
+    const list = await request('GET', `/api/applications/${id}/claims`, undefined, { Authorization: `Bearer ${manager}` });
+    expect(list.status).toBe(200);
+    expect(list.data.data.some((c: any) => c.id === claimId)).toBe(true);
+
+    const decide = await request('PATCH', `/api/claims/${claimId}`, { status: 'accepted' }, { Authorization: `Bearer ${manager}` });
+    expect(decide.status).toBe(200);
+    expect(decide.data.data.status).toBe('accepted');
+  });
+
+  it('rejects a claim submission without claims.create (403)', async () => {
+    const create = await request('POST', '/api/applications', { applicant: { firstName: 'No', lastName: 'Claim' } });
+    const id = create.data.data.id;
+    const weak = signToken(buildClaims({ id: 'ro-claim', email: 'ro@x.example', roleName: 'aib_readonly', roleLevel: 20 }, ['applications.read', 'claims.read']));
+    const res = await request('POST', `/api/applications/${id}/claims`, { amount: 100 }, { Authorization: `Bearer ${weak}` });
+    expect(res.status).toBe(403);
+  });
+
+  it('records an adviser submit-on-behalf and scopes the adviser caseload (E7a)', async () => {
+    const adviser = signToken(buildClaims({ id: 'adv-1', email: 'adv@cas.example', roleName: 'money_adviser', roleLevel: 50, organisationId: 'org-cas' }, ['applications.create', 'applications.read', 'applications.submit']));
+    const create = await request('POST', '/api/applications', { applicant: { firstName: 'Client', lastName: 'OnBehalf' }, authorityDeclared: true }, { Authorization: `Bearer ${adviser}` });
+    expect(create.status).toBe(201);
+    const id = create.data.data.id;
+    expect(create.data.data.submittedByUserId).toBe('adv-1');
+    expect(create.data.data.authorityDeclaredAt).toBeTruthy();
+
+    const list = await request('GET', '/api/applications?pageSize=200', undefined, { Authorization: `Bearer ${adviser}` });
+    expect(list.status).toBe(200);
+    expect(list.data.data.length).toBeGreaterThan(0);
+    expect(list.data.data.every((a: any) => a.submittedByUserId === 'adv-1')).toBe(true);
+    expect(list.data.data.some((a: any) => a.id === id)).toBe(true);
+  });
+
+  it('does not let the submitter fields be injected via the create body', async () => {
+    const adviser = signToken(buildClaims({ id: 'adv-2', email: 'adv2@cas.example', roleName: 'money_adviser', roleLevel: 50, organisationId: 'org-cas' }, ['applications.create', 'applications.read']));
+    const create = await request('POST', '/api/applications', { applicant: { firstName: 'Spoof', lastName: 'Attempt' }, submittedByUserId: 'victim', authorityDeclaredAt: '2020-01-01' }, { Authorization: `Bearer ${adviser}` });
+    expect(create.status).toBe(201);
+    // No authorityDeclared → not on-behalf → submitter is null, never the body value.
+    expect(create.data.data.submittedByUserId).toBeNull();
+  });
+
   describe('ownership (H1) and attribution (H3)', () => {
     const debtorA = signToken(buildClaims({ id: 'debtor-A', email: 'a@debtor.example', roleName: 'debtor', roleLevel: 10 }, ['applications.read']));
     const debtorB = signToken(buildClaims({ id: 'debtor-B', email: 'b@debtor.example', roleName: 'debtor', roleLevel: 10 }, ['applications.read']));

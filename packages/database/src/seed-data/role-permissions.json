@@ -26,7 +26,10 @@
       "documents.delete",
       "credit_check.read",
       "credit_check.run",
-      "system.admin"
+      "system.admin",
+      "claims.create",
+      "claims.read",
+      "claims.manage"
     ]
   },
   {
@@ -48,7 +51,9 @@
       "reports.export",
       "documents.read",
       "documents.create",
-      "credit_check.read"
+      "credit_check.read",
+      "claims.read",
+      "claims.manage"
     ]
   },
   {
@@ -73,7 +78,9 @@
       "reports.read",
       "documents.read",
       "documents.create",
-      "credit_check.read"
+      "credit_check.read",
+      "claims.read",
+      "claims.manage"
     ]
   },
   {
@@ -109,7 +116,9 @@
     "roleId": "role-creditor",
     "permissions": [
       "applications.read",
-      "organisations.read"
+      "organisations.read",
+      "claims.create",
+      "claims.read"
     ]
   },
   {
@@ -118,7 +127,8 @@
       "applications.read",
       "organisations.read",
       "audit.read",
-      "reports.read"
+      "reports.read",
+      "claims.read"
     ]
   },
   {

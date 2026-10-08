@@ -220,6 +220,23 @@ export function initializeSchema(db: Database.Database): void {
       FOREIGN KEY (application_id) REFERENCES applications(id) ON DELETE CASCADE
     );
 
+    -- ─── Creditor claims ───────────────────────
+    -- A creditor's claim against an application (amount + basis), reviewed by
+    -- staff (accept/reject). Net-new resource for the creditor portal build-out.
+
+    CREATE TABLE IF NOT EXISTS claims (
+      id TEXT PRIMARY KEY,
+      application_id TEXT NOT NULL,
+      creditor_org_id TEXT,
+      creditor_user_id TEXT,
+      amount REAL NOT NULL,
+      basis TEXT,
+      status TEXT NOT NULL DEFAULT 'submitted',
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (application_id) REFERENCES applications(id) ON DELETE CASCADE
+    );
+
     -- ─── Recommendations ───────────────────────
 
     CREATE TABLE IF NOT EXISTS recommendations (
@@ -303,6 +320,8 @@ export function initializeSchema(db: Database.Database): void {
     CREATE INDEX IF NOT EXISTS idx_assets_app ON assets(application_id);
     CREATE INDEX IF NOT EXISTS idx_documents_app ON documents(application_id);
     CREATE INDEX IF NOT EXISTS idx_notes_app ON notes(application_id);
+    CREATE INDEX IF NOT EXISTS idx_claims_app ON claims(application_id);
+    CREATE INDEX IF NOT EXISTS idx_claims_org ON claims(creditor_org_id);
     CREATE INDEX IF NOT EXISTS idx_notif_user ON notifications(user_id);
     CREATE INDEX IF NOT EXISTS idx_notif_read ON notifications(user_id, read);
     CREATE INDEX IF NOT EXISTS idx_audit_app ON audit_events(application_id);
@@ -316,6 +335,10 @@ export function initializeSchema(db: Database.Database): void {
   // older schema, so columns added after first deploy have to be ALTERed in.
   addColumnIfMissing(db, 'users', 'mfa_secret', 'TEXT');
   addColumnIfMissing(db, 'applications', 'owner_user_id', 'TEXT');
+  // Adviser submit-on-behalf (UC-09 / US-011): who submitted, and when authority
+  // to act for the client was declared.
+  addColumnIfMissing(db, 'applications', 'submitted_by_user_id', 'TEXT');
+  addColumnIfMissing(db, 'applications', 'authority_declared_at', 'TEXT');
 
   // Roles, permissions and grants come from ./rbac so that SQLite and PostgreSQL
   // grant identical access. This used to be a hand-maintained list here, which

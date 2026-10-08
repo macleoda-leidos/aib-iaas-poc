@@ -177,6 +177,21 @@ export const inviteUserSchema = z
   })
   .strict();
 
+// ─── Creditor claims ──
+
+export const claimCreateSchema = z
+  .object({
+    amount: z.number().positive('Claim amount must be positive'),
+    basis: z.string().max(1000).optional(),
+  })
+  .strict();
+
+export const claimUpdateSchema = z
+  .object({
+    status: z.enum(['accepted', 'rejected']),
+  })
+  .strict();
+
 export type DebtorDetailsInput = z.infer<typeof debtorDetailsSchema>;
 export type ApplicationSubmissionInput = z.infer<typeof applicationSubmissionSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;

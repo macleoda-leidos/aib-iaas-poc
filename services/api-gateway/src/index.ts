@@ -6,6 +6,7 @@ import { applicationsRouter } from './routes/applications';
 import { postcodeRouter } from './routes/postcode';
 import { authRouter } from './routes/auth';
 import { oidcRouter } from './oidc/router';
+import { claimsRouter } from './routes/claims';
 import { reportsRouter } from './routes/reports';
 import { reportsExportRouter } from './routes/reports-export';
 import { errorHandler } from './middleware/errorHandler';
@@ -57,6 +58,7 @@ app.use(enforceAuthentication);
 // authRouter are untouched).
 app.use('/api/auth/oidc', oidcRouter);
 app.use('/api/auth', authRouter);
+app.use('/api/claims', claimsRouter);
 app.use('/api/applications', applicationsRouter);
 app.use('/api/postcode', postcodeRouter);
 app.use('/api/reports/export', reportsExportRouter); // Public for POC demo (must be before auth-protected route)

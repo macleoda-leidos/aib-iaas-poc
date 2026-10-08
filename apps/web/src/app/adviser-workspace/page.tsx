@@ -2,9 +2,40 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { applications as applicationsApi } from '../../lib/apiClient';
 
 export default function AdviserWorkspacePage() {
   const [searchTerm, setSearchTerm] = useState('');
+  // Submit-on-behalf (UC-09 / US-011): capture a declaration of authority, then
+  // create a real draft recorded against the adviser as submitter.
+  const [showDecl, setShowDecl] = useState(false);
+  const [clientFirst, setClientFirst] = useState('');
+  const [clientLast, setClientLast] = useState('');
+  const [authorityConfirmed, setAuthorityConfirmed] = useState(false);
+  const [declState, setDeclState] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
+  const [declMsg, setDeclMsg] = useState('');
+  const [createdRef, setCreatedRef] = useState('');
+
+  const submitOnBehalf = async () => {
+    if (!clientFirst.trim() || !clientLast.trim()) { setDeclState('error'); setDeclMsg('Enter the client’s name.'); return; }
+    if (!authorityConfirmed) { setDeclState('error'); setDeclMsg('You must confirm you have the client’s authority to act.'); return; }
+    setDeclState('saving'); setDeclMsg('');
+    try {
+      const res = await applicationsApi.create({ authorityDeclared: true, applicant: { firstName: clientFirst.trim(), lastName: clientLast.trim() } });
+      const anyData = res.data as any;
+      if (anyData?.submittedByUserId) {
+        setCreatedRef(anyData.referenceNumber || '');
+        setDeclState('success');
+        setDeclMsg(`Draft ${anyData.referenceNumber || ''} created on behalf of ${clientFirst.trim()} ${clientLast.trim()}, authority recorded.`);
+      } else {
+        setDeclState('error');
+        setDeclMsg('Draft created, but sign in as a money adviser to record the authority declaration against your caseload.');
+      }
+    } catch (e: any) {
+      setDeclState('error');
+      setDeclMsg(e?.message || 'Could not create the application.');
+    }
+  };
 
   const clients = [
     { name: 'Margaret Douglas', ref: 'IAAS-2026-00012', product: 'DAS', status: 'Active', lastContact: '18 Aug 2026', nextAction: 'Annual review' },
@@ -68,10 +99,11 @@ export default function AdviserWorkspacePage() {
         <div data-demo="adviser-notice" className="bg-gray-800 border border-gray-700 border-l-4 border-l-blue-500 rounded-lg p-4">
           <p className="text-sm font-semibold text-white">Interface demonstration</p>
           <p className="text-sm text-gray-300 mt-1">
-            This screen shows the intended money adviser interface using synthetic data. Client
-            records, appointments and activity are illustrative only. Creating clients and
-            submitting an application on behalf of a named client with a recorded declaration of
-            authority are not yet implemented.
+            Client records, appointments and activity shown here are synthetic.
+            <strong> &ldquo;Submit on Behalf&rdquo; is wired to the live API</strong> — signed in as
+            a money adviser it records a declaration of authority and creates a real draft attributed
+            to you as the submitter (UC-09). The full apply wizard integration and the standalone
+            &ldquo;New Client&rdquo; register remain illustrative.
           </p>
         </div>
 
@@ -95,13 +127,13 @@ export default function AdviserWorkspacePage() {
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-semibold">My Clients</h2>
             <div className="flex gap-3">
-              <Link
-                href="/apply"
-                title="Opens the standard application wizard. It does not yet carry client context or an authority declaration."
+              <button
+                type="button"
+                onClick={() => { setShowDecl(v => !v); setDeclState('idle'); setDeclMsg(''); setCreatedRef(''); }}
                 className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
               >
                 Submit on Behalf
-              </Link>
+              </button>
               {/* Kept visible but disabled: the capability is part of the intended design, and
                   hiding it would lose that from the demonstration. Removing the handler-less
                   button entirely was the alternative. */}
@@ -116,6 +148,37 @@ export default function AdviserWorkspacePage() {
               </button>
             </div>
           </div>
+
+          {/* Submit-on-behalf: authority declaration → real on-behalf draft */}
+          {showDecl && (
+            <div className="bg-gray-800 border border-gray-700 rounded-lg p-6 mb-4">
+              <h3 className="text-lg font-medium mb-1">New application on behalf of a client</h3>
+              <p className="text-sm text-gray-400 mb-4">Record the client’s details and your declaration of authority (UC-09). This creates a real draft attributed to you as the submitter.</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1">Client first name</label>
+                  <input value={clientFirst} onChange={e => setClientFirst(e.target.value)} className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white" placeholder="First name" />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1">Client last name</label>
+                  <input value={clientLast} onChange={e => setClientLast(e.target.value)} className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white" placeholder="Last name" />
+                </div>
+              </div>
+              <label className="flex items-start gap-2 mb-4 cursor-pointer">
+                <input type="checkbox" checked={authorityConfirmed} onChange={e => setAuthorityConfirmed(e.target.checked)} className="mt-1 w-4 h-4" />
+                <span className="text-sm text-gray-200">I confirm I have the client’s authority to act on their behalf, and that the information provided is accurate.</span>
+              </label>
+              <div className="flex flex-wrap items-center gap-3">
+                <button onClick={submitOnBehalf} disabled={declState === 'saving'} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium disabled:opacity-60">
+                  {declState === 'saving' ? 'Creating…' : 'Create draft on behalf'}
+                </button>
+                {createdRef && (
+                  <Link href={`/case/${createdRef}`} className="text-sm text-blue-400 underline">Open {createdRef}</Link>
+                )}
+                {declMsg && <span className={`text-sm italic ${declState === 'success' ? 'text-green-400' : 'text-amber-400'}`}>{declMsg}</span>}
+              </div>
+            </div>
+          )}
 
           {/* Client Search */}
           <div className="mb-4">

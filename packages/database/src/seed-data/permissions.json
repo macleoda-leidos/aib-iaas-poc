@@ -198,5 +198,29 @@
     "description": "Full system configuration access",
     "resource": "system",
     "action": "admin"
+  },
+  {
+    "id": "perm-claims-create",
+    "code": "claims.create",
+    "name": "Submit Claims",
+    "description": "Submit a creditor claim against an application",
+    "resource": "claims",
+    "action": "create"
+  },
+  {
+    "id": "perm-claims-read",
+    "code": "claims.read",
+    "name": "Read Claims",
+    "description": "View creditor claims on an application",
+    "resource": "claims",
+    "action": "read"
+  },
+  {
+    "id": "perm-claims-manage",
+    "code": "claims.manage",
+    "name": "Manage Claims",
+    "description": "Accept or reject creditor claims",
+    "resource": "claims",
+    "action": "manage"
   }
 ]

@@ -347,6 +347,31 @@ export const users = {
   },
 };
 
+// ─── Creditor claims ─────────────────────────────────────────────────────────
+
+export interface Claim {
+  id: string;
+  applicationId: string;
+  creditorOrgId: string | null;
+  amount: number;
+  basis: string | null;
+  status: string;
+  createdAt: string;
+}
+
+export const claims = {
+  submit: (applicationRef: string, amount: number, basis?: string) =>
+    apiPost<Claim>(`/api/applications/${applicationRef}/claims`, { amount, basis }),
+
+  listForApplication: (applicationRef: string) =>
+    apiGet<Claim[]>(`/api/applications/${applicationRef}/claims`),
+
+  listMine: () => apiGet<Claim[]>(`/api/claims/mine`),
+
+  decide: (claimId: string, status: 'accepted' | 'rejected') =>
+    apiPatch<Claim>(`/api/claims/${claimId}`, { status }),
+};
+
 // ─── Integration / System Checks ────────────────────────────────────────────
 
 export interface SystemCheckResult {

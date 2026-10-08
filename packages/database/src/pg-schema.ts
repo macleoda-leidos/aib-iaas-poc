@@ -10,7 +10,7 @@ export async function initPgSchema(pool: Pool): Promise<void> {
     ALTER TABLE users ADD COLUMN IF NOT EXISTS mfa_secret TEXT;
     ALTER TABLE applications ADD COLUMN IF NOT EXISTS owner_user_id TEXT;
     CREATE TABLE IF NOT EXISTS sessions (id TEXT PRIMARY KEY, user_id TEXT REFERENCES users(id) ON DELETE CASCADE, token TEXT UNIQUE NOT NULL, expires_at TIMESTAMPTZ NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW());
-    CREATE TABLE IF NOT EXISTS applications (id TEXT PRIMARY KEY, reference_number TEXT UNIQUE NOT NULL, status TEXT DEFAULT 'draft', system_checks TEXT, credit_check TEXT, assigned_to TEXT, submitted_at TIMESTAMPTZ, created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW());
+    CREATE TABLE IF NOT EXISTS applications (id TEXT PRIMARY KEY, reference_number TEXT UNIQUE NOT NULL, status TEXT DEFAULT 'draft', system_checks TEXT, credit_check TEXT, assigned_to TEXT, submitted_by_user_id TEXT, authority_declared_at TIMESTAMPTZ, submitted_at TIMESTAMPTZ, created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW());
     CREATE TABLE IF NOT EXISTS applicants (id TEXT PRIMARY KEY, application_id TEXT UNIQUE REFERENCES applications(id) ON DELETE CASCADE, title TEXT, first_name TEXT NOT NULL, last_name TEXT NOT NULL, date_of_birth TEXT, ni_number TEXT, marital_status TEXT, dependants INTEGER DEFAULT 0, employment TEXT, email TEXT, phone TEXT);
     CREATE TABLE IF NOT EXISTS addresses (id TEXT PRIMARY KEY, application_id TEXT REFERENCES applications(id) ON DELETE CASCADE, line1 TEXT NOT NULL, line2 TEXT, city TEXT NOT NULL, postcode TEXT NOT NULL, is_current BOOLEAN DEFAULT false, resident_from TEXT, resident_to TEXT);
     CREATE TABLE IF NOT EXISTS debts (id TEXT PRIMARY KEY, application_id TEXT REFERENCES applications(id) ON DELETE CASCADE, creditor TEXT NOT NULL, type TEXT NOT NULL, amount DOUBLE PRECISION NOT NULL, monthly_payment DOUBLE PRECISION DEFAULT 0, account_ref TEXT);
@@ -22,13 +22,15 @@ export async function initPgSchema(pool: Pool): Promise<void> {
     CREATE TABLE IF NOT EXISTS payments (id TEXT PRIMARY KEY, application_id TEXT REFERENCES applications(id), amount DOUBLE PRECISION NOT NULL, currency TEXT DEFAULT 'GBP', status TEXT DEFAULT 'pending', provider TEXT, provider_ref TEXT, paid_at TIMESTAMPTZ, created_at TIMESTAMPTZ DEFAULT NOW());
     CREATE TABLE IF NOT EXISTS notes (id TEXT PRIMARY KEY, application_id TEXT REFERENCES applications(id) ON DELETE CASCADE, author_id TEXT, author_name TEXT, note_type TEXT NOT NULL DEFAULT 'general', content TEXT NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW());
     CREATE TABLE IF NOT EXISTS notifications (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, type TEXT NOT NULL DEFAULT 'info', channel TEXT NOT NULL DEFAULT 'in_app', subject TEXT NOT NULL, body TEXT NOT NULL, link TEXT, read INTEGER NOT NULL DEFAULT 0, sent_at TIMESTAMPTZ DEFAULT NOW(), read_at TIMESTAMPTZ, expires_at TIMESTAMPTZ, metadata TEXT);
+    CREATE TABLE IF NOT EXISTS claims (id TEXT PRIMARY KEY, application_id TEXT REFERENCES applications(id) ON DELETE CASCADE, creditor_org_id TEXT, creditor_user_id TEXT, amount DOUBLE PRECISION NOT NULL, basis TEXT, status TEXT NOT NULL DEFAULT 'submitted', created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW());
     CREATE INDEX IF NOT EXISTS idx_notes_app ON notes(application_id);
     CREATE INDEX IF NOT EXISTS idx_notif_user ON notifications(user_id);
+    CREATE INDEX IF NOT EXISTS idx_claims_app ON claims(application_id);
     CREATE INDEX IF NOT EXISTS idx_applications_status ON applications(status);
     CREATE INDEX IF NOT EXISTS idx_applications_ref ON applications(reference_number);
     CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
     CREATE INDEX IF NOT EXISTS idx_audit_app ON audit_events(application_id);
     CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON audit_events(timestamp);
   `);
-  console.log('[PostgreSQL] Schema initialized (18 tables + 7 indexes)');
+  console.log('[PostgreSQL] Schema initialized (19 tables + 8 indexes)');
 }
