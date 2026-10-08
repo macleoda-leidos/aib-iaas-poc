@@ -415,6 +415,10 @@ export function initializeSchema(db: Database.Database): void {
     ['user-cyberops', 'david.chen@aib.gov.uk', 'David', 'Chen', 'role-cyberops', 'org-aib', 0],
     ['user-stats', 'stats@aib.gov.uk', 'Analytics', 'User', 'role-statistician', 'org-aib', 0],
     ['user-adviser', 'adviser@cas.example.org', 'Karen', 'MacLeod', 'role-adviser', 'org-cas', 0],
+    // Creditor demo account used by the login page (debt.recovery@rbs.co.uk).
+    // Previously only present in the full JSON seed, so on the inline-seeded
+    // deployed database the creditor demo login failed with "invalid credentials".
+    ['user-creditor', 'debt.recovery@rbs.co.uk', 'Karen', 'Wallace', 'role-creditor', 'org-creditor-1', 0],
     ['user-debtor', 'john.testerton@example.com', 'John', 'Testerton', 'role-debtor', null, 0],
   ];
   const insertInlineUser = db.prepare(`

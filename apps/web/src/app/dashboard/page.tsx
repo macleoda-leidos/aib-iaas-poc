@@ -146,6 +146,23 @@ function AuthBanner() {
 export default function DashboardPage() {
   const [selectedUser, setSelectedUser] = useState(DEMO_USERS[0]);
 
+  // Default the view to the user who actually signed in (stored as
+  // iaas-current-user at login), mapping their role to the matching demo profile.
+  // Previously this always defaulted to the Admin profile, so every role saw the
+  // AiB admin dashboard. The role switcher below remains for the POC demo.
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('iaas-current-user') || sessionStorage.getItem('iaas-current-user');
+      if (!raw) return;
+      const u = JSON.parse(raw);
+      const role = String(u.role || '').toLowerCase();
+      // aib_readonly has no dedicated demo profile — fold it onto the case-officer view.
+      const effectiveRole = role === 'aib_readonly' ? 'aib_officer' : role;
+      const match = DEMO_USERS.find(d => d.role === effectiveRole);
+      if (match) setSelectedUser({ ...match, name: u.name || match.name });
+    } catch { /* no/invalid stored user — keep the default */ }
+  }, []);
+
   return (
     <div className="gov-main">
       {/* Auth Banner */}

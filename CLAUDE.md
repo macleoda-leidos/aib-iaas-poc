@@ -79,7 +79,7 @@ npm workspaces monorepo with three workspace directories (`apps/*`, `services/*`
 
 ## Testing
 
-`npx vitest run` from the repo root runs everything: **1003 tests across 55 files** (688 backend across 43 files, 315 frontend across 12 files).
+`npx vitest run` from the repo root runs everything: **1004 tests across 55 files** (689 backend across 43 files, 315 frontend across 12 files).
 
 Note: the jsdom frontend suites require **Node ≥ 20.19** (or ≥ 22.12) — jsdom 29 pulls in an ESM-only transitive dep (`@exodus/bytes`, via `html-encoding-sniffer`) that older Node reaches through `require()`. On Node 20.18 and earlier the frontend files fail to load with `ERR_REQUIRE_ESM`; the backend suites are unaffected. CI's `node-version: 20` resolves to a 20.19+ runtime, so this only bites local runs on an older Node.
 

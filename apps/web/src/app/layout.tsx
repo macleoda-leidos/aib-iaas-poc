@@ -52,6 +52,7 @@ import { ThemeToggle } from './ThemeToggle';
 import { LanguageToggle, LanguageProvider } from './LanguageToggle';
 import { Providers } from './Providers';
 import { UserNavItem } from './UserNavItem';
+import { StaffNavItems } from './StaffNavItems';
 import ApiStatusBar, { ApiStatusProvider } from './ApiStatus';
 import AiChatbot from './components/AiChatbot';
 import DemoMode from './components/DemoMode';
@@ -112,9 +113,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 <NavItem href="/apply">Apply</NavItem>
                 <NavItem href="/dashboard">Dashboard</NavItem>
                 <NavItem href="/portal">Portal</NavItem>
-                <NavItem href="/statistics">Statistics</NavItem>
-                <NavItem href="/security">Security</NavItem>
-                <NavItem href="/admin">Admin</NavItem>
+                {/* Statistics / Security / Admin are AiB-staff-only (client-gated by
+                    the signed-in role) — hidden from creditors, advisers, debtors. */}
+                <StaffNavItems />
                 <NavItem href="/architecture">Architecture</NavItem>
                 <NavItem href="/api-docs">API Docs</NavItem>
                 <li className="flex items-center"><NotificationBell /></li>

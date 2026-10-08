@@ -40,6 +40,15 @@ describe('API Gateway - Auth', () => {
     expect(res.data.data.user.permissions.length).toBeGreaterThan(0);
   });
 
+  it('POST /api/auth/login signs in the seeded creditor demo account', async () => {
+    // Regression: the creditor demo account existed only in the full JSON seed,
+    // so on the inline-seeded (deployed) database the creditor login failed.
+    const res = await request('POST', '/api/auth/login', { email: 'debt.recovery@rbs.co.uk', password: 'demo' });
+    expect(res.status).toBe(200);
+    expect(res.data.data.token).toBeDefined();
+    expect(res.data.data.user.role).toBe('creditor');
+  });
+
   it('POST /api/auth/login rejects a wrong password', async () => {
     const res = await request('POST', '/api/auth/login', { email: 'adviser@cas.example.org', password: 'not-the-password' });
     expect(res.status).toBe(401);
