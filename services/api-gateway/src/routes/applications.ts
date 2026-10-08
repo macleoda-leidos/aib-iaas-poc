@@ -45,6 +45,19 @@ applicationsRouter.use(optionalAuth);
 // returns 404, not 403, so the endpoint never confirms that an id it will not
 // show you exists.
 
+/**
+ * Resolve an application by its opaque id OR its reference number
+ * (IAAS-YYYY-NNNNN). The case screen and the staff queue address applications by
+ * reference number, while the create/capability flow uses the id — so accepting
+ * both means a staff action from the case screen (which only knows the reference)
+ * actually persists instead of 404-ing. Anonymous capability reads are unaffected:
+ * GET /:id still runs its capability check against the id in the URL, so a
+ * reference number cannot be used to bypass it.
+ */
+function resolveApplication(idOrRef: string) {
+  return applications.findById(idOrRef) || applications.findByReference(idOrRef);
+}
+
 function isDebtor(req: AuthenticatedRequest): boolean {
   return req.user?.role === 'debtor';
 }
@@ -230,7 +243,8 @@ applicationsRouter.post('/', (req: AuthenticatedRequest, res: Response) => {
 applicationsRouter.get('/:id', (req: AuthenticatedRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const app = applications.getWithRelations(id);
+    const base = resolveApplication(id);
+    const app = base ? applications.getWithRelations(base.id) : null;
 
     if (!app) {
       res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Application not found' } });
@@ -258,7 +272,7 @@ applicationsRouter.get('/:id', (req: AuthenticatedRequest, res: Response) => {
 applicationsRouter.put('/:id', (req: AuthenticatedRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const existing = applications.findById(id);
+    const existing = resolveApplication(id);
 
     if (!existing) {
       res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Application not found' } });
@@ -286,10 +300,10 @@ applicationsRouter.put('/:id', (req: AuthenticatedRequest, res: Response) => {
       return;
     }
 
-    const updated = applications.update(id, req.body);
+    const updated = applications.update(existing.id, req.body);
 
     audit.create({
-      applicationId: id,
+      applicationId: existing.id,
       action: 'application_updated',
       ...auditActor(req),
     });
@@ -305,7 +319,7 @@ applicationsRouter.put('/:id', (req: AuthenticatedRequest, res: Response) => {
 applicationsRouter.post('/:id/submit', (req: AuthenticatedRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const existing = applications.findById(id);
+    const existing = resolveApplication(id);
 
     if (!existing) {
       res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Application not found' } });
@@ -314,11 +328,11 @@ applicationsRouter.post('/:id/submit', (req: AuthenticatedRequest, res: Response
 
     if (!enforceOwnership(req, res, existing.ownerUserId)) return;
 
-    applications.updateStatus(id, 'submitted');
-    applications.update(id, { submittedAt: new Date().toISOString() });
+    applications.updateStatus(existing.id, 'submitted');
+    applications.update(existing.id, { submittedAt: new Date().toISOString() });
 
     audit.create({
-      applicationId: id,
+      applicationId: existing.id,
       action: 'application_submitted',
       ...auditActor(req),
     });
@@ -376,7 +390,7 @@ applicationsRouter.patch('/:id/status', (req: AuthenticatedRequest, res: Respons
       recommendation_issued: ['approved', 'rejected', 'additional_info_required'],
     };
 
-    const existing = applications.findById(id);
+    const existing = resolveApplication(id);
     if (!existing) {
       res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Application not found' } });
       return;
@@ -391,10 +405,10 @@ applicationsRouter.patch('/:id/status', (req: AuthenticatedRequest, res: Respons
       return;
     }
 
-    applications.updateStatus(id, status);
+    applications.updateStatus(existing.id, status);
 
     audit.create({
-      applicationId: id,
+      applicationId: existing.id,
       action: `status_changed_to_${status}`,
       ...auditActor(req),
       details: { previousStatus: existing.status, notes },
@@ -439,7 +453,7 @@ applicationsRouter.patch('/:id/assign', validate(applicationAssignSchema), (req:
       return;
     }
 
-    const existing = applications.findById(id);
+    const existing = resolveApplication(id);
     if (!existing) {
       res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Application not found' } });
       return;
@@ -458,10 +472,10 @@ applicationsRouter.patch('/:id/assign', validate(applicationAssignSchema), (req:
       assigneeName = assignee.displayName || `${assignee.firstName} ${assignee.lastName}`;
     }
 
-    applications.update(id, { assignedTo: assigneeId });
+    applications.update(existing.id, { assignedTo: assigneeId });
 
     audit.create({
-      applicationId: id,
+      applicationId: existing.id,
       action: assigneeId ? 'assigned' : 'unassigned',
       ...auditActor(req),
       details: { previousAssignee: existing.assignedTo ?? null, assignedTo: assigneeId, assigneeName },
@@ -538,14 +552,14 @@ applicationsRouter.post('/:id/notes', validate(applicationNotesSchema), (req: Au
       return;
     }
 
-    const existing = applications.findById(id);
+    const existing = resolveApplication(id);
     if (!existing) {
       res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Application not found' } });
       return;
     }
 
     const saved = notes.create({
-      applicationId: id,
+      applicationId: existing.id,
       authorId: req.user.userId,
       authorName: req.user.email,
       noteType: noteType || 'general',
@@ -553,7 +567,7 @@ applicationsRouter.post('/:id/notes', validate(applicationNotesSchema), (req: Au
     });
 
     audit.create({
-      applicationId: id,
+      applicationId: existing.id,
       action: 'note_added',
       ...auditActor(req),
       details: { noteType: saved.noteType, noteId: saved.id, content },
@@ -583,13 +597,13 @@ applicationsRouter.get('/:id/notes', (req: AuthenticatedRequest, res: Response) 
       return;
     }
 
-    const existing = applications.findById(id);
+    const existing = resolveApplication(id);
     if (!existing) {
       res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Application not found' } });
       return;
     }
 
-    res.json({ success: true, data: notes.findByApplication(id) });
+    res.json({ success: true, data: notes.findByApplication(existing.id) });
   } catch (error: any) {
     console.error('[Applications]', error);
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: process.env.NODE_ENV === 'production' ? 'An unexpected error occurred' : error.message } });

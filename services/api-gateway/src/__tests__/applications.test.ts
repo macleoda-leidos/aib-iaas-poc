@@ -247,6 +247,21 @@ describe('API Gateway - Applications', () => {
     expect(notifications.findByUser('owner-notif', { limit: 50 }).some(n => n.subject.includes('under review'))).toBe(true);
   });
 
+  it('resolves an application by REFERENCE NUMBER for staff actions (the case screen only knows the ref)', async () => {
+    const create = await request('POST', '/api/applications', { applicant: { firstName: 'Ref', lastName: 'Lookup' } }, { Authorization: `Bearer ${assignerToken()}` });
+    const ref = create.data.data.referenceNumber;
+    await request('POST', `/api/applications/${create.data.data.id}/submit`, {}, { Authorization: `Bearer ${assignerToken()}` });
+
+    // Transition BY REFERENCE NUMBER (not the opaque id).
+    const res = await request('PATCH', `/api/applications/${ref}/status`, { status: 'under_review' }, { Authorization: `Bearer ${assignerToken()}` });
+    expect(res.status).toBe(200);
+
+    // Notes by reference number persist and read back.
+    await request('POST', `/api/applications/${ref}/notes`, { content: 'via ref' }, { Authorization: `Bearer ${assignerToken()}` });
+    const notesRes = await request('GET', `/api/applications/${ref}/notes`, undefined, { Authorization: `Bearer ${assignerToken()}` });
+    expect(notesRes.data.data.some((n: any) => n.content === 'via ref')).toBe(true);
+  });
+
   describe('ownership (H1) and attribution (H3)', () => {
     const debtorA = signToken(buildClaims({ id: 'debtor-A', email: 'a@debtor.example', roleName: 'debtor', roleLevel: 10 }, ['applications.read']));
     const debtorB = signToken(buildClaims({ id: 'debtor-B', email: 'b@debtor.example', roleName: 'debtor', roleLevel: 10 }, ['applications.read']));

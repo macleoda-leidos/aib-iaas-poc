@@ -213,6 +213,14 @@ const STAFF_MEMBERS = [
 ];
 
 // ─── SeedCaseView: API-connected case view for seed applications ─────────────
+/** Turn an audit action code into readable text for the timeline. */
+function humaniseAuditAction(action: string): string {
+  if (action.startsWith('status_changed_to_')) {
+    return `Status changed to ${action.replace('status_changed_to_', '').replace(/_/g, ' ')}`;
+  }
+  return action.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
 function SeedCaseView({ seedApp, caseRef }: { seedApp: any; caseRef: string }) {
   const [status, setStatus] = useState(seedApp.status);
   const [actionLoading, setActionLoading] = useState('');
@@ -224,6 +232,31 @@ function SeedCaseView({ seedApp, caseRef }: { seedApp: any; caseRef: string }) {
   const [assigneeId, setAssigneeId] = useState<string>('');
   const [staff, setStaff] = useState<DirectoryUser[]>([]);
   const [assignSaving, setAssignSaving] = useState(false);
+  // The live audit trail for this case (null until loaded; falls back to the
+  // static timeline below when the API is unavailable).
+  const [timeline, setTimeline] = useState<Array<{ action: string; actorName?: string; actor?: string; timestamp?: string; createdAt?: string }> | null>(null);
+
+  const refreshTimeline = () => {
+    auditApi.getForApplication(seedApp.id || caseRef)
+      .then(a => { if (Array.isArray(a.data)) setTimeline(a.data as any); })
+      .catch(() => { /* offline — keep the static fallback */ });
+  };
+
+  // Pull the LIVE status + audit trail for this case so a previously-persisted
+  // decision shows on reload (the seed status is only the initial fallback) and
+  // the timeline reflects real events. Resolves by reference number server-side.
+  useEffect(() => {
+    let cancelled = false;
+    applicationsApi.get(seedApp.id || caseRef)
+      .then(res => {
+        if (cancelled || !res.data) return;
+        if (res.data.status) setStatus(res.data.status);
+        refreshTimeline();
+      })
+      .catch(() => { /* offline — keep seed status + static timeline */ });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seedApp.id, caseRef]);
 
   // Load the persisted notes from the API. Degrades silently offline/in the demo
   // (the input still works and prepends optimistically), so the scripted run is
@@ -275,6 +308,7 @@ function SeedCaseView({ seedApp, caseRef }: { seedApp: any; caseRef: string }) {
       await applicationsApi.updateStatus(seedApp.id || caseRef, newStatus);
       setStatus(newStatus);
       setToast({ text: `Case ${newStatus.replace(/_/g, ' ')}`, type: 'success' });
+      refreshTimeline();
     } catch {
       // API unavailable — update locally anyway for demo purposes
       setStatus(newStatus);
@@ -426,18 +460,32 @@ function SeedCaseView({ seedApp, caseRef }: { seedApp: any; caseRef: string }) {
           </div>
         </div>
 
-        {/* Timeline */}
+        {/* Timeline — live audit trail from the API, with a static fallback */}
         <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
           <div className="p-4 bg-gray-50 dark:bg-gray-800 font-bold text-sm">📋 Activity Timeline</div>
-          <div className="p-4 space-y-3 text-sm">
-            <div className="flex gap-3 items-start"><div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">📋</div><div><p className="font-medium">Application submitted</p><p className="text-xs text-gray-500">{seedApp.firstName} {seedApp.lastName} • {seedApp.date}</p></div></div>
-            <div className="flex gap-3 items-start"><div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">✓</div><div><p className="font-medium">Credit check completed</p><p className="text-xs text-gray-500">System • {seedApp.date}</p></div></div>
-            <div className="flex gap-3 items-start"><div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">🔍</div><div><p className="font-medium">Cross-system checks — all clear</p><p className="text-xs text-gray-500">System • {seedApp.date}</p></div></div>
-            <div className="flex gap-3 items-start"><div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">✅</div><div><p className="font-medium">Recommendation: {seedApp.product} ({seedApp.confidence}%)</p><p className="text-xs text-gray-500">Rules Engine • {seedApp.date}</p></div></div>
-            {seedApp.assignedTo !== 'Unassigned' && <div className="flex gap-3 items-start"><div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center">👤</div><div><p className="font-medium">Assigned to {seedApp.assignedTo}</p><p className="text-xs text-gray-500">Karen MacLeod • {seedApp.date}</p></div></div>}
-            {status === 'approved' && <div className="flex gap-3 items-start"><div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">✅</div><div><p className="font-medium">Application approved</p><p className="text-xs text-gray-500">AiB Staff • Just now</p></div></div>}
-            {status === 'rejected' && <div className="flex gap-3 items-start"><div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center">✗</div><div><p className="font-medium">Application rejected</p><p className="text-xs text-gray-500">AiB Staff • Just now</p></div></div>}
-          </div>
+          {timeline && timeline.length > 0 ? (
+            <div className="p-4 space-y-3 text-sm">
+              {timeline.map((e, i) => (
+                <div key={i} className="flex gap-3 items-start">
+                  <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">•</div>
+                  <div>
+                    <p className="font-medium">{humaniseAuditAction(e.action)}</p>
+                    <p className="text-xs text-gray-500">{e.actorName || e.actor || 'System'} • {new Date(e.timestamp || e.createdAt || Date.now()).toLocaleString('en-GB')}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="p-4 space-y-3 text-sm">
+              <div className="flex gap-3 items-start"><div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">📋</div><div><p className="font-medium">Application submitted</p><p className="text-xs text-gray-500">{seedApp.firstName} {seedApp.lastName} • {seedApp.date}</p></div></div>
+              <div className="flex gap-3 items-start"><div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">✓</div><div><p className="font-medium">Credit check completed</p><p className="text-xs text-gray-500">System • {seedApp.date}</p></div></div>
+              <div className="flex gap-3 items-start"><div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">🔍</div><div><p className="font-medium">Cross-system checks — all clear</p><p className="text-xs text-gray-500">System • {seedApp.date}</p></div></div>
+              <div className="flex gap-3 items-start"><div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">✅</div><div><p className="font-medium">Recommendation: {seedApp.product} ({seedApp.confidence}%)</p><p className="text-xs text-gray-500">Rules Engine • {seedApp.date}</p></div></div>
+              {seedApp.assignedTo !== 'Unassigned' && <div className="flex gap-3 items-start"><div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center">👤</div><div><p className="font-medium">Assigned to {seedApp.assignedTo}</p><p className="text-xs text-gray-500">Karen MacLeod • {seedApp.date}</p></div></div>}
+              {status === 'approved' && <div className="flex gap-3 items-start"><div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">✅</div><div><p className="font-medium">Application approved</p><p className="text-xs text-gray-500">AiB Staff • Just now</p></div></div>}
+              {status === 'rejected' && <div className="flex gap-3 items-start"><div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center">✗</div><div><p className="font-medium">Application rejected</p><p className="text-xs text-gray-500">AiB Staff • Just now</p></div></div>}
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -680,6 +728,10 @@ function CaseContent() {
               <button onClick={() => setShowApproveModal(false)} className="px-4 py-2 text-sm font-bold border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-100 dark:hover:bg-gray-700">Cancel</button>
               <button
                 onClick={() => {
+                  // Best-effort persistence to the real API (resolved by reference
+                  // number); the local state below keeps the demo visual intact
+                  // whether or not the API is reachable or the transition is valid.
+                  applicationsApi.updateStatus(ref, 'approved').catch(() => {});
                   setCaseStatus('approved');
                   auditRepo.log({ ref, action: 'Application Approved', actor: 'Karen MacLeod' });
                   setAuditEvents(prev => [{ date: new Date().toLocaleString('en-GB'), action: 'Application Approved', actor: 'Karen MacLeod', icon: '✅' }, ...prev]);
@@ -714,6 +766,7 @@ function CaseContent() {
               <button onClick={() => { setShowRejectModal(false); setRejectReason(''); }} className="px-4 py-2 text-sm font-bold border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-100 dark:hover:bg-gray-700">Cancel</button>
               <button
                 onClick={() => {
+                  applicationsApi.updateStatus(ref, 'rejected').catch(() => {});
                   setCaseStatus('rejected');
                   auditRepo.log({ ref, action: 'Application Rejected', actor: 'Karen MacLeod', details: rejectReason });
                   setAuditEvents(prev => [{ date: new Date().toLocaleString('en-GB'), action: `Application Rejected — ${rejectReason}`, actor: 'Karen MacLeod', icon: '❌' }, ...prev]);
