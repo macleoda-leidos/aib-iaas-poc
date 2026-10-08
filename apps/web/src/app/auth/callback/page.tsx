@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { setAuthToken } from '../../../lib/apiClient';
+import { setAuthToken, clearClientSession } from '../../../lib/apiClient';
 import { navigateTo } from '../../../lib/navigation';
 import Link from 'next/link';
 
@@ -33,7 +33,9 @@ export default function OidcCallbackPage() {
       return;
     }
 
-    // Same keys and order as the password path (login/page.tsx completeSignIn).
+    // Clear any previous session first (clean switch), then store — same keys and
+    // order as the password path (login/page.tsx completeSignIn).
+    clearClientSession();
     setAuthToken(token);
     localStorage.setItem('iaas-auth-token', token);
     if (userRaw) {

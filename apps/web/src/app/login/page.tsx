@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { setAuthToken } from '../../lib/apiClient';
+import { setAuthToken, clearClientSession } from '../../lib/apiClient';
 import { navigateTo } from '../../lib/navigation';
 import { onDemoAction } from '../../lib/demoEvents';
 import { generateTotp } from '../../lib/totp';
@@ -65,6 +65,23 @@ export default function LoginPage() {
   // until the second factor is proven (fixes H4).
   const [mfaChallenge, setMfaChallenge] = useState('');
   const mfaRefs = useRef<(HTMLInputElement | null)[]>([]);
+  // The live demo TOTP, recomputed each second from the public DEMO_MFA_SECRET and
+  // offered on the code screen so a presenter can sign in to an MFA account without
+  // an authenticator app. The code is still verified server-side — this surfaces
+  // the currently-valid value rather than weakening the check.
+  const [demoCode, setDemoCode] = useState('');
+  useEffect(() => {
+    let active = true;
+    const tick = () => generateTotp(DEMO_MFA_SECRET).then(c => { if (active) setDemoCode(c); }).catch(() => {});
+    tick();
+    const iv = setInterval(tick, 1000);
+    return () => { active = false; clearInterval(iv); };
+  }, []);
+
+  const fillDemoCode = () => {
+    const digits = demoCode.replace(/\D/g, '').slice(0, 6).split('');
+    if (digits.length === 6) setMfaCode(['', '', '', '', '', ''].map((_, i) => digits[i] ?? ''));
+  };
 
   // Demo mode types the code for us. This page owns the digit state, so it
   // handles the action itself rather than going through DemoChoreographer.
@@ -135,6 +152,9 @@ export default function LoginPage() {
   // Persist the finished session and redirect. Only ever called once a token has
   // actually been issued — after a non-MFA login, or after MFA verification.
   const completeSignIn = (token?: string, user?: unknown) => {
+    // Clear any previous user's session first, so signing in as a different user
+    // never leaves the prior identity's token/user/flags behind (clean switch).
+    clearClientSession();
     if (token) {
       setAuthToken(token);
       localStorage.setItem('iaas-auth-token', token);
@@ -361,6 +381,14 @@ export default function LoginPage() {
                     {error}
                   </div>
                 )}
+
+                {/* Demo convenience: the accounts share the public DEMO_MFA_SECRET,
+                    so surface the currently-valid rotating code with one-click fill.
+                    Server-side verification is unchanged. */}
+                <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded text-sm text-blue-800 dark:text-blue-300 flex items-center justify-between gap-3">
+                  <span>Demo code: <code className="font-mono font-bold tracking-widest">{demoCode || '······'}</code> <span className="text-xs text-blue-600 dark:text-blue-400">(rotates every 30s)</span></span>
+                  <button type="button" onClick={fillDemoCode} disabled={demoCode.length !== 6} className="text-xs font-bold bg-blue-600 text-white px-2.5 py-1 rounded hover:bg-blue-700 disabled:opacity-50">Use code</button>
+                </div>
 
                 {/* 6 digit code boxes */}
                 <div className="flex justify-center gap-2 mb-6" onPaste={handleMfaPaste}>

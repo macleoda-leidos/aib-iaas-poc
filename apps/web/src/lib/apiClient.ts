@@ -49,13 +49,24 @@ export function getAuthToken(): string | null {
   return null;
 }
 
-/** Clear auth state and redirect to login */
-export function logout() {
+// Every client-side key scoped to the signed-in user. Centralised so a logout, a
+// 401, and a sign-in-as-a-different-user all clear exactly the same set — leaving
+// no stale identity behind when switching accounts.
+const SESSION_KEYS = ['iaas-auth-token', 'iaas-current-user', 'iaas-session-start', 'iaas-remember-device'];
+
+/** Clear all client-side session state (in-memory + storage), without redirecting. */
+export function clearClientSession() {
   authToken = null;
   if (typeof window !== 'undefined') {
-    localStorage.removeItem('iaas-auth-token');
-    localStorage.removeItem('iaas-current-user');
+    SESSION_KEYS.forEach((k) => localStorage.removeItem(k));
     sessionStorage.removeItem('iaas-current-user');
+  }
+}
+
+/** Clear auth state and redirect to login */
+export function logout() {
+  clearClientSession();
+  if (typeof window !== 'undefined') {
     window.location.href = (process.env.NEXT_PUBLIC_BASE_PATH || '') + '/login';
   }
 }
@@ -168,12 +179,7 @@ async function handleResponse<T>(res: Response): Promise<ApiResponse<T>> {
   if (!res.ok) {
     // Handle 401 — session expired
     if (res.status === 401) {
-      authToken = null;
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('iaas-auth-token');
-        localStorage.removeItem('iaas-current-user');
-        sessionStorage.removeItem('iaas-current-user');
-      }
+      clearClientSession();
       notifySessionExpired();
     }
 
