@@ -23,14 +23,16 @@ export async function initPgSchema(pool: Pool): Promise<void> {
     CREATE TABLE IF NOT EXISTS notes (id TEXT PRIMARY KEY, application_id TEXT REFERENCES applications(id) ON DELETE CASCADE, author_id TEXT, author_name TEXT, note_type TEXT NOT NULL DEFAULT 'general', content TEXT NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW());
     CREATE TABLE IF NOT EXISTS notifications (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, type TEXT NOT NULL DEFAULT 'info', channel TEXT NOT NULL DEFAULT 'in_app', subject TEXT NOT NULL, body TEXT NOT NULL, link TEXT, read INTEGER NOT NULL DEFAULT 0, sent_at TIMESTAMPTZ DEFAULT NOW(), read_at TIMESTAMPTZ, expires_at TIMESTAMPTZ, metadata TEXT);
     CREATE TABLE IF NOT EXISTS claims (id TEXT PRIMARY KEY, application_id TEXT REFERENCES applications(id) ON DELETE CASCADE, creditor_org_id TEXT, creditor_user_id TEXT, amount DOUBLE PRECISION NOT NULL, basis TEXT, status TEXT NOT NULL DEFAULT 'submitted', created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW());
+    CREATE TABLE IF NOT EXISTS messages (id TEXT PRIMARY KEY, application_id TEXT REFERENCES applications(id) ON DELETE CASCADE, sender_user_id TEXT, sender_name TEXT, direction TEXT NOT NULL DEFAULT 'staff', body TEXT NOT NULL, read INTEGER NOT NULL DEFAULT 0, created_at TIMESTAMPTZ DEFAULT NOW());
     CREATE INDEX IF NOT EXISTS idx_notes_app ON notes(application_id);
     CREATE INDEX IF NOT EXISTS idx_notif_user ON notifications(user_id);
     CREATE INDEX IF NOT EXISTS idx_claims_app ON claims(application_id);
+    CREATE INDEX IF NOT EXISTS idx_messages_app ON messages(application_id);
     CREATE INDEX IF NOT EXISTS idx_applications_status ON applications(status);
     CREATE INDEX IF NOT EXISTS idx_applications_ref ON applications(reference_number);
     CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
     CREATE INDEX IF NOT EXISTS idx_audit_app ON audit_events(application_id);
     CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON audit_events(timestamp);
   `);
-  console.log('[PostgreSQL] Schema initialized (19 tables + 8 indexes)');
+  console.log('[PostgreSQL] Schema initialized (20 tables + 9 indexes)');
 }

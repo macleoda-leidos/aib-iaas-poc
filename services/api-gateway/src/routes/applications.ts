@@ -1,8 +1,8 @@
 import { Router, Response } from 'express';
-import { applications, audit, notes, users, notifications, claims } from '../db';
+import { applications, audit, notes, users, notifications, claims, messages } from '../db';
 import { optionalAuth, type AuthenticatedRequest } from '../middleware/rbac';
 import { signToken, verifyToken } from '@aib-iaas/auth';
-import { validate, applicationNotesSchema, applicationAssignSchema, claimCreateSchema } from '@aib-iaas/validation';
+import { validate, applicationNotesSchema, applicationAssignSchema, claimCreateSchema, messageCreateSchema } from '@aib-iaas/validation';
 
 // A read capability for a single application. Issued (signed) at create time and
 // returned to the creator; required to read an application back anonymously, so a
@@ -85,6 +85,22 @@ function notify(input: { userId: string; type?: 'info' | 'success' | 'warning' |
   } catch (e) {
     console.error('[Applications] notification failed', e);
   }
+}
+
+/**
+ * Access to an application's correspondence mirrors read access to the
+ * application: authenticated staff and the owning debtor may use it; an anonymous
+ * caller needs the application-scoped capability token. Returns the caller's
+ * message direction when allowed, or null (after sending a 404) when refused.
+ */
+function messagingAccess(req: AuthenticatedRequest, res: Response, existing: { id: string; ownerUserId: string | null }): 'applicant' | 'staff' | null {
+  if (req.user) {
+    if (!enforceOwnership(req, res, existing.ownerUserId)) return null;
+    return req.user.role === 'debtor' ? 'applicant' : 'staff';
+  }
+  if (hasValidCapability(req, existing.id)) return 'applicant';
+  res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Application not found' } });
+  return null;
 }
 
 /** Derive the audit actor from the verified token, never from the request body. */
@@ -678,6 +694,54 @@ applicationsRouter.get('/:id/claims', (req: AuthenticatedRequest, res: Response)
       list = list.filter(c => c.creditorOrgId === req.user!.organisationId);
     }
     res.json({ success: true, data: list });
+  } catch (error: any) {
+    console.error('[Applications]', error);
+    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: process.env.NODE_ENV === 'production' ? 'An unexpected error occurred' : error.message } });
+  }
+});
+
+// ─── Applicant correspondence (two-way messaging) ──
+
+// Read the message thread for an application.
+applicationsRouter.get('/:id/messages', (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const existing = resolveApplication(req.params.id);
+    if (!existing) {
+      res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Application not found' } });
+      return;
+    }
+    const dir = messagingAccess(req, res, existing);
+    if (!dir) return; // response already sent
+    res.json({ success: true, data: messages.findByApplication(existing.id) });
+  } catch (error: any) {
+    console.error('[Applications]', error);
+    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: process.env.NODE_ENV === 'production' ? 'An unexpected error occurred' : error.message } });
+  }
+});
+
+// Post a message. The direction (applicant vs staff) and sender are derived from
+// the verified token / capability, never the body. The counterparty is notified.
+applicationsRouter.post('/:id/messages', validate(messageCreateSchema), (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const existing = resolveApplication(req.params.id);
+    if (!existing) {
+      res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Application not found' } });
+      return;
+    }
+    const dir = messagingAccess(req, res, existing);
+    if (!dir) return;
+
+    const senderName = req.user ? req.user.email : 'Applicant';
+    const msg = messages.create({ applicationId: existing.id, senderUserId: req.user?.userId ?? null, senderName, direction: dir, body: req.body.body });
+    audit.create({ applicationId: existing.id, action: 'message_sent', ...auditActor(req), details: { direction: dir, messageId: msg.id } });
+
+    if (dir === 'staff' && existing.ownerUserId) {
+      notify({ userId: existing.ownerUserId, type: 'info', subject: 'New message about your application', body: `You have a new message about ${existing.referenceNumber}.`, link: '/my-application/messages' });
+    } else if (dir === 'applicant' && existing.assignedTo) {
+      notify({ userId: existing.assignedTo, type: 'action_required', subject: 'New message from applicant', body: `New message from the applicant on ${existing.referenceNumber}.`, link: `/case/${existing.referenceNumber}` });
+    }
+
+    res.status(201).json({ success: true, data: msg });
   } catch (error: any) {
     console.error('[Applications]', error);
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: process.env.NODE_ENV === 'production' ? 'An unexpected error occurred' : error.message } });

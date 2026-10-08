@@ -1,7 +1,7 @@
 import { createRepositories } from '@aib-iaas/database';
 
 export const repos = createRepositories();
-export const { applications, audit, recommendations, users, documents, notes, notifications, claims, organisations, payments } = repos;
+export const { applications, audit, recommendations, users, documents, notes, notifications, claims, messages, organisations, payments } = repos;
 
 // Re-export for backwards compatibility
 export { getDatabase } from '@aib-iaas/database';

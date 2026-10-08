@@ -192,6 +192,14 @@ export const claimUpdateSchema = z
   })
   .strict();
 
+// ─── Applicant correspondence ──
+
+export const messageCreateSchema = z
+  .object({
+    body: z.string().min(1, 'Message body is required').max(5000),
+  })
+  .strict();
+
 export type DebtorDetailsInput = z.infer<typeof debtorDetailsSchema>;
 export type ApplicationSubmissionInput = z.infer<typeof applicationSubmissionSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;

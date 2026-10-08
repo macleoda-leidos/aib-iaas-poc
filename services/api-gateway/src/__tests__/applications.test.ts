@@ -313,6 +313,38 @@ describe('API Gateway - Applications', () => {
     expect(create.data.data.submittedByUserId).toBeNull();
   });
 
+  it('supports two-way applicant/staff messaging with direction derived from the token (E6)', async () => {
+    const owner = signToken(buildClaims({ id: 'msg-owner', email: 'mo@debtor.example', roleName: 'debtor', roleLevel: 10 }, ['applications.read', 'applications.create']));
+    const create = await request('POST', '/api/applications', { applicant: { firstName: 'Msg', lastName: 'Owner' } }, { Authorization: `Bearer ${owner}` });
+    const id = create.data.data.id;
+
+    const fromApplicant = await request('POST', `/api/applications/${id}/messages`, { body: 'When will my application be reviewed?' }, { Authorization: `Bearer ${owner}` });
+    expect(fromApplicant.status).toBe(201);
+    expect(fromApplicant.data.data.direction).toBe('applicant');
+
+    const staff = signToken(buildClaims({ id: 'msg-staff', email: 'ms@aib.example', roleName: 'aib_officer', roleLevel: 60 }, ['applications.read', 'applications.update']));
+    const fromStaff = await request('POST', `/api/applications/${id}/messages`, { body: 'We are reviewing it now.' }, { Authorization: `Bearer ${staff}` });
+    expect(fromStaff.status).toBe(201);
+    expect(fromStaff.data.data.direction).toBe('staff');
+
+    const thread = await request('GET', `/api/applications/${id}/messages`, undefined, { Authorization: `Bearer ${staff}` });
+    expect(thread.status).toBe(200);
+    expect(thread.data.data.length).toBe(2);
+    expect(thread.data.data[0].body).toContain('When will');
+    expect(thread.data.data[1].direction).toBe('staff');
+  });
+
+  it("a debtor cannot read another debtor's messages (404)", async () => {
+    const a = signToken(buildClaims({ id: 'msg-a', email: 'a@debtor.example', roleName: 'debtor', roleLevel: 10 }, ['applications.read', 'applications.create']));
+    const b = signToken(buildClaims({ id: 'msg-b', email: 'b@debtor.example', roleName: 'debtor', roleLevel: 10 }, ['applications.read']));
+    const create = await request('POST', '/api/applications', { applicant: { firstName: 'Priv', lastName: 'Ate' } }, { Authorization: `Bearer ${a}` });
+    const id = create.data.data.id;
+    await request('POST', `/api/applications/${id}/messages`, { body: 'private' }, { Authorization: `Bearer ${a}` });
+
+    const asB = await request('GET', `/api/applications/${id}/messages`, undefined, { Authorization: `Bearer ${b}` });
+    expect(asB.status).toBe(404);
+  });
+
   describe('ownership (H1) and attribution (H3)', () => {
     const debtorA = signToken(buildClaims({ id: 'debtor-A', email: 'a@debtor.example', roleName: 'debtor', roleLevel: 10 }, ['applications.read']));
     const debtorB = signToken(buildClaims({ id: 'debtor-B', email: 'b@debtor.example', roleName: 'debtor', roleLevel: 10 }, ['applications.read']));

@@ -372,6 +372,27 @@ export const claims = {
     apiPatch<Claim>(`/api/claims/${claimId}`, { status }),
 };
 
+// ─── Applicant correspondence (two-way messaging) ────────────────────────────
+
+export interface Message {
+  id: string;
+  applicationId: string;
+  senderUserId: string | null;
+  senderName: string | null;
+  direction: string;
+  body: string;
+  read: boolean;
+  createdAt: string;
+}
+
+export const messages = {
+  listForApplication: (applicationRef: string) =>
+    apiGet<Message[]>(`/api/applications/${applicationRef}/messages`),
+
+  send: (applicationRef: string, body: string) =>
+    apiPost<Message>(`/api/applications/${applicationRef}/messages`, { body }),
+};
+
 // ─── Integration / System Checks ────────────────────────────────────────────
 
 export interface SystemCheckResult {

@@ -237,6 +237,22 @@ export function initializeSchema(db: Database.Database): void {
       FOREIGN KEY (application_id) REFERENCES applications(id) ON DELETE CASCADE
     );
 
+    -- ─── Messages ──────────────────────────────
+    -- Two-way secure correspondence between an applicant and the case team,
+    -- threaded per application. The direction column records which side sent it.
+
+    CREATE TABLE IF NOT EXISTS messages (
+      id TEXT PRIMARY KEY,
+      application_id TEXT NOT NULL,
+      sender_user_id TEXT,
+      sender_name TEXT,
+      direction TEXT NOT NULL DEFAULT 'staff',
+      body TEXT NOT NULL,
+      read INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (application_id) REFERENCES applications(id) ON DELETE CASCADE
+    );
+
     -- ─── Recommendations ───────────────────────
 
     CREATE TABLE IF NOT EXISTS recommendations (
@@ -322,6 +338,7 @@ export function initializeSchema(db: Database.Database): void {
     CREATE INDEX IF NOT EXISTS idx_notes_app ON notes(application_id);
     CREATE INDEX IF NOT EXISTS idx_claims_app ON claims(application_id);
     CREATE INDEX IF NOT EXISTS idx_claims_org ON claims(creditor_org_id);
+    CREATE INDEX IF NOT EXISTS idx_messages_app ON messages(application_id);
     CREATE INDEX IF NOT EXISTS idx_notif_user ON notifications(user_id);
     CREATE INDEX IF NOT EXISTS idx_notif_read ON notifications(user_id, read);
     CREATE INDEX IF NOT EXISTS idx_audit_app ON audit_events(application_id);

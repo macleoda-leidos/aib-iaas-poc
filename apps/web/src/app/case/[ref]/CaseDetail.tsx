@@ -11,7 +11,7 @@ import EmailLog from './components/EmailLog';
 import StatutoryDeadlines from './components/StatutoryDeadlines';
 import { auditRepo } from '../../../lib/persistence';
 import { seedApplications } from '../../../lib/seedData';
-import { applications as applicationsApi, audit as auditApi, users as usersApi, type DirectoryUser } from '../../../lib/apiClient';
+import { applications as applicationsApi, audit as auditApi, users as usersApi, messages as messagesApi, type DirectoryUser, type Message } from '../../../lib/apiClient';
 
 // ─── Feature 7: Predictive Processing Time ─────────────────────────────────────
 const PROCESSING_TIMES: Record<string, string> = {
@@ -236,10 +236,35 @@ function SeedCaseView({ seedApp, caseRef }: { seedApp: any; caseRef: string }) {
   // static timeline below when the API is unavailable).
   const [timeline, setTimeline] = useState<Array<{ action: string; actorName?: string; actor?: string; timestamp?: string; createdAt?: string }> | null>(null);
 
+  // Two-way correspondence with the applicant.
+  const [thread, setThread] = useState<Message[]>([]);
+  const [msgText, setMsgText] = useState('');
+  const [msgSending, setMsgSending] = useState(false);
+
   const refreshTimeline = () => {
     auditApi.getForApplication(seedApp.id || caseRef)
       .then(a => { if (Array.isArray(a.data)) setTimeline(a.data as any); })
       .catch(() => { /* offline — keep the static fallback */ });
+  };
+
+  const refreshThread = () => {
+    messagesApi.listForApplication(seedApp.id || caseRef)
+      .then(m => { if (Array.isArray(m.data)) setThread(m.data); })
+      .catch(() => { /* offline — leave the thread empty */ });
+  };
+
+  const sendMessage = async () => {
+    if (!msgText.trim()) return;
+    setMsgSending(true);
+    try {
+      await messagesApi.send(seedApp.id || caseRef, msgText.trim());
+      setMsgText('');
+      refreshThread();
+    } catch {
+      setToast({ text: 'Could not send message (offline)', type: 'error' });
+      setTimeout(() => setToast(null), 3000);
+    }
+    setMsgSending(false);
   };
 
   // Pull the LIVE status + audit trail for this case so a previously-persisted
@@ -252,6 +277,7 @@ function SeedCaseView({ seedApp, caseRef }: { seedApp: any; caseRef: string }) {
         if (cancelled || !res.data) return;
         if (res.data.status) setStatus(res.data.status);
         refreshTimeline();
+        refreshThread();
       })
       .catch(() => { /* offline — keep seed status + static timeline */ });
     return () => { cancelled = true; };
@@ -429,6 +455,37 @@ function SeedCaseView({ seedApp, caseRef }: { seedApp: any; caseRef: string }) {
               </div>
             ) : (
               <p className="text-sm text-gray-400">No notes yet</p>
+            )}
+          </div>
+        </div>
+
+        {/* Correspondence — two-way messaging with the applicant */}
+        <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+          <div className="p-4 bg-gray-50 dark:bg-gray-800 font-bold text-sm">💬 Correspondence</div>
+          <div className="p-4">
+            <div className="flex gap-2 mb-3">
+              <input
+                value={msgText}
+                onChange={e => setMsgText(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && sendMessage()}
+                placeholder="Message the applicant…"
+                className="flex-1 border border-gray-300 dark:border-gray-600 rounded px-3 py-2 text-sm dark:bg-gray-800"
+              />
+              <button onClick={sendMessage} disabled={msgSending} className="bg-blue-700 text-white text-sm font-bold px-4 py-2 rounded hover:bg-blue-800 disabled:opacity-60">
+                {msgSending ? 'Sending…' : 'Send'}
+              </button>
+            </div>
+            {thread.length > 0 ? (
+              <div className="space-y-2">
+                {thread.map(m => (
+                  <div key={m.id} className={`rounded p-2 text-sm ${m.direction === 'staff' ? 'bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 ml-8' : 'bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 mr-8'}`}>
+                    <p>{m.body}</p>
+                    <p className="text-xs text-gray-500 mt-1">{m.direction === 'staff' ? (m.senderName || 'AiB') : 'Applicant'} • {new Date(m.createdAt).toLocaleString('en-GB')}</p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-400">No messages yet</p>
             )}
           </div>
         </div>

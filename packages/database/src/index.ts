@@ -27,6 +27,7 @@ export { DocumentRepository } from './repositories/documents';
 export { NoteRepository } from './repositories/notes';
 export { NotificationRepository } from './repositories/notifications';
 export { ClaimRepository } from './repositories/claims';
+export { MessageRepository } from './repositories/messages';
 export { OrganisationRepository } from './repositories/organisations';
 export { PaymentRepository } from './repositories/payments';
 
@@ -99,6 +100,13 @@ export type {
   ClaimStatus,
 } from './repositories/claims';
 
+// Types - Messages
+export type {
+  Message,
+  CreateMessageInput,
+  MessageDirection,
+} from './repositories/messages';
+
 // Types - Organisations
 export type {
   Organisation,
@@ -124,6 +132,7 @@ import { DocumentRepository } from './repositories/documents';
 import { NoteRepository } from './repositories/notes';
 import { NotificationRepository } from './repositories/notifications';
 import { ClaimRepository } from './repositories/claims';
+import { MessageRepository } from './repositories/messages';
 import { OrganisationRepository } from './repositories/organisations';
 import { PaymentRepository } from './repositories/payments';
 
@@ -136,6 +145,7 @@ export interface Repositories {
   notes: NoteRepository;
   notifications: NotificationRepository;
   claims: ClaimRepository;
+  messages: MessageRepository;
   organisations: OrganisationRepository;
   payments: PaymentRepository;
 }
@@ -162,6 +172,7 @@ export function createRepositories(): Repositories {
     notes: new NoteRepository(db),
     notifications: new NotificationRepository(db),
     claims: new ClaimRepository(db),
+    messages: new MessageRepository(db),
     organisations: new OrganisationRepository(db),
     payments: new PaymentRepository(db),
   };
