@@ -617,6 +617,17 @@ export default function DemoMode() {
     setDemoSteps([]);
   };
 
+  // Publish "demo running" so route guards (RequireAibStaff) can let the scripted
+  // tour through the AiB-only screens (Admin/Statistics/Security) even if the
+  // demo's live-API login hasn't established a staff session — the demo is a
+  // controlled presentation, not a real anonymous visitor. Cleared when it ends.
+  useEffect(() => {
+    try {
+      if (active) localStorage.setItem('iaas-demo-active', '1');
+      else localStorage.removeItem('iaas-demo-active');
+    } catch { /* storage unavailable — guard simply enforces as normal */ }
+  }, [active]);
+
   // Auto-advance timer
   useEffect(() => {
     if (!active || !playing || !currentStep) return;

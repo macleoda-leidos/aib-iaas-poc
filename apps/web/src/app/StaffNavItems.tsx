@@ -21,18 +21,22 @@ const linkClass =
 
 export function StaffNavItems() {
   const pathname = usePathname();
-  const [role, setRole] = useState<string | null>(null);
+  const [show, setShow] = useState(false);
 
   useEffect(() => {
     try {
+      // Show during the scripted demo too, so the AiB tour has the menu items
+      // visible (matches the RequireAibStaff route-guard bypass).
+      if (localStorage.getItem('iaas-demo-active') === '1') { setShow(true); return; }
       const raw = localStorage.getItem('iaas-current-user') || sessionStorage.getItem('iaas-current-user');
-      setRole(raw ? String(JSON.parse(raw).role || '') : null);
+      const role = raw ? String(JSON.parse(raw).role || '') : '';
+      setShow(isAibStaff(role));
     } catch {
-      setRole(null);
+      setShow(false);
     }
   }, [pathname]);
 
-  if (!role || !isAibStaff(role)) return null;
+  if (!show) return null;
 
   return (
     <>
@@ -41,4 +45,26 @@ export function StaffNavItems() {
       <li><Link href="/admin" className={linkClass}>Admin</Link></li>
     </>
   );
+}
+
+/**
+ * The "Portal" menu item points at the portal appropriate to the signed-in role:
+ * a creditor goes to the creditor portal, a money adviser to the adviser
+ * workspace, and everyone else to the generic role-aware /portal shell.
+ */
+export function PortalNavItem() {
+  const pathname = usePathname();
+  const [href, setHref] = useState('/portal');
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('iaas-current-user') || sessionStorage.getItem('iaas-current-user');
+      const role = raw ? String(JSON.parse(raw).role || '').toLowerCase() : '';
+      setHref(role === 'creditor' ? '/creditor-portal' : role === 'money_adviser' ? '/adviser-workspace' : '/portal');
+    } catch {
+      setHref('/portal');
+    }
+  }, [pathname]);
+
+  return <li><Link href={href} className={linkClass}>Portal</Link></li>;
 }

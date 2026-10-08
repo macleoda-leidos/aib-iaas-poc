@@ -52,7 +52,7 @@ import { ThemeToggle } from './ThemeToggle';
 import { LanguageToggle, LanguageProvider } from './LanguageToggle';
 import { Providers } from './Providers';
 import { UserNavItem } from './UserNavItem';
-import { StaffNavItems } from './StaffNavItems';
+import { StaffNavItems, PortalNavItem } from './StaffNavItems';
 import ApiStatusBar, { ApiStatusProvider } from './ApiStatus';
 import AiChatbot from './components/AiChatbot';
 import DemoMode from './components/DemoMode';
@@ -112,7 +112,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 <NavItem href="/my-application">My Application</NavItem>
                 <NavItem href="/apply">Apply</NavItem>
                 <NavItem href="/dashboard">Dashboard</NavItem>
-                <NavItem href="/portal">Portal</NavItem>
+                {/* Portal points at the role-appropriate portal (creditor →
+                    creditor portal, adviser → adviser workspace, else /portal). */}
+                <PortalNavItem />
                 {/* Statistics / Security / Admin are AiB-staff-only (client-gated by
                     the signed-in role) — hidden from creditors, advisers, debtors. */}
                 <StaffNavItems />

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { usePathname } from 'next/navigation';
 import { getAuthToken } from '../lib/apiClient';
 import Link from 'next/link';
 
@@ -18,10 +19,15 @@ function isAibStaff(role: string): boolean {
 }
 
 export default function RequireAibStaff({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
   const [state, setState] = useState<'checking' | 'ok' | 'denied' | 'anon'>('checking');
 
   useEffect(() => {
-    const token = getAuthToken() || (typeof window !== 'undefined' ? localStorage.getItem('iaas-auth-token') : null);
+    // The scripted demo tours these AiB-only screens; let it through regardless of
+    // session (it's a controlled presentation, flagged by DemoMode).
+    if (localStorage.getItem('iaas-demo-active') === '1') { setState('ok'); return; }
+
+    const token = getAuthToken() || localStorage.getItem('iaas-auth-token');
     if (!token) { setState('anon'); return; }
     try {
       const raw = localStorage.getItem('iaas-current-user') || sessionStorage.getItem('iaas-current-user');
@@ -30,7 +36,8 @@ export default function RequireAibStaff({ children }: { children: React.ReactNod
     } catch {
       setState('denied');
     }
-  }, []);
+    // Re-evaluate on navigation so the post-login redirect / demo steps update it.
+  }, [pathname]);
 
   if (state === 'checking') {
     return (
