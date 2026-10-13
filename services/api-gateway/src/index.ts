@@ -1,7 +1,8 @@
 import express from 'express';
 import cors from 'cors';
 import rateLimit from 'express-rate-limit';
-import { initDatabase } from './db';
+import { initDatabase, repos } from './db';
+import { startSlaWorker } from './sla/worker';
 import { applicationsRouter } from './routes/applications';
 import { postcodeRouter } from './routes/postcode';
 import { authRouter } from './routes/auth';
@@ -47,6 +48,12 @@ app.use((req, _res, next) => {
 
 // Initialize database
 initDatabase();
+
+// Start the statutory SLA worker (no-op under NODE_ENV=test). Walks live cases
+// and fires deadline reminders + audit events as statutory clocks approach,
+// fall due and breach. Started here and in consolidated-api so dev and the
+// deployed container behave identically; the singleton guard prevents double-run.
+startSlaWorker(repos);
 
 // Default-deny authentication, identical posture to the deployed consolidated-api
 // (shared accessPolicy), so the two services cannot drift on their public surface.

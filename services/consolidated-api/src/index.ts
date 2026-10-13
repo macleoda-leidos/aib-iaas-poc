@@ -25,7 +25,8 @@ import { oidcRouter } from '../../api-gateway/src/oidc/router';
 import { claimsRouter } from '../../api-gateway/src/routes/claims';
 import { reportsRouter } from '../../api-gateway/src/routes/reports';
 import { reportsExportRouter } from '../../api-gateway/src/routes/reports-export';
-import { initDatabase } from '../../api-gateway/src/db';
+import { initDatabase, repos } from '../../api-gateway/src/db';
+import { startSlaWorker } from '../../api-gateway/src/sla/worker';
 import { securityHeaders } from '../../api-gateway/src/middleware/securityHeaders';
 import { enforceAuthentication } from '../../api-gateway/src/middleware/accessPolicy';
 import { requirePermission, requireAnyPermission, requirePermissionByMethod } from '../../api-gateway/src/middleware/rbac';
@@ -258,6 +259,51 @@ try {
       }
     }
     console.log('[Consolidated API] 100 applications seeded (with documents and assets)');
+
+    // ─── SLA worker visibility seed ───────────────
+    // The seeded apps above carry no recommendation (so no product) and no
+    // assignee, so the statutory SLA worker would find nothing to act on. Give a
+    // spread of open-status cases a recommendation and assign them to the demo
+    // Case Officer (demo@example.com = user-demo), so the worker lights up on its
+    // first tick. The products below map to clocks in @aib-iaas/statutory, and the
+    // existing Jun/Jul 2026 submission dates mean several of those clocks (the DAS
+    // 21-day objection, the 120-day creditor-claims window) are genuinely
+    // imminent/overdue against today — no fabricated dates needed.
+    //
+    // Each chosen index resolves to an open status (i % 6 of 1=submitted,
+    // 2=under_review, 4=additional_info_required), so submitted_at is set and the
+    // case sits in the worker's queue.
+    const slaSeed: Array<{ i: number; product: string; confidence: string; pct: number }> = [
+      { i: 1, product: 'DAS', confidence: 'high', pct: 86 },
+      { i: 2, product: 'Sequestration', confidence: 'high', pct: 81 },
+      { i: 4, product: 'MAP', confidence: 'medium', pct: 72 },
+      { i: 7, product: 'PTD', confidence: 'high', pct: 83 },
+      { i: 8, product: 'DAS', confidence: 'high', pct: 88 },
+      { i: 13, product: 'Sequestration', confidence: 'medium', pct: 69 },
+      { i: 14, product: 'MAP', confidence: 'high', pct: 90 },
+      { i: 52, product: 'PTD', confidence: 'medium', pct: 74 },
+      { i: 55, product: 'DAS', confidence: 'high', pct: 85 },
+      { i: 56, product: 'Sequestration', confidence: 'high', pct: 80 },
+    ];
+    const insertRec = db.prepare('INSERT OR IGNORE INTO recommendations (id, application_id, product, confidence, confidence_pct, reasoning, factors, alternatives, engine_version, generated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+    // Only assign if currently unassigned, so re-seeding never clobbers a manual
+    // assignment made in the UI.
+    const assignApp = db.prepare("UPDATE applications SET assigned_to = ? WHERE id = ? AND (assigned_to IS NULL OR assigned_to = '')");
+    const SLA_ASSIGNEE = 'user-demo';
+    for (const { i, product, confidence, pct } of slaSeed) {
+      const id = `app-seed-${String(i).padStart(4, '0')}`;
+      insertRec.run(
+        `rec-seed-${String(i).padStart(4, '0')}`, id, product,
+        confidence, pct,
+        JSON.stringify([`${product} fits this applicant's circumstances on the seeded profile`]),
+        JSON.stringify({}),
+        JSON.stringify([]),
+        'seed-1.0',
+        '2026-07-15T10:00:00Z'
+      );
+      assignApp.run(SLA_ASSIGNEE, id);
+    }
+    console.log(`[Consolidated API] SLA demo seed: ${slaSeed.length} cases recommended + assigned to ${SLA_ASSIGNEE}`);
   }
 } catch (e: any) {
   console.log('[Consolidated API] Seed skipped:', e.message);
@@ -292,6 +338,13 @@ if (process.env.DATABASE_URL?.startsWith('postgresql://')) {
 }
 
 console.log('[Consolidated API] All databases initialized');
+
+// Start the statutory SLA worker (no-op under NODE_ENV=test). Walks live cases
+// and fires deadline reminders + audit events as statutory clocks approach, fall
+// due and breach. Started after the seed above so the demo cases exist on first
+// tick; the module-singleton guard means the standalone gateway's call (when run
+// in the same process, which it never is in deployment) can't double-schedule.
+startSlaWorker(repos);
 
 // Brute-force protection on the authentication endpoints (M1). Registered after
 // the body parser (so the email is available for keying) and scoped to exactly

@@ -320,6 +320,26 @@ export function initializeSchema(db: Database.Database): void {
       metadata TEXT
     );
 
+    -- ─── Statutory SLA events ──────────────────
+    -- Idempotency ledger for the SLA automation worker (services/api-gateway/src/sla).
+    -- One row per statutory-deadline milestone the worker has already acted on, so a
+    -- reminder is never fired twice across ticks or process restarts. The UNIQUE
+    -- (application_id, deadline_kind, milestone) IS the idempotency key — the worker
+    -- records with INSERT OR IGNORE and only notifies/audits when a new row is written.
+    -- Persisted on the mounted /data disk, so reminders survive a redeploy.
+
+    CREATE TABLE IF NOT EXISTS sla_events (
+      id TEXT PRIMARY KEY,
+      application_id TEXT NOT NULL,
+      deadline_kind TEXT NOT NULL,
+      milestone TEXT NOT NULL,
+      due_at TEXT,
+      citation TEXT,
+      fired_at TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE (application_id, deadline_kind, milestone),
+      FOREIGN KEY (application_id) REFERENCES applications(id) ON DELETE CASCADE
+    );
+
     -- ─── Indexes ───────────────────────────────
 
     CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
@@ -345,6 +365,7 @@ export function initializeSchema(db: Database.Database): void {
     CREATE INDEX IF NOT EXISTS idx_audit_action ON audit_events(action);
     CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON audit_events(timestamp);
     CREATE INDEX IF NOT EXISTS idx_payments_app ON payments(application_id);
+    CREATE INDEX IF NOT EXISTS idx_sla_events_app ON sla_events(application_id);
   `);
 
   // ─── Idempotent migrations for persistent volumes ──

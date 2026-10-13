@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@aib-iaas/database": "*",
+    "@aib-iaas/statutory": "*",
     "express": "^4.18.0",
     "cors": "^2.8.5",
     "helmet": "^7.1.0",

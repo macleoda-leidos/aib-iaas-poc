@@ -241,6 +241,9 @@ function AibDashboard({ user }: { user: any }) {
           result: 'PENDING',
           isLive: true,
           id: app.id,
+          // Live statutory SLA posture from the worker's engine (null when the
+          // case has no modelled clock). Seed rows below carry no sla.
+          sla: app.sla ?? null,
         }));
         setLiveApps(mapped);
         setApiOnline(true);
@@ -360,6 +363,15 @@ function AibDashboard({ user }: { user: any }) {
   const mergedApps = [...liveApps, ...seedApps.filter(a => !liveRefs.has(a.ref))];
   // Sort by priority (urgent first)
   const apps = [...mergedApps].sort((a, b) => getPriority(a).sortOrder - getPriority(b).sortOrder);
+
+  // "At risk" quick-filter — client-side over the already-fetched page, so the
+  // 30s poll keeps it current without a new request. Shows cases the SLA worker
+  // has flagged at_risk or overdue (both need a caseworker's attention).
+  const [slaFilter, setSlaFilter] = useState(false);
+  const atRiskCount = apps.filter(a => a.sla && (a.sla.status === 'at_risk' || a.sla.status === 'overdue')).length;
+  const visibleApps = slaFilter
+    ? apps.filter(a => a.sla && (a.sla.status === 'at_risk' || a.sla.status === 'overdue'))
+    : apps;
 
   const [alertDismissed, setAlertDismissed] = useState(false);
   const [scenarioRunning, setScenarioRunning] = useState<string | null>(null);
@@ -558,6 +570,16 @@ function AibDashboard({ user }: { user: any }) {
                 Live
               </span>
             )}
+            {/* At-risk quick-filter — toggles the queue down to cases the SLA
+                worker has flagged. Count comes from the server-computed posture. */}
+            <button
+              data-demo="sla-filter"
+              onClick={() => setSlaFilter(v => !v)}
+              className={`flex items-center gap-1.5 text-xs font-bold px-2 py-0.5 rounded border transition-colors ${slaFilter ? 'bg-amber-600 text-white border-amber-600' : 'bg-white text-amber-700 border-amber-300 hover:bg-amber-50'}`}
+              aria-pressed={slaFilter}
+            >
+              ⏱ At risk{atRiskCount > 0 ? ` (${atRiskCount})` : ''}
+            </button>
           </div>
           <a href="http://localhost:3010" target="_blank" className="text-gov-blue text-sm underline">View all →</a>
         </div>
@@ -573,16 +595,17 @@ function AibDashboard({ user }: { user: any }) {
 
         <table className="w-full">
           <thead className="bg-gray-50"><tr>
-            <th className="p-3 w-8"><input type="checkbox" onChange={e => { if (e.target.checked) setBatchSelected(new Set(apps.map(a => a.ref))); else setBatchSelected(new Set()); }} checked={batchSelected.size === apps.length && apps.length > 0} /></th>
+            <th className="p-3 w-8"><input type="checkbox" onChange={e => { if (e.target.checked) setBatchSelected(new Set(visibleApps.map(a => a.ref))); else setBatchSelected(new Set()); }} checked={batchSelected.size === visibleApps.length && visibleApps.length > 0} /></th>
             <th className="text-left p-3 text-sm">Priority</th>
             <th className="text-left p-3 text-sm">Reference</th><th className="text-left p-3 text-sm">Applicant</th>
             <th className="text-left p-3 text-sm">Product</th><th className="text-left p-3 text-sm">Credit</th>
             <th className="text-left p-3 text-sm">Status</th><th className="text-left p-3 text-sm">SLA</th>
           </tr></thead>
           <tbody>
-            {apps.map((app, idx) => {
+            {visibleApps.map((app, idx) => {
               const priority = getPriority(app);
-              // SLA: simulate days since submission (based on index for variety)
+              // SLA: prefer the real server-computed posture; fall back to a
+              // simulated day count for seed rows that carry no sla.
               const slaDays = Math.max(1, Math.min(14, 1 + (idx % 7)));
               const slaColor = slaDays <= 3 ? 'text-green-600' : slaDays <= 5 ? 'text-amber-600' : 'text-red-600';
               return (
@@ -594,7 +617,7 @@ function AibDashboard({ user }: { user: any }) {
                 <td className="p-3 text-sm">{app.product}</td>
                 <td className="p-3"><span className={`text-xs font-bold px-2 py-0.5 rounded ${app.result === 'PASS' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>{app.result}</span></td>
                 <td className="p-3"><StatusBadge status={app.status} /></td>
-                <td className="p-3 text-xs font-bold"><span className={slaColor}>{slaDays}d</span></td>
+                <td className="p-3 text-xs font-bold">{app.sla ? <SlaBadge sla={app.sla} /> : <span className={slaColor}>{slaDays}d</span>}</td>
               </tr>
               );
             })}
@@ -2294,6 +2317,26 @@ function StatusBadge({ status }: { status: string }) {
   return (
     <span className={`inline-block px-2 py-0.5 text-xs font-bold rounded ${colours[status] || 'bg-gray-100 text-gray-700'}`}>
       {status}
+    </span>
+  );
+}
+
+// SLA posture badge for a queue row. Driven by the server-computed status (from
+// @aib-iaas/statutory via the SLA worker's engine), so it never contradicts the
+// countdown panel on the case screen. The title surfaces the next deadline.
+function SlaBadge({ sla }: { sla: NonNullable<ApplicationSummary['sla']> }) {
+  const styles: Record<string, { label: string; cls: string }> = {
+    on_track: { label: 'On track', cls: 'bg-green-100 text-green-800' },
+    at_risk: { label: 'At risk', cls: 'bg-amber-100 text-amber-800' },
+    overdue: { label: 'Overdue', cls: 'bg-red-100 text-red-800' },
+  };
+  const s = styles[sla.status] || styles.on_track;
+  const title = sla.nextDeadline
+    ? `${sla.nextDeadline.label} — due ${new Date(sla.nextDeadline.due).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })} (${sla.nextDeadline.citation})`
+    : undefined;
+  return (
+    <span data-demo="sla-badge" title={title} className={`inline-block px-2 py-0.5 text-xs font-bold rounded ${s.cls}`}>
+      {s.label}
     </span>
   );
 }

@@ -1,5 +1,6 @@
 import { Router, Response } from 'express';
-import { applications, audit, notes, users, notifications, claims, messages } from '../db';
+import { applications, audit, notes, users, notifications, claims, messages, recommendations } from '../db';
+import { summariseCase } from '../sla/engine';
 import { optionalAuth, type AuthenticatedRequest } from '../middleware/rbac';
 import { signToken, verifyToken } from '@aib-iaas/auth';
 import { validate, applicationNotesSchema, applicationAssignSchema, claimCreateSchema, messageCreateSchema } from '@aib-iaas/validation';
@@ -542,16 +543,28 @@ applicationsRouter.get('/', (req: AuthenticatedRequest, res: Response) => {
 
     const result = applications.list({ status, assignedTo, unassigned, ownerUserId, submittedByUserId, page, pageSize });
 
-    // Enrich with applicant summary where possible
+    // Enrich with applicant summary and live SLA posture where possible. The SLA
+    // is computed from the SAME @aib-iaas/statutory package the case page's clock
+    // panel and the background worker use, so the three agree by construction —
+    // the badge here never contradicts the countdown on the case screen. A case
+    // with no recommendation (hence no product), no submission date, or an
+    // unmodelled product (DPP) carries sla: null and shows no badge.
+    const now = new Date();
     const enrichedData = result.data.map(app => {
       const withRelations = applications.getWithRelations(app.id);
       const applicant = withRelations?.applicant;
+      const debts = withRelations?.debts ?? [];
+      const rec = recommendations.findByApplication(app.id);
+      const sla = (rec && app.submittedAt)
+        ? summariseCase({ product: rec.product, submittedOn: new Date(app.submittedAt), debtCount: debts.length }, now)
+        : null;
       return {
         ...app,
         summary: {
           applicantName: applicant ? `${applicant.firstName} ${applicant.lastName}` : 'Unknown',
-          totalDebt: withRelations?.debts?.reduce((sum, d) => sum + d.amount, 0) || 0,
+          totalDebt: debts.reduce((sum, d) => sum + d.amount, 0) || 0,
         },
+        sla,
       };
     });
 

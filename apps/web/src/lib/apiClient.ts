@@ -256,6 +256,20 @@ export async function apiDelete<T>(path: string): Promise<ApiResponse<T>> {
 
 // ─── Application-Specific API Functions ──────────────────────────────────────
 
+/** Live statutory SLA posture for a queue row, computed server-side by the SLA
+ *  worker's engine. Null when the case has no modelled statutory clock (no
+ *  recommendation/product, no submission date, or an unmodelled product). */
+export interface SlaPosture {
+  status: 'on_track' | 'at_risk' | 'overdue';
+  nextDeadline?: {
+    kind: string;
+    label: string;
+    due: string;
+    daysRemaining: number;
+    citation: string;
+  };
+}
+
 export interface ApplicationSummary {
   id: string;
   referenceNumber: string;
@@ -267,6 +281,7 @@ export interface ApplicationSummary {
     applicantName: string;
     totalDebt: number | null;
   };
+  sla?: SlaPosture | null;
 }
 
 export interface ApplicationDetail {

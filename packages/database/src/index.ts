@@ -30,6 +30,7 @@ export { ClaimRepository } from './repositories/claims';
 export { MessageRepository } from './repositories/messages';
 export { OrganisationRepository } from './repositories/organisations';
 export { PaymentRepository } from './repositories/payments';
+export { SlaEventRepository } from './repositories/slaEvents';
 
 // Types - Applications
 export type {
@@ -120,6 +121,12 @@ export type {
   CreatePaymentInput,
 } from './repositories/payments';
 
+// Types - SLA events
+export type {
+  SlaEvent,
+  RecordSlaEventInput,
+} from './repositories/slaEvents';
+
 // ─── Convenience factory ───────────────────────
 
 import { getDatabase } from './connection';
@@ -135,6 +142,7 @@ import { ClaimRepository } from './repositories/claims';
 import { MessageRepository } from './repositories/messages';
 import { OrganisationRepository } from './repositories/organisations';
 import { PaymentRepository } from './repositories/payments';
+import { SlaEventRepository } from './repositories/slaEvents';
 
 export interface Repositories {
   applications: ApplicationRepository;
@@ -148,6 +156,7 @@ export interface Repositories {
   messages: MessageRepository;
   organisations: OrganisationRepository;
   payments: PaymentRepository;
+  slaEvents: SlaEventRepository;
 }
 
 /**
@@ -175,5 +184,6 @@ export function createRepositories(): Repositories {
     messages: new MessageRepository(db),
     organisations: new OrganisationRepository(db),
     payments: new PaymentRepository(db),
+    slaEvents: new SlaEventRepository(db),
   };
 }
