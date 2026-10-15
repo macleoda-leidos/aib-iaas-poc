@@ -38,7 +38,7 @@
 > - **Identity (Thread 3).** The mock OIDC flow gained first-login provisioning, an account
 >   picker, and env-driven config scaffolding; the real-IdP cutover remains blocked (full
 >   GAP-007), as does the GAP-011 scoping qualifier (#3).
-> - **Test count** standardised to **1,030 across 57 files** (715 backend, 315 frontend),
+> - **Test count** standardised to **1,031 across 57 files** (716 backend, 315 frontend),
 >   resolving §5 item 8.
 
 ---
@@ -219,7 +219,7 @@ numbers concentrate in the marketing/architecture/testing cluster. Priority fixe
 | 5 | feature-catalogue.md:329 | "virus scanning protects infrastructure" | Fail-open filename match (GAP-004) | Soften |
 | 6 | roadmap.md:12 | Sprint 6 "MFA … Complete" | MFA simulated client-side (GAP-007) | "simulated (UI only)" |
 | 7 | ithc-penetration-test-report.md:55-56,693,697 | "No critical or high … FIT FOR CONTROLLED BETA USE" | v1.1 records 3 Crit/4 High; superseded | Strikethrough the retained v1.0 text in situ |
-| 8 | testing.md; architecture.md | ~~"904 tests across 50 files"~~ | **Resolved (see addendum).** Standardised to **1,030 across 57 files** (715 backend, 315 frontend). | Done — figures reconciled across the doc set and CLAUDE.md |
+| 8 | testing.md; architecture.md | ~~"904 tests across 50 files"~~ | **Resolved (see addendum).** Standardised to **1,031 across 57 files** (716 backend, 315 frontend), from a full `npx vitest run`. | Done — figures reconciled across the doc set and CLAUDE.md |
 | 9 | testing.md:206-216 | Keycloak auth / MFA / RBAC / Zod / virus-scan all "Pass" | None enforced (GAP-001/002/003/004/007/009) | Reflect GAP register |
 | 10 | architecture.md:644,530 | "All 12 services + 2 frontends + … Keycloak … production-grade identity" | Compose defines 10 services, 0 frontends; no code integrates Keycloak | "10 of 12; unused scaffolding" |
 | 11 | api-sdk-guide.md:20; release-notes.md:187 | "JWT Bearer authentication" / "stores JWT" | Unsigned base64, any password | "unsigned base64; JWT is prod target" |
@@ -231,7 +231,7 @@ numbers concentrate in the marketing/architecture/testing cluster. Priority fixe
 **Nuances to carry forward:** (a) Keycloak/ClamAV/Postgres *are* defined in docker-compose, but
 no service code integrates them → frame as "unused scaffolding," not "fabrication." (b) The ITHC
 is already self-correcting; it needs **strikethrough of the retained v1.0 lines**, not a rewrite.
-(c) The test count has since been **standardised to 1,030 across 57 files** (715 backend, 315
+(c) The test count has since been **standardised to 1,031 across 57 files** (716 backend, 315
 frontend); see `docs/testing.md` and the addendum above.
 
 ---
