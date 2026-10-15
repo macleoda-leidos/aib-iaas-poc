@@ -1,0 +1,21 @@
+flowchart TD
+    A[Adviser logs in] --> B[Adviser dashboard]
+    B --> C[Start new client application]
+    C --> D[Enter client personal details]
+    D --> E[Enter client financial details]
+    E --> F[Upload client documents]
+    F --> G[Run system checks]
+    G --> H{Issues found?}
+    H -->|Yes - existing case| I[Discuss with client]
+    I --> J{Client wants to proceed?}
+    J -->|No| K[Close application - signpost]
+    J -->|Yes| L[Add explanation note]
+    H -->|No| M[Review recommendation]
+    L --> M
+    M --> N[Discuss recommendation with client]
+    N --> O{Client agrees?}
+    O -->|Yes| P[Client authorises]
+    O -->|No| Q[Request alternative assessment]
+    P --> R[Submit on behalf of client]
+    R --> S[Confirmation received]
+    S --> T[Case appears in adviser queue]

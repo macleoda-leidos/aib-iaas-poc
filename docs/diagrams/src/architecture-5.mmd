@@ -1,0 +1,15 @@
+stateDiagram-v2
+    [*] --> draft : Application created
+    draft --> submitted : Applicant submits
+    submitted --> under_review : Staff picks up
+    under_review --> additional_info_required : More evidence needed
+    additional_info_required --> under_review : Applicant responds
+    under_review --> recommendation_issued : Rules engine completes
+    recommendation_issued --> accepted : Staff approves
+    recommendation_issued --> rejected : Staff rejects
+    draft --> withdrawn : Applicant withdraws
+    submitted --> withdrawn : Applicant withdraws
+    under_review --> withdrawn : Applicant withdraws
+    accepted --> [*]
+    rejected --> [*]
+    withdrawn --> [*]

@@ -1,0 +1,38 @@
+graph TB
+    subgraph "API Gateway (port 3001)"
+        gw["Route Handler<br/>POST /api/applications/:id/checks"]
+    end
+
+    subgraph "Integration Orchestrator (port 3004)"
+        orch["Orchestration Engine<br/>Promise.allSettled()"]
+        agg["Result Aggregator<br/>Summary: totalChecks, casesFound, errors"]
+        timer["Per-call Timeout<br/>5000ms (Axios)"]
+    end
+
+    subgraph "Statutory Register Checks (Parallel)"
+        basys["BASYS<br/>POST /api/basys/lookup"]
+        eden["eDEN/DASH<br/>POST /api/eden/lookup"]
+        das["DAS Register<br/>POST /api/das/lookup"]
+        cft["CFT<br/>POST /api/cft/lookup"]
+        mor["Moratorium<br/>POST /api/moratorium/check"]
+        roi["RoI<br/>POST /api/roi/search"]
+    end
+
+    subgraph "Individual Checks (Sequential, on-demand)"
+        credit["Credit Bureau<br/>POST /api/credit-check/run"]
+        payment["Payment Provider<br/>POST /api/payments/initiate"]
+    end
+
+    subgraph "Identity (Authentication flow)"
+        scotaccount["ScotAccount<br/>SAML 2.0 Federation"]
+        govuk["GOV.UK Login<br/>OpenID Connect"]
+    end
+
+    gw --> orch
+    orch --> basys & eden & das & cft & mor & roi
+    orch --> agg
+    timer -.-> orch
+
+    gw --> credit
+    gw --> payment
+    gw --> scotaccount & govuk

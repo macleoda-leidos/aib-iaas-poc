@@ -1,0 +1,14 @@
+flowchart TD
+    A[Incoming Request] --> B{Valid JWT?}
+    B -->|No| C[401 Unauthorized]
+    B -->|Yes| D{Token expired?}
+    D -->|Yes| E[401 - Token Refresh Required]
+    D -->|No| F[Extract roles from JWT claims]
+    F --> G{Role has permission for resource+action?}
+    G -->|No| H[403 Forbidden]
+    G -->|Yes| I{Resource-level constraint?}
+    I -->|Own data only| J{User owns resource?}
+    J -->|No| H
+    J -->|Yes| K[Allow Request]
+    I -->|No constraint| K
+    K --> L[Forward to Service]

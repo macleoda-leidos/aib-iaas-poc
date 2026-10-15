@@ -1,0 +1,34 @@
+sequenceDiagram
+    participant GW as API Gateway
+    participant IO as Integration Orchestrator
+    participant BASYS as BASYS
+    participant EDEN as eDEN/DASH
+    participant DAS as DAS Register
+    participant CFT as CFT
+    participant MOR as Moratorium
+    participant ROI as RoI
+
+    GW->>IO: POST /api/integrations/check-all<br/>{firstName, lastName, DOB, NI, postcode, totalDebt}
+    activate IO
+    
+    par Parallel Execution (Promise.allSettled)
+        IO->>BASYS: POST /api/basys/lookup
+        IO->>EDEN: POST /api/eden/lookup
+        IO->>DAS: POST /api/das/lookup
+        IO->>CFT: POST /api/cft/lookup
+        IO->>MOR: POST /api/moratorium/check
+        IO->>ROI: POST /api/roi/search
+    end
+
+    Note over IO: 5-second timeout per call<br/>Each call independent
+
+    BASYS-->>IO: {status: "success", found: true/false, data: {...}}
+    EDEN-->>IO: {status: "not_found", found: false}
+    DAS-->>IO: {status: "success", found: true, data: {...}}
+    CFT-->>IO: {status: "success", found: true, providers: [...]}
+    MOR-->>IO: {status: "error", errorMessage: "timeout"}
+    ROI-->>IO: {status: "not_found", found: false}
+
+    IO->>IO: Aggregate results + calculate summary
+    IO-->>GW: {requestId, timestamp, results: [...], summary: {totalChecks: 6, casesFound: 2, errors: 1}}
+    deactivate IO

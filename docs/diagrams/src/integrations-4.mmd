@@ -1,0 +1,31 @@
+sequenceDiagram
+    participant Staff as AiB Officer
+    participant Admin as Admin Portal
+    participant GW as API Gateway
+    participant CC as Credit Check Service
+    participant CRA as Credit Reference Agency<br/>(Mock: SyntheticCredit Ltd)
+    participant DB as Application DB
+    participant AS as Audit Service
+
+    Staff->>Admin: Click "Run Credit Check" on application
+    Admin->>GW: POST /api/credit-check/run<br/>Authorization: Bearer {token}
+    
+    GW->>GW: authenticate() — validate token, attach user context
+    GW->>GW: requirePermission('credit_check.execute') — verify staff role
+    GW->>GW: Verify debtor consent recorded on application
+
+    GW->>CC: POST /api/credit-check/run<br/>{firstName, lastName, DOB, NI, address}
+    
+    CC->>CRA: POST /api/credit-check/run<br/>(In prod: mTLS to Experian/Equifax API)
+    
+    Note over CRA: POC: Generate synthetic data<br/>Score: random 200-800<br/>Defaults: based on score band<br/>Bankruptcy flag: NI ending 'B'
+    
+    CRA-->>CC: {creditScore: 520, scoreBand: 'poor',<br/>defaults: 2, ccjs: 0,<br/>bankruptcyFlag: false, status: 'issues_found'}
+    
+    CC-->>GW: {success: true, data: {provider, creditScore, ...}}
+    
+    GW->>DB: UPDATE application SET creditCheckResult = {...}
+    GW->>AS: POST /api/audit/events<br/>{action: 'credit_check.executed',<br/>applicationId, scoreBand: 'poor', responseTime: 340}
+    
+    GW-->>Admin: {success: true, data: {creditScore, scoreBand, defaults, ...}}
+    Admin-->>Staff: Display credit check results with score band

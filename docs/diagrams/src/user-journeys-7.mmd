@@ -1,0 +1,28 @@
+flowchart TD
+    A[Physical document arrives] --> B[Scan to digital]
+    B --> C[ClamAV virus scan]
+    C -->|Clean| D[OCR text extraction]
+    C -->|Infected| E[Quarantine + alert]
+    D --> F[NER entity extraction]
+    F --> G[Extract person name]
+    F --> H[Extract NI number]
+    F --> I[Extract amounts]
+    F --> J[Extract dates]
+    F --> K[Extract addresses]
+    G --> L[Document classification]
+    H --> L
+    I --> L
+    J --> L
+    K --> L
+    L --> M{Confidence > 85%?}
+    M -->|Yes| N[Auto-route to system]
+    M -->|No| O[Human review queue]
+    N --> P{Target system?}
+    P -->|BASYS| Q[Attach to sequestration case]
+    P -->|eDEN| R[Attach to DAS arrangement]
+    P -->|IAAS| S[Attach to application]
+    O --> T[Officer reviews classification]
+    T --> U{Correct?}
+    U -->|Yes| N
+    U -->|No| V[Officer corrects + model learns]
+    V --> N

@@ -1,0 +1,34 @@
+sequenceDiagram
+    participant User as User (Browser)
+    participant Web as Web Portal (Next.js)
+    participant KC as Keycloak (Identity Broker)
+    participant SA as ScotAccount (SAML 2.0)
+    participant GL as GOV.UK Login (OIDC)
+    participant GW as API Gateway
+    participant US as User Service
+
+    User->>Web: Clicks "Sign In"
+    Web->>KC: Redirect to /auth/realms/iaas/protocol/openid-connect/auth
+
+    alt Scottish Government Identity
+        KC->>SA: SAML AuthnRequest
+        User->>SA: Authenticates (username + MFA)
+        SA-->>KC: SAML Assertion (name, email, identity_verified)
+    else UK Government Identity
+        KC->>GL: OIDC Authorization Request
+        User->>GL: Authenticates (identity proofing)
+        GL-->>KC: ID Token + UserInfo (name, DOB, verified_claims)
+    else AiB Staff (Active Directory)
+        KC->>KC: Internal realm authentication
+        User->>KC: Authenticates (AD credentials + MFA)
+    end
+
+    KC-->>Web: Authorization Code (PKCE)
+    Web->>GW: POST /api/auth/token {code, code_verifier}
+    GW->>US: Exchange code, create/find user, load permissions
+    US->>US: Map federated identity to local user record
+    US->>US: Load role (9-level hierarchy) and permission codes
+    US->>US: Create session (8-hour expiry)
+    US-->>GW: {token (Base64), user: {id, email, role, permissions}}
+    GW-->>Web: Set-Cookie: session_token (httpOnly, secure, SameSite=Strict)
+    Web-->>User: Redirect to role-appropriate dashboard

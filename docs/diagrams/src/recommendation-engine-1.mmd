@@ -1,0 +1,23 @@
+flowchart TD
+    A[Citizen Submits Financial Data] --> B[Validate Input Data]
+    B --> C{Validation Pass?}
+    C -->|No| D[Return Validation Errors]
+    C -->|Yes| E[Load Active Rules - Priority Ordered]
+    E --> F[Rule 1: Evaluate Conditions]
+    F --> G{Conditions Met?}
+    G -->|Yes| H[Record Match + Confidence]
+    G -->|No| I[Next Rule]
+    H --> I
+    I --> J{More Rules?}
+    J -->|Yes| F
+    J -->|No| K[Rank Matched Products by Confidence]
+    K --> L[Select Primary Recommendation]
+    L --> M[Identify Alternative Products]
+    M --> N[Generate Decision Factors]
+    N --> O[Compose Plain-English Explanation]
+    O --> P[Apply Regulatory Disclaimer]
+    P --> Q[Log to Audit Trail]
+    Q --> R[Return Recommendation Response]
+    
+    style L fill:#2d6a4f,color:#fff
+    style Q fill:#1b4332,color:#fff

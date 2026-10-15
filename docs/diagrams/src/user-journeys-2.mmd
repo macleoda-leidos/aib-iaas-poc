@@ -1,0 +1,25 @@
+flowchart TD
+    A[User clicks Sign In] --> B[Keycloak login page]
+    B --> C{User type?}
+    C -->|AiB Staff| D[aib-internal realm]
+    C -->|Adviser/Trustee| E[external-advisers realm]
+    C -->|Creditor| F[creditors realm]
+    C -->|Citizen| G[public-debtors realm]
+    D --> H[AD credentials]
+    E --> I[Organisation credentials]
+    F --> I
+    G --> J{ScotAccount?}
+    J -->|Yes| K[ScotAccount SAML redirect]
+    J -->|No| L[Email + password]
+    K --> M[MFA Challenge]
+    H --> M
+    I --> M
+    L --> M
+    M --> N{MFA method}
+    N -->|TOTP| O[Authenticator app code]
+    N -->|WebAuthn| P[Hardware key / biometric]
+    N -->|Email| Q[Email OTP]
+    O --> R[Session established]
+    P --> R
+    Q --> R
+    R --> S[Redirect to role landing page]

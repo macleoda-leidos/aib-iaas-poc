@@ -1,0 +1,51 @@
+C4Container
+    title IAAS Container Diagram
+
+    Person(user, "User", "Citizen, Adviser, Staff, or Creditor")
+
+    System_Boundary(iaas, "IAAS Platform") {
+        Container(web, "Web Portal", "Next.js 15, React 18, Tailwind CSS, port 3000", "Public-facing multi-step application journey for citizens and advisers")
+        Container(admin, "Admin Portal", "Next.js 15, React 18, Tailwind CSS, port 3010", "Internal portal for AiB staff — case review, decisions, reporting")
+
+        Container(gateway, "API Gateway", "Express.js, TypeScript, port 3001", "BFF layer — authentication, RBAC, rate limiting, request routing, response aggregation")
+
+        Container(recommendation, "Recommendation Service", "Express.js, TypeScript, port 3002", "Rules engine with confidence scoring — evaluates financial data against product criteria")
+        Container(document, "Document Service", "Express.js, TypeScript, port 3003", "Document upload, ClamAV virus scanning, storage lifecycle management")
+        Container(orchestrator, "Integration Orchestrator", "Express.js, TypeScript, port 3004", "Parallel fan-out execution of external system checks via Promise.allSettled")
+        Container(mock, "Mock Integrations", "Express.js, TypeScript, port 3005", "Simulates all external systems with configurable latency (100-500ms) and failure rates (5%)")
+        Container(payment, "Payment Service", "Express.js, TypeScript, port 3006", "Payment initiation, status tracking, refund handling — Apple Pay, Google Pay, Card")
+        Container(audit, "Audit Service", "Express.js, TypeScript, port 3007", "Immutable event log for all system actions — write-only append model")
+        Container(credit, "Credit Check Service", "Express.js, TypeScript, port 3008", "Credit bureau interface with consent management and synthetic data generation")
+        Container(org, "Organisation Service", "Express.js, TypeScript, port 3009", "Organisation hierarchy, parent-child relationships, provider registration")
+        Container(userSvc, "User Service", "Express.js, TypeScript, port 3011", "Authentication, session management, 9-role RBAC with 23+ permissions")
+        Container(notification, "Notification Service", "Express.js, TypeScript, port 3012", "Email, SMS, and in-app notification delivery with subscription management")
+        Container(identity, "Identity Service", "Express.js, TypeScript, port 3013", "Identity federation orchestration — ScotAccount, GOV.UK Login, MFA enforcement")
+
+        ContainerDb(appDb, "Application Database", "SQLite (POC) / PostgreSQL 15 (Prod)", "Applications, debtor records, financial data, recommendations, payments")
+        ContainerDb(auditDb, "Audit Database", "SQLite (POC) / PostgreSQL 15 (Prod)", "Immutable append-only audit event log")
+        ContainerDb(userDb, "User Database", "SQLite (POC) / PostgreSQL 15 (Prod)", "Users, roles, permissions, sessions, organisations")
+        Container(storage, "Document Storage", "Local FS (POC) / S3 (Prod)", "Uploaded documents — identification, proof of address, income/debt evidence")
+    }
+
+    Rel(user, web, "Accesses", "HTTPS/443")
+    Rel(user, admin, "Accesses", "HTTPS/443")
+    Rel(web, gateway, "API calls", "HTTP/REST")
+    Rel(admin, gateway, "API calls", "HTTP/REST")
+
+    Rel(gateway, recommendation, "POST /api/recommend", "HTTP")
+    Rel(gateway, document, "POST /api/documents", "HTTP")
+    Rel(gateway, orchestrator, "POST /api/integrations/check-all", "HTTP")
+    Rel(gateway, payment, "POST /api/payments", "HTTP")
+    Rel(gateway, audit, "POST /api/audit/events", "HTTP")
+    Rel(gateway, credit, "POST /api/credit-check/run", "HTTP")
+    Rel(gateway, userSvc, "POST /api/auth/login", "HTTP")
+    Rel(gateway, notification, "POST /api/notifications/send", "HTTP")
+    Rel(gateway, identity, "POST /api/identity/verify", "HTTP")
+    Rel(gateway, org, "GET /api/organisations", "HTTP")
+
+    Rel(orchestrator, mock, "Parallel checks (6 systems)", "HTTP")
+
+    Rel(gateway, appDb, "Reads/Writes applications", "SQL")
+    Rel(audit, auditDb, "Append-only writes", "SQL")
+    Rel(userSvc, userDb, "User/role CRUD", "SQL")
+    Rel(document, storage, "Store/retrieve files", "FS/S3")

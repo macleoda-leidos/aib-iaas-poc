@@ -1,0 +1,50 @@
+graph TB
+    subgraph "API Gateway — Express.js Application (port 3001)"
+        subgraph "Security Middleware Pipeline (ordered)"
+            helmet["Helmet<br/>Security headers: CSP, HSTS,<br/>X-Frame-Options, X-Content-Type-Options"]
+            cors["CORS Middleware<br/>Origin: configurable allowlist<br/>Methods: GET, POST, PUT, DELETE, PATCH<br/>Headers: Content-Type, Authorization"]
+            rateLimit["Rate Limiter<br/>100 requests per 15-minute window<br/>Per-IP tracking<br/>Custom error: RATE_LIMITED"]
+            bodyParser["Body Parser<br/>JSON with 10MB limit<br/>Rejects oversized payloads"]
+            requestId["Request ID Generator<br/>X-Request-Id header<br/>UUID v4 if not present<br/>Propagated to all downstream calls"]
+        end
+
+        subgraph "Authentication & Authorisation Layer"
+            authenticate["authenticate()<br/>Validates Bearer token<br/>Decodes base64 payload (POC)<br/>Validates JWT signature (Prod)<br/>Checks token expiry<br/>Attaches user context to request"]
+            requirePerm["requirePermission(...codes)<br/>AND-logic: user must have ALL<br/>Returns 403 with details on failure"]
+            requireAny["requireAnyPermission(...codes)<br/>OR-logic: user must have at least ONE"]
+            requireLevel["requireRoleLevel(minLevel)<br/>Numeric hierarchy check<br/>Higher level = more access"]
+            optionalAuth["optionalAuth()<br/>Attaches user if token present<br/>Continues without auth if absent<br/>For public endpoints with enhanced behaviour"]
+        end
+
+        subgraph "Route Handlers"
+            authRoutes["/api/auth<br/>POST /login — authenticate<br/>GET /me — token validation<br/>POST /logout — session termination<br/>POST /check-permission"]
+            appRoutes["/api/applications<br/>POST / — create application<br/>GET /:id — retrieve by ID<br/>PUT /:id — update application<br/>POST /:id/submit — submit for review<br/>PATCH /:id/status — staff status change"]
+            reportRoutes["/api/reports<br/>Protected: authenticate + reports.read<br/>GET /summary — dashboard KPIs<br/>GET /applications — filtered list"]
+            exportRoutes["/api/reports/export<br/>Public for POC demo<br/>GET /csv — export as CSV<br/>GET /pdf — export as PDF"]
+            postcodeRoutes["/api/postcode<br/>GET /lookup?q= — address search<br/>OS Places API integration"]
+            healthRoute["/api/health<br/>GET / — service health status<br/>Returns: status, service, timestamp"]
+        end
+
+        subgraph "Error Handling"
+            errorHandler["errorHandler(err, req, res, next)<br/>Centralised error response<br/>Production: generic message<br/>Development: full error detail<br/>Standard shape: {success, error: {code, message}}"]
+        end
+    end
+
+    helmet --> cors --> rateLimit --> bodyParser --> requestId
+    requestId --> authRoutes
+    requestId --> appRoutes
+    requestId --> reportRoutes
+    requestId --> exportRoutes
+    requestId --> postcodeRoutes
+    requestId --> healthRoute
+
+    appRoutes -.-> authenticate
+    authenticate -.-> requirePerm
+    reportRoutes -.-> authenticate
+    authenticate -.-> requirePerm
+
+    authRoutes --> errorHandler
+    appRoutes --> errorHandler
+    reportRoutes --> errorHandler
+    exportRoutes --> errorHandler
+    postcodeRoutes --> errorHandler

@@ -1,0 +1,75 @@
+erDiagram
+    APPLICATION ||--|| DEBTOR_DETAILS : contains
+    APPLICATION ||--|| APPLICANT_DETAILS : "submitted by"
+    APPLICATION ||--|{ ADDRESS : "address history"
+    APPLICATION ||--|| DEBT_SUMMARY : "financial overview"
+    DEBT_SUMMARY ||--|{ DEBT : "individual debts"
+    APPLICATION ||--|| INCOME : "monthly income"
+    APPLICATION ||--|| EXPENDITURE : "monthly expenditure"
+    APPLICATION ||--|| HOUSEHOLD : "household composition"
+    APPLICATION ||--|{ ASSET : "declared assets"
+    APPLICATION ||--|{ DOCUMENT_REF : "uploaded evidence"
+    APPLICATION ||--o| CREDIT_CHECK_RESULT : "credit bureau check"
+    APPLICATION ||--|{ EXISTING_CASE_CHECK : "system lookups"
+    APPLICATION ||--o| PRODUCT_RECOMMENDATION : "rules engine output"
+    APPLICATION ||--o| PAYMENT_STATUS : "fee payment"
+    APPLICATION ||--|{ AUDIT_EVENT : "state changes"
+    APPLICATION ||--|{ STAFF_NOTE : "officer annotations"
+
+    USER ||--|| ROLE : "assigned role"
+    ROLE ||--|{ PERMISSION : "grants permissions"
+    USER }o--o| ORGANISATION : "belongs to"
+    ORGANISATION }o--o| ORGANISATION : "parent hierarchy"
+
+    APPLICATION {
+        string id PK
+        string referenceNumber UK
+        string status
+        datetime createdAt
+        datetime updatedAt
+        datetime submittedAt
+    }
+
+    DEBTOR_DETAILS {
+        string firstName
+        string lastName
+        string dateOfBirth
+        string nationalInsuranceNumber
+        string employmentStatus
+        string maritalStatus
+        int dependants
+    }
+
+    DEBT {
+        string creditorName
+        string creditorType
+        decimal originalAmount
+        decimal outstandingAmount
+        decimal monthlyPayment
+        boolean isSecured
+        boolean inArrears
+    }
+
+    PRODUCT_RECOMMENDATION {
+        string recommendedProduct
+        string confidence
+        json reasoning
+        json alternativeProducts
+        json factors
+    }
+
+    USER {
+        string id PK
+        string email UK
+        string firstName
+        string lastName
+        string role
+        string status
+        boolean mfaEnabled
+    }
+
+    ROLE {
+        string name PK
+        string displayName
+        int level
+    }

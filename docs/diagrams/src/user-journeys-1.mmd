@@ -1,0 +1,20 @@
+flowchart TD
+    A[Citizen arrives at IAAS] --> B[Reads requirements]
+    B --> C[Starts application]
+    C --> D[Personal Details & Aliases]
+    D --> E[Address History - 5yr]
+    E --> F[Debts listing]
+    F --> G[Income & Expenditure]
+    G --> H[Assets declaration]
+    H --> I[Document upload]
+    I --> J[Consent to checks]
+    J --> K{System checks clear?}
+    K -->|Yes| L[Recommendation generated]
+    K -->|Existing case found| M[Signposting advice]
+    L --> N[Review recommendation]
+    N --> O{Accept recommendation?}
+    O -->|Yes| P[Payment]
+    P --> Q[Submit application]
+    Q --> R[Confirmation & reference number]
+    O -->|No| S[Speak to adviser]
+    M --> S

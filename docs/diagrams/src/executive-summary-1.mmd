@@ -1,0 +1,36 @@
+C4Context
+    title IAAS System Context
+
+    Person(citizen, "Citizen / Debtor", "Applies for debt solutions online")
+    Person(adviser, "Money Adviser / IP", "Supports citizens through applications")
+    Person(staff, "AiB Staff", "Processes applications, manages cases")
+
+    System(iaas, "IAAS Platform", "Unified application gateway, recommendation engine, case management")
+
+    System_Ext(scotaccount, "ScotAccount", "Scottish Government identity")
+    System_Ext(govuk_login, "GOV.UK Login", "UK Government identity")
+    System_Ext(cra, "Credit Reference Agency", "Credit check data")
+    System_Ext(govuk_pay, "GOV.UK Pay", "Payment processing")
+
+    System_Ext(basys, "BASYS", "Bankruptcy administration")
+    System_Ext(eden, "eDEN", "DAS Register")
+    System_Ext(astra, "ASTRA", "Case management")
+    System_Ext(cft, "CFT System", "Certificate for Trustee")
+    System_Ext(moratorium, "Moratorium Register", "Debt moratorium")
+    System_Ext(roi, "Register of Insolvencies", "Public register")
+
+    Rel(citizen, iaas, "Applies via")
+    Rel(adviser, iaas, "Manages applications via")
+    Rel(staff, iaas, "Processes cases via")
+
+    Rel(iaas, scotaccount, "Authenticates via")
+    Rel(iaas, govuk_login, "Authenticates via")
+    Rel(iaas, cra, "Checks credit via")
+    Rel(iaas, govuk_pay, "Takes payment via")
+
+    Rel(iaas, basys, "Submits bankruptcy via")
+    Rel(iaas, eden, "Submits DAS via")
+    Rel(iaas, astra, "Creates cases in")
+    Rel(iaas, cft, "Submits CFT via")
+    Rel(iaas, moratorium, "Registers moratorium via")
+    Rel(iaas, roi, "Publishes to")

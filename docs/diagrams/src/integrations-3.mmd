@@ -1,0 +1,32 @@
+sequenceDiagram
+    participant User as Citizen (Browser)
+    participant Web as Web Portal
+    participant KC as Keycloak (Identity Broker)
+    participant SA as ScotAccount (SAML IdP)
+    participant GW as API Gateway
+    participant US as User Service
+    participant AS as Audit Service
+
+    User->>Web: Click "Sign in with ScotAccount"
+    Web->>KC: GET /auth/realms/iaas/protocol/openid-connect/auth<br/>?kc_idp_hint=scotaccount&redirect_uri=...&response_type=code
+    KC->>SA: SAML AuthnRequest (HTTP-Redirect binding)
+    SA-->>User: ScotAccount login page
+
+    User->>SA: Enter credentials + MFA
+    SA->>SA: Validate credentials, generate assertion
+    SA-->>KC: SAML Response (HTTP-POST binding)<br/>Assertion: {name, email, DOB, verified: true}
+
+    KC->>KC: Validate SAML signature<br/>Map attributes to OIDC claims<br/>Create/update broker link
+    KC-->>Web: Redirect with authorization code (PKCE)
+    
+    Web->>GW: POST /api/auth/exchange {code, code_verifier}
+    GW->>US: POST /api/users/federated-login {provider: 'scotaccount', claims: {...}}
+    
+    US->>US: Find or create user by federated identity
+    US->>US: Load role, permissions, organisation
+    US->>US: Create session (8h expiry)
+    US-->>GW: {token, user: {id, email, role, permissions}}
+    
+    GW->>AS: POST /api/audit/events {action: 'auth.login.scotaccount', userId}
+    GW-->>Web: {token, user} + Set-Cookie (httpOnly, secure, SameSite)
+    Web-->>User: Redirect to dashboard (role-appropriate)

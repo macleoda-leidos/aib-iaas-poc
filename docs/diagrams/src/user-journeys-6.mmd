@@ -1,0 +1,26 @@
+flowchart TD
+    A[Officer opens Search] --> B[Enters search term]
+    B --> C{Search type?}
+    C -->|Name| D[Fuzzy name matching]
+    C -->|NI Number| E[Exact NI lookup]
+    C -->|Reference| F[Reference number lookup]
+    D --> G[Fuse.js weighted search]
+    E --> G
+    F --> G
+    G --> H[Results from all systems]
+    H --> I[BASYS results]
+    H --> J[eDEN results]
+    H --> K[DAS results]
+    H --> L[IAAS results]
+    H --> M[Live API results]
+    I --> N[Ranked by confidence score]
+    J --> N
+    K --> N
+    L --> N
+    M --> N
+    N --> O{Variants detected?}
+    O -->|Yes| P[Highlight cross-system matches]
+    O -->|No| Q[Show single result]
+    P --> R[Officer reviews matches]
+    Q --> R
+    R --> S[Click through to case detail]
