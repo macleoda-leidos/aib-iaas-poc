@@ -63,12 +63,13 @@ export default defineConfig({
         'packages/test-data/**',
         // Deployment wiring (not business logic)
         'services/consolidated-api/**',
-        // Services with only route handlers (no business logic to unit-test)
+        // Services with only thin route handlers (no business logic to unit-test).
+        // document-service and payment-service were previously here too, but now
+        // carry real repository-backed persistence logic, so they are counted —
+        // their `db/`/`scanner/clamav.ts` infra is excluded by the rules above.
         'services/notification-service/**',
         'services/organisation-service/**',
         'services/identity-service/**',
-        'services/document-service/**',
-        'services/payment-service/**',
         'services/audit-service/**',
         'services/integration-orchestrator/**',
       ],

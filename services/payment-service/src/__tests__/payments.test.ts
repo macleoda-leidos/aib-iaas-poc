@@ -107,6 +107,17 @@ describe('Payment Service - /api/payments', () => {
       expect(responseData.description).toBe('AiB Application Fee');
     });
 
+    it('returns 400 when the applicationId has no matching application (FK)', () => {
+      const handler = getHandler(paymentsRouter, 'post', '/initiate');
+      const req = createMockReq({ body: { applicationId: 'does-not-exist', amount: 100 } });
+      const res = createMockRes();
+
+      handler(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json.mock.calls[0][0].error.code).toBe('INVALID_APPLICATION');
+    });
+
     it('includes sandbox disclaimer in response', () => {
       const handler = getHandler(paymentsRouter, 'post', '/initiate');
       const req = createMockReq({
@@ -153,6 +164,77 @@ describe('Payment Service - /api/payments', () => {
         success: false,
         error: { code: 'NOT_FOUND', message: 'Payment not found' },
       });
+    });
+  });
+
+  describe('POST /apple-pay (wallet simulation)', () => {
+    it('completes an apple-pay payment and sets the provider ref', () => {
+      const paymentId = createPayment({ applicationId: 'app-001', amount: 100 });
+      const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.5); // force success
+
+      const handler = getHandler(paymentsRouter, 'post', '/apple-pay');
+      const req = createMockReq({ body: { paymentId, applePayToken: 'tok-abc' } });
+      const res = createMockRes();
+      handler(req, res);
+      randomSpy.mockRestore();
+
+      const data = res.json.mock.calls[0][0].data;
+      expect(data.id).toBe(paymentId);
+      expect(data.method).toBe('apple_pay');
+      expect(data.status).toBe('completed');
+      expect(data.transactionReference).toContain('AP-');
+      expect(data.provider).toBe('apple_pay');
+      expect(data.providerResponse.sandbox).toBe(true);
+    });
+
+    it('marks apple-pay failed on a simulated decline (no provider ref)', () => {
+      const paymentId = createPayment({ applicationId: 'app-001', amount: 100 });
+      const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.0); // force failure
+
+      const handler = getHandler(paymentsRouter, 'post', '/apple-pay');
+      const req = createMockReq({ body: { paymentId } });
+      const res = createMockRes();
+      handler(req, res);
+      randomSpy.mockRestore();
+
+      const data = res.json.mock.calls[0][0].data;
+      expect(data.status).toBe('failed');
+      expect(data.transactionReference).toBeUndefined();
+    });
+
+    it('returns 404 for apple-pay on a non-existent payment', () => {
+      const handler = getHandler(paymentsRouter, 'post', '/apple-pay');
+      const req = createMockReq({ body: { paymentId: 'nope', applePayToken: 't' } });
+      const res = createMockRes();
+      handler(req, res);
+      expect(res.status).toHaveBeenCalledWith(404);
+    });
+  });
+
+  describe('POST /google-pay (wallet simulation)', () => {
+    it('completes a google-pay payment and sets the provider ref', () => {
+      const paymentId = createPayment({ applicationId: 'app-002', amount: 90 });
+      const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.5); // force success
+
+      const handler = getHandler(paymentsRouter, 'post', '/google-pay');
+      const req = createMockReq({ body: { paymentId, googlePayToken: 'tok-xyz' } });
+      const res = createMockRes();
+      handler(req, res);
+      randomSpy.mockRestore();
+
+      const data = res.json.mock.calls[0][0].data;
+      expect(data.method).toBe('google_pay');
+      expect(data.status).toBe('completed');
+      expect(data.transactionReference).toContain('GP-');
+      expect(data.provider).toBe('google_pay');
+    });
+
+    it('returns 404 for google-pay on a non-existent payment', () => {
+      const handler = getHandler(paymentsRouter, 'post', '/google-pay');
+      const req = createMockReq({ body: { paymentId: 'nope' } });
+      const res = createMockRes();
+      handler(req, res);
+      expect(res.status).toHaveBeenCalledWith(404);
     });
   });
 
