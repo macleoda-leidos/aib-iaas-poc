@@ -343,7 +343,27 @@ export const applications = {
 
   listNotes: (id: string) =>
     apiGet<Array<{ id: string; authorId: string | null; authorName: string | null; noteType: string; content: string; createdAt: string }>>(`/api/applications/${id}/notes`),
+
+  // CFT (Common Financial Tool) contribution assessment. Runs the reg.15 CFS
+  // method server-side against the case's income/expenditure. triggerFiguresSource
+  // flags that the trigger figures are a POC stand-in, not the licensed set.
+  cftAssessment: (id: string) =>
+    apiGet<CftAssessmentResult>(`/api/applications/${id}/cft-assessment`),
 };
+
+export interface CftAssessmentResult {
+  assessment: {
+    totalIncome: number;
+    declaredExpenditure: number;
+    allowedExpenditure: number;
+    contribution: number;
+    triggerExcesses: Array<{ category: string; declared: number; trigger: number; excess: number }>;
+    evidenceRequired: boolean;
+    contingencyAllowance: number;
+    citations: string[];
+  };
+  triggerFiguresSource: string;
+}
 
 // ─── Users (staff directory — used e.g. to populate the case assignment list) ─
 

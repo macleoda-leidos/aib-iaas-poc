@@ -3,55 +3,61 @@
 This checklist covers all items that must be completed, verified, or signed-off before the IAAS platform can accept live users. Items are grouped by category with ownership and status tracking.
 
 **Target Go-Live Date**: TBD (estimated 18 months from POC completion)
-**Last Updated**: 24 August 2026
+**Last Updated**: 14 October 2026
 
-> ## ⚠️ STATUS: POC ON SYNTHETIC DATA — SECURITY ITEMS ARE MOSTLY OPEN
+> ## ⚠️ STATUS: POC ON SYNTHETIC DATA — PHASE 1 SECURITY BACKBONE DELIVERED
 >
 > **The platform this checklist governs is a proof of concept operating exclusively on
-> synthetic data.** An internal static code review on 24 August 2026 identified **three
-> Critical and four High** security findings in the deployed source. Nine blocking security
-> items (S16-S24) have been added below to track them, and one item previously marked Done
-> (S9) is corrected to Not Started.
+> synthetic data.** An internal static code review (24 August 2026) identified three Critical
+> and four High findings in the deployed source. The **Phase 1 security backbone (October
+> 2026) has since remediated them**: signed tokens, default-deny authentication, password
+> verification, fail-closed malware scanning, resource ownership checks, authenticated audit
+> attribution, brute-force limits, wired-in input validation and server-side session
+> revocation (S16–S24, all Done). Input validation (S9) and the API Content Security Policy
+> (S2) are likewise now Done.
 >
-> See **`docs/security-known-gaps.md`** for the findings register. No real personal data is
-> exposed today because the POC holds none; these items are blockers for any environment
-> holding real debtor data.
+> **Genuinely open blockers remain**, and they are host- or process-limited rather than
+> unbuilt code: an independent ITHC against the deployed artefact (S1), HSTS on the GitHub
+> Pages frontend (S3), encryption at rest (S13), real-IdP-enforced MFA (S7 / full GAP-007),
+> pen-test remediation (S5) and WAF (S6). See **`docs/security-known-gaps.md`** for the
+> findings register. No real personal data is exposed today because the POC holds none; these
+> items are blockers for any environment holding real debtor data.
 
 ---
 
 ## Security (24 items)
 
-### Foundational Security Findings (added 24 August 2026 — all block go-live)
+### Foundational Security Findings (added 24 August 2026; delivered in the Phase 1 backbone, October 2026)
 
-These derive from `docs/security-known-gaps.md`. S16-S18 address Critical findings.
+These derive from `docs/security-known-gaps.md` (Status column, all GAP-00x Remediated). S16-S18 address Critical findings.
 
 | # | Item | Description | Owner | Status |
 |---|------|-------------|-------|--------|
-| S16 | **Token Integrity** | Replace unsigned base64 JSON tokens with signed tokens (RS256/EdDSA) verified on every request; reject on any verification failure. Tokens are currently forgeable — anyone can mint a `system_admin` token (GAP-001). | Backend Developer | **Not Started** |
-| S17 | **API Authentication Enforced** | Apply authentication and permission middleware to every non-public route on the **deployed** service (`services/consolidated-api`), default-deny. All 13 mounted routers are currently unauthenticated (GAP-002). | Backend Developer | **Not Started** |
-| S18 | **Password Verification** | Verify submitted passwords against a memory-hard KDF hash (Argon2id, or bcrypt cost ≥12). Any password is currently accepted (GAP-003). | Backend Developer | **Not Started** |
-| S19 | **Malware Scanning Fail-Closed** | Deploy a real scanning engine; treat `scanned: false` as failure, never as a pass; withhold documents pending a successful scan. The deployed scanner currently infers infection from the filename (GAP-004). | DevOps Engineer | **Not Started** |
-| S20 | **Resource Ownership Checks** | Enforce ownership/assignment constraints on all record-level routes; gate `PATCH /:id/status` behind an explicit decision permission (GAP-005). | Backend Developer | **Not Started** |
-| S21 | **Audit Attribution** | Authenticate audit ingestion; derive actor identity from the verified token, never from the request body (GAP-006). | Backend Developer | **Not Started** |
-| S22 | **Brute-Force Protection** | Per-account and per-IP login limits separate from the global limiter; temporary lockout with backoff; alert on lockout (GAP-008). | Backend Developer | **Not Started** |
-| S23 | **Validation Wired In** | Apply the existing schemas as middleware on every route accepting input; add a CI check preventing handlers reading `req.body` unvalidated (GAP-009). | Backend Developer | **Not Started** |
-| S24 | **Session Revocation** | Validate requests against server-side session state or a revocation list; shorten token lifetime with refresh rotation (GAP-010). | Backend Developer | **Not Started** |
+| S16 | **Token Integrity** | Replace unsigned base64 JSON tokens with signed tokens verified on every request; reject on any verification failure. | Backend Developer | **Done (Phase 1)** — HS256 signed tokens via `@aib-iaas/auth` (`signToken`/`verifyToken`), verified on every request; forged/tampered tokens rejected (GAP-001). RS256/JWKS foundation in place for the IdP cutover. |
+| S17 | **API Authentication Enforced** | Apply authentication and permission middleware to every non-public route on the **deployed** service, default-deny. | Backend Developer | **Done (Phase 1)** — `enforceAuthentication` default-deny wired into `services/consolidated-api`, per-resource permission guards on each mount; the applicant-intake surface is public by design (GAP-002). |
+| S18 | **Password Verification** | Verify submitted passwords against a memory-hard KDF hash. | Backend Developer | **Done (Phase 1)** — passwords verified against a stored hash; a wrong or empty password is rejected (GAP-003). |
+| S19 | **Malware Scanning Fail-Closed** | Treat `scanned: false` as failure, never as a pass; withhold documents pending a successful scan. | DevOps Engineer | **Done (Phase 1)** — scanner fails closed; status computed from both `scanned` and `infected`; download withheld until confirmed clean (GAP-004). A real ClamAV engine remains a deployment dependency. |
+| S20 | **Resource Ownership Checks** | Enforce ownership/assignment constraints on record-level routes; gate `PATCH /:id/status` behind an explicit decision permission. | Backend Developer | **Done (Phase 1)** — staff/owner scoping on reads and writes, approve/reject behind a decision permission with the actor taken from the token; anonymous read closed via signed per-application capability tokens. Anonymous write-intake remains open by design pending applicant identity (GAP-005). |
+| S21 | **Audit Attribution** | Derive actor identity from the verified token, never from the request body. | Backend Developer | **Done (Phase 1)** — audit attribution taken from the authenticated principal, not body-supplied fields (GAP-006). |
+| S22 | **Brute-Force Protection** | Per-account/per-IP login limits separate from the global limiter; temporary lockout with backoff. | Backend Developer | **Done (Phase 1)** — a dedicated `authRateLimiter` scoped to the login + verify-mfa routes, separate from the global limiter (GAP-008). |
+| S23 | **Validation Wired In** | Apply the existing schemas as middleware on every route accepting input. | Backend Developer | **Done (Phase 1)** — `@aib-iaas/validation` schemas applied as route middleware (no longer dead code); handlers consume the validated body (GAP-009). |
+| S24 | **Session Revocation** | Validate requests against server-side session state or a revocation list. | Backend Developer | **Done (Phase 1)** — sessions recorded server-side (`recordSession`/`sessionStore`) and checked on request, so logout/revocation takes effect (GAP-010). Shorter lifetimes + refresh rotation remain a hardening follow-up. |
 
 ### Original Security Items
 
 | # | Item | Description | Owner | Status |
 |---|------|-------------|-------|--------|
 | S1 | ITHC Passed | Independent IT Health Check completed with no Critical/High findings unresolved. **Must be scoped to the deployed artefact rather than a staging topology, and conducted after S16-S24.** The existing `docs/ithc-penetration-test-report.md` is a simulated document whose "no critical or high" conclusion is superseded. | Security Engineer | Pending |
-| S2 | CSP Configured | Content Security Policy headers block inline scripts, restrict sources. Currently explicitly disabled (`contentSecurityPolicy: false`). | DevOps Engineer | Pending |
-| S3 | HSTS Enabled | HTTP Strict Transport Security with min 1-year max-age, includeSubDomains | DevOps Engineer | Pending |
-| S4 | Secrets Rotated | All API keys, database passwords, and token signing keys rotated from development values. No token signing key exists yet — depends on S16. Verified positive: no secrets are committed to the repository today. | DevOps Engineer | Pending |
+| S2 | CSP Configured | Content Security Policy headers block inline scripts, restrict sources. | DevOps Engineer | **Done (API surface)** — strict JSON-API CSP (`default-src 'none'; frame-ancestors 'none'`) set via the shared `securityHeaders()` middleware in the 1 October 2026 header remediation (closes ITHC VUL-001 on the API). The GitHub Pages frontend cannot send HTTP headers and carries a best-effort `<meta>` CSP; the full header set is staged in `_headers`/`staticwebapp.config.json` for a header-capable host (S3 remains open for the frontend). |
+| S3 | HSTS Enabled | HTTP Strict Transport Security with min 1-year max-age, includeSubDomains | DevOps Engineer | Pending — set on the API via `securityHeaders()`, but the GitHub Pages frontend host cannot send it; kept open until a header-capable host serves the frontend. |
+| S4 | Secrets Rotated | All API keys, database passwords, and token signing keys rotated from development values. A token signing key now exists (S16 done, injected as a secret); rotating it and all other secrets from development values remains a production-deploy task. Verified positive: no secrets are committed to the repository today. | DevOps Engineer | Pending |
 | S5 | Pen Test Remediated | All penetration test findings at Medium+ severity remediated and retested | Security Engineer | Pending |
-| S6 | WAF Configured | Web Application Firewall rules active (OWASP Core Rule Set, rate limiting). Sequence after S16-S18 — a WAF in front of a service that authenticates no requests adds little. | DevOps Engineer | Pending |
-| S7 | MFA Enforced | Multi-factor authentication mandatory for all staff/admin accounts. No MFA is implemented and no IdP integration exists to enforce it (GAP-007). | Security Engineer | Pending |
-| S8 | Session Management | Session timeout configured (15min idle, 8hr absolute), secure cookie flags. Currently a single 8-hour token with no refresh, no idle timeout, and no server-side validity check. | Backend Developer | Pending |
-| S9 | Input Validation | All user inputs validated server-side with appropriate error messages | Backend Developer | **Not Started** — *corrected from "Done" on 24 Aug 2026: the Zod schema package has zero importers outside its own tests and is dead code. Tracked as S23 (GAP-009).* |
+| S6 | WAF Configured | Web Application Firewall rules active (OWASP Core Rule Set, rate limiting). Sequenced after S16-S18 (now done) — the deployed service authenticates requests, so a WAF now adds defence-in-depth rather than standing in for absent authentication. | DevOps Engineer | Pending |
+| S7 | MFA Enforced | Multi-factor authentication mandatory for all staff/admin accounts. Real server-side TOTP is now enforced (demo accounts), but full enforcement across all roles depends on real-IdP federation (GAP-007), which remains target. | Security Engineer | Pending |
+| S8 | Session Management | Session timeout configured (15min idle, 8hr absolute), secure cookie flags. Server-side session validity/revocation is now checked (S24); a single 8-hour token with no idle timeout and no refresh rotation remains. | Backend Developer | Pending |
+| S9 | Input Validation | All user inputs validated server-side with appropriate error messages | Backend Developer | **Done (Phase 1)** — the `@aib-iaas/validation` Zod schemas are wired in as route middleware (GAP-009 / S23); handlers consume the validated body rather than raw `req.body`. |
 | S10 | SQL Injection Prevention | Parameterised queries verified across all database operations | Backend Developer | **Done** — *verified genuine. All queries use `?` placeholders with user values bound; dynamic `WHERE` fragments are built only from hardcoded literals. No injection vector identified.* |
-| S11 | XSS Prevention | Output encoding verified, React default escaping confirmed, dangerouslySetInnerHTML audited | Frontend Developer | Done — React auto-escaping confirmed. CSP is disabled (S2), so the defence-in-depth layer is absent. |
+| S11 | XSS Prevention | Output encoding verified, React default escaping confirmed, dangerouslySetInnerHTML audited | Frontend Developer | Done — React auto-escaping confirmed; the API CSP is now configured (S2) and the frontend carries a `<meta>` CSP, so the defence-in-depth layer is present. |
 | S12 | Dependency Audit | No known Critical/High vulnerabilities in production dependencies (npm audit) | DevOps Engineer | Pending — Dependabot and `npm audit` in CI are configured |
 | S13 | Encryption at Rest | Database encryption enabled (AWS RDS encryption), S3 bucket encryption (SSE-S3) | DevOps Engineer | Pending — POC uses unencrypted SQLite |
 | S14 | Encryption in Transit | TLS 1.2+ enforced on all connections (API, database, inter-service) | DevOps Engineer | Pending — HTTPS enforced at the edge today |
@@ -159,26 +165,30 @@ invalid-prefix list.
 
 | Category | Total Items | Done | Pending | N/A |
 |----------|-------------|------|---------|-----|
-| Security | 24 | 3 | 21 | 0 |
+| Security | 24 | 14 | 10 | 0 |
 | Accessibility | 8 | 5 | 3 | 0 |
 | Performance | 8 | 1 | 7 | 0 |
 | Data | 8 | 0 | 8 | 0 |
 | Operations | 10 | 2 | 8 | 0 |
 | Compliance | 6 | 1 | 5 | 0 |
 | Launch | 5 | 0 | 5 | 0 |
-| **TOTAL** | **69** | **12** | **57** | **0** |
+| **TOTAL** | **69** | **23** | **46** | **0** |
 
-Security count revised 24 August 2026: 15 → 24 items (S16-S24 added); Done 4 → 3 (S9 corrected
-from Done to Not Started). Of the 21 open security items, **9 address Critical or High findings
-in `docs/security-known-gaps.md` and block any use of real data.**
+Security counts: 15 → 24 items on 24 August 2026 (S16-S24 added). The Phase 1 backbone
+(October 2026) delivered S16-S24, re-corrected S9 to Done (GAP-009 wired in) and marked S2 Done
+(API CSP, 1 October header remediation), taking Security Done from 3 to 14. The remaining open
+security items are **host- or process-limited** (ITHC against the deployed build S1, HSTS on the
+Pages frontend S3, encryption at rest S13, real-IdP-enforced MFA S7, pen-test remediation S5,
+WAF S6) rather than unbuilt code.
 
 ---
 
 ## Sign-Off
 
-> ⚠️ **Not for signature.** Nine security items addressing Critical and High findings (S16-S24)
-> are open. Sign-off should not be sought until those are closed and an independent ITHC (S1)
-> has been completed against the remediated build.
+> ⚠️ **Not for signature.** The Phase 1 security backbone (S16-S24) is delivered, but sign-off
+> should not be sought until the remaining blockers are closed — an independent ITHC (S1) against
+> the remediated build, encryption at rest (S13), HSTS on the frontend host (S3), real-IdP-enforced
+> MFA (S7) — and the Data, Compliance and Launch categories are completed for a real environment.
 
 | Role | Name | Date | Signature |
 |------|------|------|-----------|

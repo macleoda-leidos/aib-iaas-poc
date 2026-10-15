@@ -1,37 +1,44 @@
 import { Router, Request, Response } from 'express';
 import { v4 as uuid } from 'uuid';
+import { createRepositories } from '@aib-iaas/database';
 
 export const paymentsRouter = Router();
 
-// In-memory payment store
-const payments = new Map<string, any>();
+// The CORE payment record (id, application, amount, currency, status, provider +
+// provider_ref, timestamps) persists in SQLite via PaymentRepository, so a payment
+// survives a restart — previously it lived in an in-memory Map and was lost. The
+// RICH simulated fields (method, providerResponse, transactionReference, and the
+// sandbox disclaimer) are presentation only: they describe the simulated provider
+// round-trip and are composed into the HTTP response body, never stored.
+const { payments } = createRepositories();
 
 // Initiate payment session
 paymentsRouter.post('/initiate', (req: Request, res: Response) => {
   const { applicationId, amount, currency = 'GBP', description } = req.body;
-  const paymentId = uuid();
 
-  const payment = {
-    id: paymentId,
-    applicationId,
-    amount,
-    currency,
-    description: description || 'AiB Application Fee',
-    status: 'pending',
-    createdAt: new Date().toISOString(),
-    sandbox: true,
-    disclaimer: 'SANDBOX MODE: No real payment will be processed.',
-  };
+  let payment;
+  try {
+    payment = payments.create({ applicationId, amount, currency });
+  } catch {
+    res.status(400).json({ success: false, error: { code: 'INVALID_APPLICATION', message: 'Payment could not be linked to the given application.' } });
+    return;
+  }
 
-  payments.set(paymentId, payment);
-
-  res.status(201).json({ success: true, data: payment });
+  res.status(201).json({
+    success: true,
+    data: {
+      ...payment,
+      description: description || 'AiB Application Fee',
+      sandbox: true,
+      disclaimer: 'SANDBOX MODE: No real payment will be processed.',
+    },
+  });
 });
 
 // Apple Pay simulation
 paymentsRouter.post('/apple-pay', (req: Request, res: Response) => {
   const { paymentId, applePayToken } = req.body;
-  const payment = payments.get(paymentId);
+  const payment = payments.findById(paymentId);
 
   if (!payment) {
     res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Payment not found' } });
@@ -40,24 +47,33 @@ paymentsRouter.post('/apple-pay', (req: Request, res: Response) => {
 
   // Simulate 90% success rate
   const success = Math.random() > 0.1;
+  const status = success ? 'completed' : 'failed';
+  const transactionReference = success ? `AP-${uuid().slice(0, 8).toUpperCase()}` : undefined;
 
-  payment.method = 'apple_pay';
-  payment.status = success ? 'completed' : 'failed';
-  payment.transactionReference = success ? `AP-${uuid().slice(0, 8).toUpperCase()}` : undefined;
-  payment.processedAt = new Date().toISOString();
-  payment.providerResponse = {
-    sandbox: true,
-    token: applePayToken || 'mock-apple-pay-token',
-    message: success ? 'Payment approved (SANDBOX)' : 'Payment declined (SANDBOX - simulated failure)',
-  };
+  payments.updateStatus(payment.id, status);
+  if (transactionReference) payments.setProviderRef(payment.id, 'apple_pay', transactionReference);
+  const updated = payments.findById(payment.id)!;
 
-  res.json({ success: true, data: payment });
+  res.json({
+    success: true,
+    data: {
+      ...updated,
+      method: 'apple_pay',
+      transactionReference,
+      processedAt: new Date().toISOString(),
+      providerResponse: {
+        sandbox: true,
+        token: applePayToken || 'mock-apple-pay-token',
+        message: success ? 'Payment approved (SANDBOX)' : 'Payment declined (SANDBOX - simulated failure)',
+      },
+    },
+  });
 });
 
 // Google Pay simulation
 paymentsRouter.post('/google-pay', (req: Request, res: Response) => {
   const { paymentId, googlePayToken } = req.body;
-  const payment = payments.get(paymentId);
+  const payment = payments.findById(paymentId);
 
   if (!payment) {
     res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Payment not found' } });
@@ -65,24 +81,33 @@ paymentsRouter.post('/google-pay', (req: Request, res: Response) => {
   }
 
   const success = Math.random() > 0.1;
+  const status = success ? 'completed' : 'failed';
+  const transactionReference = success ? `GP-${uuid().slice(0, 8).toUpperCase()}` : undefined;
 
-  payment.method = 'google_pay';
-  payment.status = success ? 'completed' : 'failed';
-  payment.transactionReference = success ? `GP-${uuid().slice(0, 8).toUpperCase()}` : undefined;
-  payment.processedAt = new Date().toISOString();
-  payment.providerResponse = {
-    sandbox: true,
-    token: googlePayToken || 'mock-google-pay-token',
-    message: success ? 'Payment approved (SANDBOX)' : 'Payment declined (SANDBOX - simulated failure)',
-  };
+  payments.updateStatus(payment.id, status);
+  if (transactionReference) payments.setProviderRef(payment.id, 'google_pay', transactionReference);
+  const updated = payments.findById(payment.id)!;
 
-  res.json({ success: true, data: payment });
+  res.json({
+    success: true,
+    data: {
+      ...updated,
+      method: 'google_pay',
+      transactionReference,
+      processedAt: new Date().toISOString(),
+      providerResponse: {
+        sandbox: true,
+        token: googlePayToken || 'mock-google-pay-token',
+        message: success ? 'Payment approved (SANDBOX)' : 'Payment declined (SANDBOX - simulated failure)',
+      },
+    },
+  });
 });
 
 // Card payment simulation
 paymentsRouter.post('/card', (req: Request, res: Response) => {
   const { paymentId, cardNumber, expiryDate, cvv, cardholderName } = req.body;
-  const payment = payments.get(paymentId);
+  const payment = payments.findById(paymentId);
 
   if (!payment) {
     res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Payment not found' } });
@@ -97,25 +122,34 @@ paymentsRouter.post('/card', (req: Request, res: Response) => {
 
   const success = Math.random() > 0.1;
   const lastFour = cardNumber.slice(-4);
+  const status = success ? 'completed' : 'failed';
+  const transactionReference = success ? `CD-${uuid().slice(0, 8).toUpperCase()}` : undefined;
 
-  payment.method = 'card';
-  payment.status = success ? 'completed' : 'failed';
-  payment.transactionReference = success ? `CD-${uuid().slice(0, 8).toUpperCase()}` : undefined;
-  payment.processedAt = new Date().toISOString();
-  payment.providerResponse = {
-    sandbox: true,
-    lastFour,
-    cardholderName: cardholderName || 'CARDHOLDER',
-    message: success ? 'Payment approved (SANDBOX)' : 'Payment declined (SANDBOX - simulated failure)',
-    disclaimer: 'NO REAL PAYMENT PROCESSED. This is a sandbox simulation.',
-  };
+  payments.updateStatus(payment.id, status);
+  if (transactionReference) payments.setProviderRef(payment.id, 'card', transactionReference);
+  const updated = payments.findById(payment.id)!;
 
-  res.json({ success: true, data: payment });
+  res.json({
+    success: true,
+    data: {
+      ...updated,
+      method: 'card',
+      transactionReference,
+      processedAt: new Date().toISOString(),
+      providerResponse: {
+        sandbox: true,
+        lastFour,
+        cardholderName: cardholderName || 'CARDHOLDER',
+        message: success ? 'Payment approved (SANDBOX)' : 'Payment declined (SANDBOX - simulated failure)',
+        disclaimer: 'NO REAL PAYMENT PROCESSED. This is a sandbox simulation.',
+      },
+    },
+  });
 });
 
 // Get payment status
 paymentsRouter.get('/:id/status', (req: Request, res: Response) => {
-  const payment = payments.get(req.params.id);
+  const payment = payments.findById(req.params.id);
   if (!payment) {
     res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Payment not found' } });
     return;
@@ -125,7 +159,7 @@ paymentsRouter.get('/:id/status', (req: Request, res: Response) => {
 
 // Simulate refund
 paymentsRouter.post('/:id/refund', (req: Request, res: Response) => {
-  const payment = payments.get(req.params.id);
+  const payment = payments.findById(req.params.id);
   if (!payment) {
     res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Payment not found' } });
     return;
@@ -135,9 +169,12 @@ paymentsRouter.post('/:id/refund', (req: Request, res: Response) => {
     return;
   }
 
-  payment.status = 'refunded';
-  payment.refundedAt = new Date().toISOString();
-  payment.refundReference = `RF-${uuid().slice(0, 8).toUpperCase()}`;
+  payments.updateStatus(payment.id, 'refunded');
+  const refundReference = `RF-${uuid().slice(0, 8).toUpperCase()}`;
+  const updated = payments.findById(payment.id)!;
 
-  res.json({ success: true, data: payment });
+  res.json({
+    success: true,
+    data: { ...updated, refundedAt: new Date().toISOString(), refundReference },
+  });
 });

@@ -36,7 +36,7 @@ This document records what was delivered in each sprint of the AiB IAAS POC deve
 | 28 | Production Polish | ✅ Complete | — | — |
 | 29 | Enterprise Showcase | ✅ Complete | +2 | — |
 
-**Totals: 65+ pages, 50+ features, 658+ tests, 60 docs, 12+ AI capabilities**
+**Totals: 65+ pages, 50+ features, 1,030 tests, 60 docs, 12+ AI capabilities**
 
 ---
 
@@ -355,7 +355,7 @@ This document records what was delivered in each sprint of the AiB IAAS POC deve
 6. My-application case link validation
 
 ### Key Metrics:
-- Tests added: 10 (bringing total from 648 to 658+)
+- Tests added: 10 (link audit E2E scenarios)
 - New test file: `tests/e2e/links-audit.spec.ts`
 - Zero broken links confirmed
 
@@ -375,7 +375,7 @@ This document records what was delivered in each sprint of the AiB IAAS POC deve
 ### Key Metrics:
 - Documentation files updated: 4
 - Sprint table rows added: 3
-- Test count aligned: 658+ across 48 files
+- Test count aligned across README/roadmap/testing docs
 
 ---
 
@@ -623,7 +623,7 @@ Before the numbered sprints, significant foundational work was delivered:
 |--------|-------|
 | Total UI Pages | 50+ |
 | Total Features Documented | 40+ |
-| Total Automated Tests | 658+ |
+| Total Automated Tests | 1,030 |
 | Total Documentation Files | 36+ |
 | AI/ML Capabilities | 12+ |
 | Admin Features | 32 |

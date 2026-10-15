@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from 'vitest';
 
 let uuidSeq = 0;
 vi.mock('uuid', () => ({
@@ -6,6 +6,7 @@ vi.mock('uuid', () => ({
 }));
 
 import { paymentsRouter } from '../routes/payments';
+import { getDatabase } from '@aib-iaas/database';
 
 function createMockReq(overrides: any = {}) {
   return {
@@ -40,6 +41,17 @@ function createPayment(body: any = { applicationId: 'app-001', amount: 100 }): s
 }
 
 describe('Payment Service - /api/payments', () => {
+  beforeAll(() => {
+    // Payments now persist in SQLite and application_id carries a foreign key to
+    // applications(id). Seed the parent rows the tests below reference so each
+    // /initiate satisfies the FK.
+    const db = getDatabase();
+    const insertApp = db.prepare(
+      "INSERT OR IGNORE INTO applications (id, reference_number, status, created_at, updated_at) VALUES (?, ?, 'draft', datetime('now'), datetime('now'))"
+    );
+    for (const id of ['app-001', 'app-002', 'app-003', 'app-004']) insertApp.run(id, `TEST-${id}`);
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -266,6 +278,30 @@ describe('Payment Service - /api/payments', () => {
       handler(req, res);
 
       expect(res.status).toHaveBeenCalledWith(404);
+    });
+  });
+
+  describe('persistence (repo-backed core record)', () => {
+    it('stores the core record and keeps simulated fields out of the row', () => {
+      const paymentId = createPayment({ applicationId: 'app-001', amount: 120 });
+
+      const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.5); // force success
+      const cardHandler = getHandler(paymentsRouter, 'post', '/card');
+      const req = createMockReq({ body: { paymentId, cardNumber: '4111111111111111', expiryDate: '12/26', cvv: '123' } });
+      const res = createMockRes();
+      cardHandler(req, res);
+      randomSpy.mockRestore();
+
+      const row = getDatabase().prepare('SELECT * FROM payments WHERE id = ?').get(paymentId) as any;
+      expect(row).toBeTruthy();
+      expect(row.application_id).toBe('app-001');
+      expect(row.status).toBe('completed');
+      expect(row.provider).toBe('card');
+      expect(row.provider_ref).toContain('CD-');
+      // Presentation-only fields are never persisted — they are not columns.
+      expect(row.provider_response).toBeUndefined();
+      expect(row.method).toBeUndefined();
+      expect(row.transaction_reference).toBeUndefined();
     });
   });
 });

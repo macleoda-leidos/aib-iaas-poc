@@ -9,7 +9,7 @@ The AiB IAAS (Initial Application Advice Service) POC is a unified digital gatew
 - 65+ pages across web and admin portals
 - 14 microservices (Node.js) + 1 .NET 9 API (full parity)
 - 38 admin features for internal AiB staff
-- 658+ automated tests ensuring quality and regression safety
+- 1,030 automated tests ensuring quality and regression safety
 - Dual backend architecture demonstrating technology flexibility
 - Neon PostgreSQL for enterprise-grade persistent storage
 - GitHub Pages frontend with zero-cost hosting
@@ -32,7 +32,7 @@ The AiB IAAS (Initial Application Advice Service) POC is a unified digital gatew
 | Seeded Applications | 100+ |
 | User Roles | 9 |
 | Organisations | 54 |
-| Automated Tests | 658+ |
+| Automated Tests | 1,030 |
 | Documentation Files | 54 |
 | Monthly Hosting Cost | £0 |
 

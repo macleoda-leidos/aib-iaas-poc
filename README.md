@@ -38,10 +38,10 @@ The POC implements a complete end-to-end journey: identity verification, multi-s
 | Sprint 12 | Operational Excellence | 78 Playwright E2E tests (501 total), runbooks, load test | ✅ Complete |
 | Sprint 13 | Handover & Scale | ADRs, cost model, vendor assessment, go-live checklist | ✅ Complete |
 | Sprint 14 | Stakeholder Value | Workflow engine, MI reports, 600+ tests. Creditor portal + adviser workspace as interface demonstrations only | ✅ Complete |
-| Phase 14 | Organisation Service | Shared master data, creditor type-ahead, 54 seeded orgs, 648 tests | ✅ Complete |
+| Phase 14 | Organisation Service | Shared master data, creditor type-ahead, 54 seeded orgs | ✅ Complete |
 | Sprint 15 | Quality Assurance | E2E link audit, basePath validation, navigation regression tests | ✅ Complete |
 | Sprint 16 | Documentation Alignment | Sprint logs, roadmap, testing docs, README aligned to current state | ✅ Complete |
-| Sprint 17 | Test Infrastructure | 10 new link audit E2E scenarios, 658+ tests across 48 files | ✅ Complete |
+| Sprint 17 | Test Infrastructure | 10 new link audit E2E scenarios | ✅ Complete |
 | Sprint 18 | .NET Backend | Full .NET 9 API (MediatR + CQS), 11 endpoints, EF Core, Swagger | ✅ Complete |
 | Sprint 19 | Enterprise Persistence | Neon PostgreSQL, pg-schema (14 tables), pg-seed, write-through cache | ✅ Complete |
 | Sprint 20 | Live Deployment | .NET on Render (Docker), URI→ADO.NET, EF Core snake_case mapping | ✅ Complete |

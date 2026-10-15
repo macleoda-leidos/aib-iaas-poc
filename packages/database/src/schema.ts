@@ -191,7 +191,11 @@ export function initializeSchema(db: Database.Database): void {
 
     CREATE TABLE IF NOT EXISTS documents (
       id TEXT PRIMARY KEY,
-      application_id TEXT NOT NULL,
+      -- Nullable: evidence can be uploaded during the public /apply journey before
+      -- an application row exists to link to (the upload step precedes submission).
+      -- SQLite leaves a NULL foreign key unchecked, so an orphan upload persists;
+      -- a non-null id is still FK-validated against applications(id).
+      application_id TEXT,
       filename TEXT NOT NULL,
       original_name TEXT NOT NULL,
       mime_type TEXT NOT NULL,

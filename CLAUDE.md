@@ -79,7 +79,7 @@ npm workspaces monorepo with three workspace directories (`apps/*`, `services/*`
 
 ## Testing
 
-`npx vitest run` from the repo root runs everything: **1018 tests across 57 files** (703 backend across 45 files, 315 frontend across 12 files).
+`npx vitest run` from the repo root runs everything: **1030 tests across 57 files** (715 backend across 45 files, 315 frontend across 12 files).
 
 Note: the jsdom frontend suites require **Node ≥ 20.19** (or ≥ 22.12) — jsdom 29 pulls in an ESM-only transitive dep (`@exodus/bytes`, via `html-encoding-sniffer`) that older Node reaches through `require()`. On Node 20.18 and earlier the frontend files fail to load with `ERR_REQUIRE_ESM`; the backend suites are unaffected. CI's `node-version: 20` resolves to a 20.19+ runtime, so this only bites local runs on an older Node.
 
@@ -119,4 +119,4 @@ If a run fails with `EBUSY: resource busy or locked` in the temp SSR cache on Wi
 
 - British English in all user-facing copy and docs ("organisation", "customise").
 - Comments explain *why*, not *what* — see `vitest.config.ts` and `DemoChoreographer.tsx` for the expected density.
-- Every stated number must be verifiable against the repo. Several docs still carry a stale "648 tests" figure that conflated Vitest with Playwright cases; `docs/testing.md` §3.1 explains the discrepancy.
+- Every stated number must be verifiable against the repo. The test count is standardised at **1030 across 57 files** (715 backend / 315 frontend); the earlier "648/658/904" figures (which conflated Vitest with Playwright, or predated recent sprints) have been reconciled across the doc set. `docs/testing.md` §3.1 records the methodology.

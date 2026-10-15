@@ -7,6 +7,28 @@ Companion to `docs/CURRENT_STATE_ASSESSMENT.md` (inventories) and `docs/SECURITY
 Legend: **Current** = what the code actually does · **Missing** = the gap vs how it presents ·
 **Quick win** = low-effort, high-visibility · **Future** = strategic enhancement.
 
+> ## 📌 Phase 1 delivered — addendum (14 October 2026)
+>
+> **This audit is the honest *pre-remediation* baseline (1 October 2026); several "Missing"
+> items below have since been delivered.** It is retained as the baseline rather than rewritten.
+> Closed since:
+>
+> - **Login / Authentication.** Passwords are now verified; tokens are signed and verified per
+>   request; MFA is a real server-side TOTP check; a working mock GOV.UK One Login (OIDC) flow
+>   exists with **first-login provisioning** and an **account picker**. (GAP-001/003 closed;
+>   GAP-007 partial — real-IdP federation still target.)
+> - **Applications.** Ownership/capability checks now scope the `/:id` routes (read-IDOR closed);
+>   the shared Zod schemas are wired in as middleware; and the **generated recommendation is now
+>   persisted** (`RecommendationRepository`) and read back on the case view.
+> - **Documents / Payments.** Both now persist through their real repositories
+>   (`DocumentRepository`/`PaymentRepository`) instead of in-memory `Map`s, so uploads, scan
+>   verdicts and core payment state survive a restart.
+> - **CFT.** A new case-page panel surfaces the `@aib-iaas/statutory` contribution assessment
+>   (reg.15 CFS), with the POC "indicative trigger figures" caveat.
+>
+> The per-feature detail below remains the pre-remediation baseline; see
+> `docs/security-known-gaps.md` and `docs/CURRENT_STATE_ASSESSMENT.md` for the delivered state.
+
 ---
 
 ## Login / Authentication  — *partly REAL (auth), MOCK (MFA)*
