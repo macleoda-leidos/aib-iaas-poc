@@ -100,6 +100,23 @@ function enforceOwnership(req: AuthenticatedRequest, res: Response, ownerUserId:
 }
 
 /**
+ * Enforce write access to a draft for an ANONYMOUS caller (H2 / GAP-005 write
+ * half). GET /:id already requires a capability token when anonymous; the write
+ * surface (PUT /:id, POST /:id/submit) must too, or a caller who guesses an id
+ * can edit or submit another applicant's draft. An authenticated caller is left
+ * to enforceOwnership (staff allowed, debtor owner-scoped). Returns true when
+ * allowed; otherwise sends a 404 (not 403, so a bad/absent capability never
+ * confirms the id exists) and returns false. Checks the resolved application's
+ * own id, so it holds whether the URL carried the id or the reference number.
+ */
+function enforceAnonymousWrite(req: AuthenticatedRequest, res: Response, applicationId: string): boolean {
+  if (req.user) return true; // authenticated callers go through enforceOwnership
+  if (hasValidCapability(req, applicationId)) return true;
+  res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Application not found' } });
+  return false;
+}
+
+/**
  * Fire an in-app notification, swallowing any failure so a notification problem
  * can never break the core action (status change, submit, assign) it accompanies.
  */
@@ -382,6 +399,7 @@ applicationsRouter.put('/:id', (req: AuthenticatedRequest, res: Response) => {
       return;
     }
 
+    if (!enforceAnonymousWrite(req, res, existing.id)) return;
     if (!enforceOwnership(req, res, existing.ownerUserId)) return;
 
     if (existing.status !== 'draft' && existing.status !== 'additional_info_required') {
@@ -429,6 +447,7 @@ applicationsRouter.post('/:id/submit', (req: AuthenticatedRequest, res: Response
       return;
     }
 
+    if (!enforceAnonymousWrite(req, res, existing.id)) return;
     if (!enforceOwnership(req, res, existing.ownerUserId)) return;
 
     applications.updateStatus(existing.id, 'submitted');

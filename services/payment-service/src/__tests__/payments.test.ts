@@ -7,12 +7,25 @@ vi.mock('uuid', () => ({
 
 import { paymentsRouter } from '../routes/payments';
 import { getDatabase } from '@aib-iaas/database';
+import { signToken } from '@aib-iaas/auth';
 
+// A valid application-scoped capability (same shape api-gateway issues at create).
+const capabilityFor = (applicationId: string) =>
+  signToken({ purpose: 'application-capability', applicationId }, { expiresInSeconds: 3600 });
+
+// Payment routes are now access-controlled (A2): staff may act on any payment,
+// an anonymous /apply caller only with the application-scoped capability, and a
+// refund is staff-only. These unit tests drive the handlers directly, so the
+// mock request carries a staff `user` by default (as the global gate would set
+// in the deployed consolidated-api), satisfying the ownership check. Pass
+// `{ user: undefined }` to simulate an anonymous caller.
 function createMockReq(overrides: any = {}) {
   return {
     body: {},
     params: {},
     query: {},
+    headers: {},
+    user: { userId: 'USR-OFFICER', role: 'aib_officer', permissions: [] },
     ...overrides,
   };
 }
@@ -360,6 +373,73 @@ describe('Payment Service - /api/payments', () => {
       handler(req, res);
 
       expect(res.status).toHaveBeenCalledWith(404);
+    });
+  });
+
+  describe('access control (A2)', () => {
+    it('anonymous initiate without a capability → 404', () => {
+      const handler = getHandler(paymentsRouter, 'post', '/initiate');
+      const req = createMockReq({ user: undefined, body: { applicationId: 'app-001', amount: 100 } });
+      const res = createMockRes();
+      handler(req, res);
+      expect(res.status).toHaveBeenCalledWith(404);
+    });
+
+    it('anonymous initiate WITH the application capability → 201', () => {
+      const handler = getHandler(paymentsRouter, 'post', '/initiate');
+      const req = createMockReq({
+        user: undefined,
+        headers: { 'x-application-capability': capabilityFor('app-002') },
+        body: { applicationId: 'app-002', amount: 100 },
+      });
+      const res = createMockRes();
+      handler(req, res);
+      expect(res.status).toHaveBeenCalledWith(201);
+    });
+
+    it('anonymous status read with the matching capability → 200', () => {
+      const paymentId = createPayment({ applicationId: 'app-003', amount: 100 }); // staff default
+      const handler = getHandler(paymentsRouter, 'get', '/:id/status');
+      const req = createMockReq({
+        user: undefined,
+        headers: { 'x-application-capability': capabilityFor('app-003') },
+        params: { id: paymentId },
+      });
+      const res = createMockRes();
+      handler(req, res);
+      expect(res.json.mock.calls[0][0].data.id).toBe(paymentId);
+    });
+
+    it('anonymous status read with a capability for a DIFFERENT application → 404', () => {
+      const paymentId = createPayment({ applicationId: 'app-003', amount: 100 });
+      const handler = getHandler(paymentsRouter, 'get', '/:id/status');
+      const req = createMockReq({
+        user: undefined,
+        headers: { 'x-application-capability': capabilityFor('app-004') }, // wrong app
+        params: { id: paymentId },
+      });
+      const res = createMockRes();
+      handler(req, res);
+      expect(res.status).toHaveBeenCalledWith(404);
+    });
+
+    it('refund by a non-staff (anonymous) caller → 403, even with a valid capability', () => {
+      const paymentId = createPayment({ applicationId: 'app-001', amount: 100 });
+      // Complete it as staff first.
+      const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.5);
+      const cardHandler = getHandler(paymentsRouter, 'post', '/card');
+      cardHandler(createMockReq({ body: { paymentId, cardNumber: '4111111111111111', expiryDate: '12/26', cvv: '123' } }), createMockRes());
+      randomSpy.mockRestore();
+
+      const handler = getHandler(paymentsRouter, 'post', '/:id/refund');
+      const req = createMockReq({
+        user: undefined,
+        headers: { 'x-application-capability': capabilityFor('app-001') },
+        params: { id: paymentId },
+      });
+      const res = createMockRes();
+      handler(req, res);
+      expect(res.status).toHaveBeenCalledWith(403);
     });
   });
 

@@ -39,11 +39,23 @@ function actorFromRequest(req: Request): Actor | null {
 // token — the body's actor/actorId/actorName fields are ignored, so a caller can
 // no longer attribute an event to someone else (H3). The timestamp is stamped by
 // the repository server-side; the source IP is recorded alongside.
+//
+// Writing the audit trail is a staff/service action (A4): previously any
+// authenticated user — including a debtor — could POST an arbitrary action for
+// any applicationId, polluting the immutable log. There is no `audit.write`
+// permission in the RBAC seed, so authority here is the staff/service role
+// (anyone who is not an applicant). Applicant-side events (create/update/submit)
+// are already written server-side by the api-gateway on the applicant's behalf;
+// an applicant never needs to call this route directly.
 auditRouter.post('/events', validate(auditEventSchema), (req: Request, res: Response) => {
   try {
     const actor = actorFromRequest(req);
     if (!actor) {
       res.status(401).json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Authentication required.' } });
+      return;
+    }
+    if (actor.role === 'debtor') {
+      res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'You do not have permission to write to the audit trail.' } });
       return;
     }
 

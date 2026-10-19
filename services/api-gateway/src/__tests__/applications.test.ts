@@ -102,20 +102,22 @@ describe('API Gateway - Applications', () => {
     expect(res.data.success).toBe(false);
   });
 
-  it('PUT /api/applications/:id updates the application', async () => {
+  it('PUT /api/applications/:id updates the application (anonymous caller carries the capability)', async () => {
     const create = await request('POST', '/api/applications', { applicant: { firstName: 'Old', lastName: 'Name' } });
     const id = create.data.data.id;
+    const cap = { 'X-Application-Capability': create.data.data.capabilityToken };
 
-    const res = await request('PUT', `/api/applications/${id}`, { applicant: { firstName: 'New', lastName: 'Name' } });
+    const res = await request('PUT', `/api/applications/${id}`, { applicant: { firstName: 'New', lastName: 'Name' } }, cap);
     expect(res.status).toBe(200);
     expect(res.data.success).toBe(true);
   });
 
-  it('POST /api/applications/:id/submit changes status to submitted', async () => {
+  it('POST /api/applications/:id/submit changes status to submitted (anonymous caller carries the capability)', async () => {
     const create = await request('POST', '/api/applications', { applicant: { firstName: 'Submit', lastName: 'Me' } });
     const id = create.data.data.id;
+    const cap = { 'X-Application-Capability': create.data.data.capabilityToken };
 
-    const res = await request('POST', `/api/applications/${id}/submit`, {});
+    const res = await request('POST', `/api/applications/${id}/submit`, {}, cap);
     expect(res.status).toBe(200);
     expect(res.data.data.status).toBe('submitted');
   });
@@ -123,11 +125,36 @@ describe('API Gateway - Applications', () => {
   it('PUT on submitted application returns 400', async () => {
     const create = await request('POST', '/api/applications', { applicant: { firstName: 'Lock', lastName: 'Me' } });
     const id = create.data.data.id;
-    await request('POST', `/api/applications/${id}/submit`, {});
+    const cap = { 'X-Application-Capability': create.data.data.capabilityToken };
+    await request('POST', `/api/applications/${id}/submit`, {}, cap);
 
-    const res = await request('PUT', `/api/applications/${id}`, { applicant: { firstName: 'Changed' } });
+    const res = await request('PUT', `/api/applications/${id}`, { applicant: { firstName: 'Changed' } }, cap);
     expect(res.status).toBe(400);
     expect(res.data.error.code).toBe('INVALID_STATE');
+  });
+
+  it('anonymous WRITE without the capability is refused as 404; with it, it succeeds (H2 / GAP-005 write half)', async () => {
+    // One caller creates a draft and receives the capability.
+    const create = await request('POST', '/api/applications', { applicant: { firstName: 'Cap', lastName: 'Owner' } });
+    const id = create.data.data.id;
+    const cap = create.data.data.capabilityToken;
+    expect(cap).toBeDefined();
+
+    // A different anonymous caller who guesses the id, with no capability, cannot
+    // update it — 404 (not 403), so the id is never confirmed to exist.
+    const noCapPut = await request('PUT', `/api/applications/${id}`, { applicant: { firstName: 'Hijack' } });
+    expect(noCapPut.status).toBe(404);
+
+    // ...nor submit it.
+    const noCapSubmit = await request('POST', `/api/applications/${id}/submit`, {});
+    expect(noCapSubmit.status).toBe(404);
+
+    // The capability holder can do both.
+    const okPut = await request('PUT', `/api/applications/${id}`, { applicant: { firstName: 'Legit' } }, { 'X-Application-Capability': cap });
+    expect(okPut.status).toBe(200);
+    const okSubmit = await request('POST', `/api/applications/${id}/submit`, {}, { 'X-Application-Capability': cap });
+    expect(okSubmit.status).toBe(200);
+    expect(okSubmit.data.data.status).toBe('submitted');
   });
 
   it('GET /api/applications requires authentication (default-deny)', async () => {

@@ -62,6 +62,12 @@ describe('Audit Service - /api/audit/events', () => {
       expect(res.status).toBe(403);
     });
 
+    it('rejects POST /events from a debtor — the audit trail is staff/service-only (A4)', async () => {
+      const token = signToken(buildClaims({ id: 'd', email: 'd@debtor.example', roleName: 'debtor', roleLevel: 10 }, ['applications.read']));
+      const res = await request('POST', '/api/audit/events', { applicationId: 'app-x', action: 'forged_event' }, { Authorization: `Bearer ${token}` });
+      expect(res.status).toBe(403);
+    });
+
     it('derives the actor from the token, ignoring the body', async () => {
       const appId = `app-actor-${Date.now()}`;
       await request('POST', '/api/audit/events', { applicationId: appId, action: 'created', actor: 'spoofed@evil.example', actorType: 'system' });
