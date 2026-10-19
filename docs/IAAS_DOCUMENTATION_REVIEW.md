@@ -6,10 +6,10 @@ The AiB IAAS (Initial Application Advice Service) POC is a unified digital gatew
 
 **Key Achievements:**
 - 25 sprints delivered across the POC lifecycle
-- 65+ pages across web and admin portals
-- 14 microservices (Node.js) + 1 .NET 9 API (full parity)
-- 38 admin features for internal AiB staff
-- 1,037 automated tests ensuring quality and regression safety
+- 69 web pages + 10 admin-app pages across the two portals
+- 12 logical Node.js services (14 `services/` dirs = 12 + consolidated-api shim + dotnet-api) + 1 .NET 9 API (**curated-subset parity**: 17 business + 3 metadata endpoints, 16 MediatR handlers — not full parity)
+- 33 admin tiles (+5 orphan admin pages with no tile) for internal AiB staff
+- 1,068 automated tests ensuring quality and regression safety
 - Dual backend architecture demonstrating technology flexibility
 - Neon PostgreSQL for enterprise-grade persistent storage
 - GitHub Pages frontend with zero-cost hosting
@@ -25,15 +25,14 @@ The AiB IAAS (Initial Application Advice Service) POC is a unified digital gatew
 
 | Metric | Value |
 |--------|-------|
-| UI Pages | 65+ |
-| Microservices (Node.js) | 14 |
-| .NET 9 API (full parity) | 1 |
-| Admin Features | 38 |
+| UI Pages | 69 web + 10 admin-app |
+| Logical Node.js services | 12 (14 `services/` dirs: 12 + consolidated-api + dotnet-api) |
+| .NET 9 API (curated-subset parity) | 1 (17 business + 3 metadata endpoints, 16 MediatR handlers) |
+| Admin Tiles | 33 (+5 orphan admin pages) |
 | Seeded Applications | 100+ |
-| User Roles | 9 |
-| Organisations | 54 |
-| Automated Tests | 1,037 |
-| Documentation Files | 54 |
+| User Roles | 10 |
+| Permissions / Grants | 28 / 91 |
+| Automated Tests | 1,068 across 58 files (741 backend / 327 frontend) |
 | Monthly Hosting Cost | £0 |
 
 ---
@@ -66,9 +65,9 @@ The AiB IAAS (Initial Application Advice Service) POC is a unified digital gatew
 - **Seeding:** 100+ applications via pg-seed
 
 ### Authentication
-- **Current:** Simulated Keycloak with role-based access
-- **Production-ready:** realm-export.json prepared for real Keycloak deployment
-- **Roles:** 9 distinct roles (debtor, representative, adviser, caseworker, supervisor, manager, admin, auditor, system)
+- **Current:** Real HS256 JWT auth (signed, with pinned alg/iss/aud/exp), bcrypt cost-12 passwords, real TOTP MFA, and session revocation on logout. Federation is demonstrated by an **in-process OIDC/One-Login mock IdP** (RS256/JWKS/PKCE) — this is the live federation path.
+- **Keycloak:** A `realm-export.json` exists as **scaffolding only**; Keycloak is **not wired** into the running system. The OIDC mock IdP, not Keycloak, is what the running federation leg uses.
+- **Roles:** 10 distinct roles (see `packages/database/src/seed-data/roles.json`), with 28 permissions and 91 role-permission grants.
 
 ### CI/CD
 - **Pipeline:** GitHub Actions
@@ -98,7 +97,7 @@ The AiB IAAS (Initial Application Advice Service) POC is a unified digital gatew
 | 15 | API Documentation | Complete | OpenAPI specs, SDK guide |
 | 16 | Monitoring & Observability | Complete | Health checks, metrics, logging |
 | 17 | Test Infrastructure | Complete | Vitest suite, coverage, CI integration |
-| 18 | .NET Backend | Complete | MediatR+CQS architecture, 11 endpoints, Dockerfile, full API parity |
+| 18 | .NET Backend | Complete | MediatR+CQS architecture, 11 feature modules (17 business + 3 metadata endpoints, 16 handlers), Dockerfile, curated-subset parity |
 | 19 | Enterprise Persistence | Complete | Neon PostgreSQL integration, pg-schema migrations, pg-seed scripts |
 | 20 | Live Deployment | Complete | .NET on Render, URI conversion, EF Core mapping, Docker deployment |
 | 21 | Data Comes Alive | Complete | 100 applications seeded, API-first search, case actions persist to DB |
@@ -168,7 +167,7 @@ The AiB IAAS (Initial Application Advice Service) POC is a unified digital gatew
 
 ---
 
-## 7. Admin Portal Review (38 Features)
+## 7. Admin Portal Review (33 Tiles + 5 Orphan Pages)
 
 ### User Administration
 | # | Feature | Description |
@@ -263,7 +262,7 @@ The AiB IAAS (Initial Application Advice Service) POC is a unified digital gatew
 | Sprints 18-25 not in delivery log | Missing content | Misrepresents project progress; stakeholders see 17 sprints not 25 | Low |
 | .NET backend not in architecture doc | Missing architecture | Incomplete technical picture; .NET capability invisible | Medium |
 | Neon PostgreSQL not documented | Missing integration | Missing persistence story; appears SQLite-only | Medium |
-| Admin Portal Guide missing | Missing document | No admin feature catalogue; 38 features undiscoverable | High |
+| Admin Portal Guide missing | Missing document | No admin feature catalogue; 33 tiles (+5 orphan pages) undiscoverable | High |
 | Deployment runbook for Render | Missing operations | Team cannot deploy without tribal knowledge | Medium |
 
 ### MEDIUM Priority
@@ -357,7 +356,7 @@ The AiB IAAS (Initial Application Advice Service) POC is a unified digital gatew
 | user-journeys.md | End-to-end journey maps |
 | feature-catalogue.md | Complete feature inventory |
 | functionality-breakdown.md | Detailed functional decomposition |
-| admin-portal-guide.md | **NEW** — Admin portal feature catalogue (38 features) |
+| admin-portal-guide.md | **NEW** — Admin portal feature catalogue (33 tiles + 5 orphan pages) |
 
 ### Technical (8 files)
 | Document | Purpose |

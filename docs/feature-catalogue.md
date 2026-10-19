@@ -147,7 +147,7 @@ Users see a clear MFA challenge with method icons, a code input (pre-populated w
 
 ---
 
-## F-04: Role-Based Access Control (9 Roles)
+## F-04: Role-Based Access Control (10 Roles)
 
 | Attribute | Detail |
 |-----------|--------|
@@ -159,7 +159,7 @@ Users see a clear MFA challenge with method icons, a code input (pre-populated w
 
 ### Description
 
-RBAC implements 10 hierarchical roles (L10 Debtor through L100 System Admin) with 20 granular permissions. Each role sees only data and functions appropriate to their responsibility. The system supports per-organisation scoping (e.g., a money adviser sees only their bureau's clients).
+RBAC implements 10 hierarchical roles (L10 Debtor through L100 System Admin) with 28 granular permissions (91 role-permission grants). Each role sees only data and functions appropriate to their responsibility. The system supports per-organisation scoping (e.g., a money adviser sees only their bureau's clients).
 
 Roles: System Admin, AiB Senior Officer, AiB Case Officer, AiB Statistician, CyberOps Analyst, Money Adviser, Creditor, Supplier/Trustee, AiB Read Only, Debtor.
 
@@ -169,7 +169,7 @@ The User Service manages 500 synthetic users with role assignments. The API Gate
 
 ### User Experience
 
-Users are presented with their role-specific view immediately after login. A POC role-switcher allows demonstration of all 9 perspectives without re-authentication.
+Users are presented with their role-specific view immediately after login. A POC role-switcher allows demonstration of all 10 perspectives without re-authentication.
 
 ### Dependencies
 

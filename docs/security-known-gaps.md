@@ -615,8 +615,8 @@ repo that applied `requirePermission` asked for `reports.view`, a code absent fr
 included. Corrected to `reports.read`.
 
 **Fix applied.** `packages/database/src/rbac.ts` is now the single definition, reading
-`seed-data/roles.json` (10 roles), `permissions.json` (20 permissions) and
-`role-permissions.json` (68 grants), and exposing one seeding function per backend. `schema.ts`,
+`seed-data/roles.json` (10 roles), `permissions.json` (28 permissions) and
+`role-permissions.json` (91 grants), and exposing one seeding function per backend. `schema.ts`,
 `seed.ts` and `pg-seed.ts` all call it; the two missing PostgreSQL tables were added to
 `pg-schema.ts`. `pg-seed.ts` now seeds RBAC *before* its "already seeded" guard, because that
 guard counted `roles` — the one thing it did insert — so any database created before permissions

@@ -372,7 +372,7 @@ npm run lint
 | Document | Audience | Description |
 |----------|----------|-------------|
 | [Solution Architecture](docs/architecture.md) | Architects | C4 model, deployment, data architecture, ADRs |
-| [Integrations](docs/integrations.md) | Developers, Architects | 10 integrations with data flows & failure handling |
+| [Integrations](docs/integrations.md) | Developers, Architects | 6 mock-integration modules (BASYS, eDEN, DAS, CFT, Moratorium, RoI) + credit-check, covering the integration points, with data flows & failure handling |
 | [Security Architecture](docs/security.md) | Security Architects | Threat model, RBAC matrix, OWASP, GDPR — **describes target state** |
 | [Security Known Gaps](docs/security-known-gaps.md) | Security Architects, Delivery | **Authoritative record of what the POC actually implements.** 10 findings from internal static review (3 Critical, 4 High). Takes precedence over the security case documents wherever they disagree |
 | [Recommendation Engine](docs/recommendation-engine.md) | Architects, BAs | Rules engine, decision trees, AI governance |

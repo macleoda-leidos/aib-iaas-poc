@@ -8,7 +8,7 @@
 
 ## Opening (30 seconds)
 
-> "Welcome to IAAS — the Accountant in Bankruptcy's future digital front door. What you are about to see is a fully functional Proof of Concept: a live, deployed application with 50+ pages, 28 admin features, 12+ AI capabilities, and a real backend API — all built in 10 sprints at zero monthly hosting cost. This is not a prototype or a wireframe. Every button works. Every page is connected to a live API. Let me show you."
+> "Welcome to IAAS — the Accountant in Bankruptcy's future digital front door. What you are about to see is a fully functional Proof of Concept: a live, deployed application with 69 public pages, 33 admin feature tiles, 12+ AI capabilities, and a real backend API — all built at zero monthly hosting cost. This is not a prototype or a wireframe. Every button works. Every page is connected to a live API. Let me show you."
 
 **Talking points:**
 - Emphasise "working software" — this is not slides or Figma mockups
@@ -67,7 +67,7 @@
 ## Scene 3 — Admin Portal (2 minutes)
 
 ### What to show:
-1. **Admin Hub** (`/admin`) — Grid of 28 features, scroll to show breadth
+1. **Admin Hub** (`/admin`) — Grid of 33 feature tiles, scroll to show breadth
 2. **Rules Engine** (`/admin/rules`) — Show 9 rules, toggle one on/off, run the interactive tester
 3. **Digital Mailroom** (`/admin/digital-mailroom`) — AI OCR/NER pipeline, document classification, auto-routing stats
 4. **AI Governance** (`/admin/ai-governance`) — Bias metrics, model registry, override audit trail
@@ -75,7 +75,7 @@
 
 ### Script:
 
-> "The admin portal gives AiB full control over the platform's intelligence. Twenty-eight features accessible from one page.
+> "The admin portal gives AiB full control over the platform's intelligence. Thirty-three feature tiles accessible from one page.
 
 > The Rules Engine lets policy staff manage recommendation rules without writing code. I can toggle a rule, change a threshold, and use this interactive tester to see how it would affect a sample case.
 
@@ -150,7 +150,7 @@
 
 ## Closing (30 seconds)
 
-> "What you have just seen is a live, deployed application. Fifty-plus pages. Twenty-eight admin features. Twelve AI capabilities. Ten sprints of delivery. A live API with persistence. And it costs zero pounds per month to host.
+> "What you have just seen is a live, deployed application. Sixty-nine public pages. Thirty-three admin feature tiles. Twelve AI capabilities. A live API with persistence. And it costs zero pounds per month to host.
 
 > This is not a PowerPoint. It is not a Figma file. It is working software that demonstrates exactly what IAAS can become. Every pattern shown here is production-ready architecture — the path from POC to Alpha is clear, costed, and documented in our roadmap.
 

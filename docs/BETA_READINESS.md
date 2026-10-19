@@ -26,7 +26,7 @@
 | UI Pages | 57+ |
 | Admin Features | 32 |
 | AI Capabilities | 12+ |
-| Automated Tests | 1,037 vitest tests across 57 files (see `docs/testing.md`) |
+| Automated Tests | 1,068 vitest tests across 58 files (see `docs/testing.md`) |
 | Documentation | 36+ files |
 | Live API | https://iaas-api.onrender.com |
 | Live Frontend | https://macleoda-leidos.github.io/aib-iaas-poc/ |

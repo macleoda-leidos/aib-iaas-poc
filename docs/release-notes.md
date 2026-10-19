@@ -66,7 +66,7 @@
 ### v0.19.0 — Sprint 19: Enterprise Persistence (August 2026)
 - Feat: Neon PostgreSQL integration (free tier, 0.5GB)
 - Feat: pg-schema.ts — 14 tables + 5 indexes
-- Feat: pg-seed.ts — 9 roles, 5 orgs, 6 users
+- Feat: pg-seed.ts — 10 roles, 5 orgs, 6 users
 - Feat: pg-connection.ts — Pool singleton with SSL
 - Feat: init-neon.ts script for one-command setup
 - Feat: Consolidated API syncs to Neon on startup

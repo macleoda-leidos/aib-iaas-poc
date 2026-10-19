@@ -34,7 +34,7 @@ API Gateway (Express, port 3001) - BFF with auth, rate limiting, routing
     ├── Audit Service (3007) - Immutable event log
     ├── Credit Check Service (3008) - CRA interface + consent
     ├── Organisation Service (3009) - Org hierarchy
-    ├── User Service (3011) - Auth, 10 roles, 20 permissions
+    ├── User Service (3011) - Auth, 10 roles, 28 permissions
     ├── Notification Service (3012) - Email/SMS/in-app
     └── Identity Service (3013) - ScotAccount/GOV.UK federation
 
@@ -55,13 +55,15 @@ npm workspaces monorepo with three workspace directories (`apps/*`, `services/*`
 
 - **services/** — see "Logical services vs physical deployment" above
 
-- **packages/** — Shared code across apps and services
-  - shared-types: TypeScript type definitions (Application, Debtor, Financial, etc.)
-  - validation: Zod schemas for input validation
+- **packages/** — Shared code across apps and services (8 packages)
+  - shared-types: TypeScript type definitions (Application, Debtor, Financial, etc.) — 47 exported types/interfaces
+  - validation: Zod schemas for input validation — 21 schemas
   - ui-components: GOV.UK-style React components
   - test-data: Synthetic data generators
-  - database: Repository pattern over SQLite (local) / PostgreSQL (Docker, prod)
-  - integration-contracts: Factory pattern; `INTEGRATION_MODE=mock|live` swaps mock for real clients
+  - database: Repository pattern over SQLite (local) / PostgreSQL (Docker, prod) — 12 repositories over 21 tables
+  - integration-contracts: Factory pattern; `INTEGRATION_MODE=mock|live` selects the client. Only `mock` is implemented — `live` throws (no real integrations exist in the POC). 7 contracts (+1 orchestrator).
+  - auth: The trust root — HS256 JWT signing/verification, bcrypt (cost 12), TOTP MFA, and the RS256/JWKS federation helpers
+  - statutory: The CFT (Common Financial Tool) contribution engine (`assessContribution`, trigger figures) and the statutory SLA case-clock model
 
 ### Technology Stack
 
@@ -79,7 +81,7 @@ npm workspaces monorepo with three workspace directories (`apps/*`, `services/*`
 
 ## Testing
 
-`npx vitest run` from the repo root runs everything: **1037 tests across 57 files** (722 backend across 45 files, 315 frontend across 12 files).
+`npx vitest run` from the repo root runs everything: **1068 tests across 58 files** (741 backend across 45 files, 327 frontend across 13 files). The backend count rose from 722 after Phase 2 added 19 security-regression tests (notification IDOR, payment ownership, anonymous-write capability gating, audit-write authority).
 
 Note: the jsdom frontend suites require **Node ≥ 20.19** (or ≥ 22.12) — jsdom 29 pulls in an ESM-only transitive dep (`@exodus/bytes`, via `html-encoding-sniffer`) that older Node reaches through `require()`. On Node 20.18 and earlier the frontend files fail to load with `ERR_REQUIRE_ESM`; the backend suites are unaffected. CI's `node-version: 20` resolves to a 20.19+ runtime, so this only bites local runs on an older Node.
 
@@ -119,4 +121,4 @@ If a run fails with `EBUSY: resource busy or locked` in the temp SSR cache on Wi
 
 - British English in all user-facing copy and docs ("organisation", "customise").
 - Comments explain *why*, not *what* — see `vitest.config.ts` and `DemoChoreographer.tsx` for the expected density.
-- Every stated number must be verifiable against the repo. The test count is standardised at **1037 across 57 files** (722 backend / 315 frontend), from a full `npx vitest run`; the earlier "648/658/904" figures (which conflated Vitest with Playwright, or predated recent sprints) have been reconciled across the doc set. `docs/testing.md` §3.1 records the methodology.
+- Every stated number must be verifiable against the repo. The test count is standardised at **1068 across 58 files** (741 backend / 327 frontend), from a full `npx vitest run`; the earlier "648/658/904/1037" figures (which conflated Vitest with Playwright, or predated recent sprints) have been reconciled across the doc set. `docs/testing.md` §3.1 records the methodology. Other verified baselines: 10 roles · 28 permissions · 91 role-permission grants · 8 packages · 14 `services/` dirs (12 logical + consolidated-api + dotnet-api) · 21 DB tables · 47 shared-types · 21 Zod schemas · 33 admin tiles · 6 mock-integration modules.
