@@ -35,8 +35,10 @@ function callerFromRequest(req: Request): Caller | null {
 }
 
 /** Staff = any authenticated non-applicant. No `payments.*` permission exists in
- *  the RBAC seed, so staff role is the authority for the staff-only transitions. */
-function isStaff(caller: Caller | null): caller is Caller {
+ *  the RBAC seed, so staff role is the authority for the staff-only transitions.
+ *  A plain boolean predicate (not a `caller is Caller` type guard) so negating it
+ *  never narrows a non-null Caller to `never` under tsc. */
+function isStaff(caller: Caller | null): boolean {
   return !!caller && caller.role !== 'debtor';
 }
 

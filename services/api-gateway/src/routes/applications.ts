@@ -4,7 +4,7 @@ import { summariseCase } from '../sla/engine';
 import { assessContribution, INDICATIVE_TRIGGER_FIGURES, type CftIncome, type CftExpenditure } from '@aib-iaas/statutory';
 import { optionalAuth, type AuthenticatedRequest } from '../middleware/rbac';
 import { signToken, verifyToken } from '@aib-iaas/auth';
-import { validate, applicationNotesSchema, applicationAssignSchema, claimCreateSchema, messageCreateSchema } from '@aib-iaas/validation';
+import { validate, applicationNotesSchema, applicationAssignSchema, claimCreateSchema, messageCreateSchema, recommendationOverrideSchema } from '@aib-iaas/validation';
 
 // ─── CFT (Common Financial Tool) mapping ───────
 // Map a stored income/expenditure record (flexible Record<string, number>) onto
@@ -548,6 +548,62 @@ applicationsRouter.patch('/:id/status', (req: AuthenticatedRequest, res: Respons
     }
 
     res.json({ success: true, data: { id, status, updatedAt: new Date().toISOString() } });
+  } catch (error: any) {
+    console.error('[Applications]', error);
+    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: process.env.NODE_ENV === 'production' ? 'An unexpected error occurred' : error.message } });
+  }
+});
+
+// Override the engine's recommendation (Phase 4 — human-in-the-loop). A caseworker
+// may substitute a different product, but ONLY with a justification (enforced by
+// recommendationOverrideSchema), and the engine's original output is preserved
+// (the repository sets only the override_* columns). The divergence is written to
+// the audit trail. Gated by applications.update — the casework permission officers
+// and seniors hold; a debtor or an unprivileged token cannot override advice.
+applicationsRouter.patch('/:id/recommendation/override', validate(recommendationOverrideSchema), (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { product, justification } = req.body as { product: string; justification: string };
+
+    if (!req.user) {
+      res.status(401).json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Authentication required.' } });
+      return;
+    }
+    if (!req.user.permissions.includes('applications.update')) {
+      res.status(403).json({
+        success: false,
+        error: { code: 'FORBIDDEN', message: 'You do not have permission to override a recommendation.', details: { required: ['applications.update'] } },
+      });
+      return;
+    }
+
+    const existing = resolveApplication(id);
+    if (!existing) {
+      res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Application not found' } });
+      return;
+    }
+
+    const current = recommendations.findByApplication(existing.id);
+    if (!current) {
+      res.status(404).json({ success: false, error: { code: 'NO_RECOMMENDATION', message: 'This application has no recommendation to override.' } });
+      return;
+    }
+
+    const updated = recommendations.applyOverride(existing.id, {
+      product,
+      justification,
+      overrideBy: req.user.userId,
+      overrideByName: req.user.email,
+    });
+
+    audit.create({
+      applicationId: existing.id,
+      action: 'recommendation_overridden',
+      ...auditActor(req),
+      details: { enginesProduct: current.product, overrideProduct: product, justification },
+    });
+
+    res.json({ success: true, data: updated });
   } catch (error: any) {
     console.error('[Applications]', error);
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: process.env.NODE_ENV === 'production' ? 'An unexpected error occurred' : error.message } });

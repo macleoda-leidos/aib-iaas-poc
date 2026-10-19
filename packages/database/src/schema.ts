@@ -270,6 +270,15 @@ export function initializeSchema(db: Database.Database): void {
       alternatives TEXT NOT NULL,
       engine_version TEXT NOT NULL,
       generated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      -- Caseworker override (Phase 4). A human may override the engine's product,
+      -- but only with a recorded justification; the original engine output is
+      -- preserved in the columns above, so the case screen shows both the engine's
+      -- answer and the human decision, and the audit trail records the divergence.
+      override_product TEXT,
+      override_justification TEXT,
+      override_by TEXT,
+      override_by_name TEXT,
+      overridden_at TEXT,
       FOREIGN KEY (application_id) REFERENCES applications(id) ON DELETE CASCADE
     );
 

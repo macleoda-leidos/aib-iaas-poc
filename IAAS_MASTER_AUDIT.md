@@ -17,7 +17,7 @@ The build demonstrates a complete, statutory-grounded application journey behind
 
 This engagement delivered three things:
 
-1. **Security hardening (Workstream A).** A five-agent audit of the running code found **five access-control findings** — one High, two Medium, two Low. **All five are now fixed and covered by regression tests** (19 new tests; the suite grew from 1,037 to **1,078 across 60 files**, all passing). Details in §4 and the standalone `SECURITY_AUDIT.md`.
+1. **Security hardening (Workstream A).** A five-agent audit of the running code found **five access-control findings** — one High, two Medium, two Low. **All five are now fixed and covered by regression tests** (19 new tests; the suite grew from 1,037 to **1,084 across 60 files**, all passing). Details in §4 and the standalone `SECURITY_AUDIT.md`.
 2. **Documentation reconciliation (Workstream B).** The docs disagreed with the code and with each other on nearly every load-bearing number (roles, permissions, services, admin features, integrations, test counts, .NET parity, Keycloak). Every verifiable figure was recounted and corrected to a single baseline (§3, `DOCUMENTATION_GAP_ANALYSIS.md`). Several numbers went *down* on reconciliation — a smaller honest number is the point.
 3. **Strategic positioning (Workstream C).** Five companion documents position IAAS as a credible, reusable platform for AiB: this master audit plus `SECURITY_AUDIT.md`, `ARCHITECTURE_REVIEW.md`, `DOCUMENTATION_GAP_ANALYSIS.md`, `ROADMAP_RECOMMENDATIONS.md` and `BENEFITS_INTEGRATION_OPTIONS.md`.
 
@@ -59,7 +59,7 @@ Every figure below was recounted against the repository on the audit date.
 | Web pages | **69** `page.tsx` | `apps/web/src/app` |
 | Admin-app pages | **10** `page.tsx` | `apps/admin/src` |
 | Mock-integration modules | **6** (BASYS, eDEN/DAS-hub, DAS, CFT, Moratorium, RoI) + credit-check + health | `services/mock-integrations/src/routes` |
-| **Tests** | **1,078 across 60 files** (751 backend / 47 files, 327 frontend / 13 files) | `npx vitest run` |
+| **Tests** | **1,084 across 60 files** (757 backend / 47 files, 327 frontend / 13 files) | `npx vitest run` |
 
 **Scaffolding-not-wired, stated honestly:** `INTEGRATION_MODE=live` throws (only `mock` is implemented); Keycloak exists as `realm-export.json` scaffolding but is **not wired** (the OIDC mock IdP is the live federation path); there is **no root `docker-compose.yml`** (the compose file is `infra/docker/docker-compose.yml`).
 
@@ -73,7 +73,7 @@ The documentation had drifted systemically. The reconciliation corrected, among 
 - **Admin features** 28/37/38 → **33 tiles (+5 orphan pages)**.
 - **Services** 13/14 "microservices" → **12 logical / 14 dirs**; **.NET** "full parity" → **curated-subset parity**.
 - **Integrations** "10" → **6 mock modules**.
-- **Test counts** 423 / 904 / 1,037 → **1,078/58**; `testing.md`'s internal 45-vs-38 backend-file conflict → **45**; the stale "215→298" note removed.
+- **Test counts** 423 / 904 / 1,037 → **1,084/58**; `testing.md`'s internal 45-vs-38 backend-file conflict → **45**; the stale "215→298" note removed.
 - **Packages** 6 → **8**.
 - **Keycloak** "runs in Docker Compose" and the implied root compose file → scaffolding-only, OIDC mock IdP is the live path (reconciliation notes added to `architecture.md` §8.1 and §9).
 
@@ -93,7 +93,7 @@ The full severity-ranked analysis is in `SECURITY_AUDIT.md`. In brief, the five 
 | **A4** | Low | Any authenticated user — including a debtor — could POST arbitrary events into the immutable audit log. (Actor was already token-bound.) | `POST /api/audit/events` now refuses `role === 'debtor'` (staff/service-only). No `audit.write` permission exists in the RBAC seed, so role is the authority; actions stay free-form (an enum would break legitimate `sla_*` writes). |
 | **A5** | Low | The admin documentation viewer rendered fetched markdown through `dangerouslySetInnerHTML` with zero HTML escaping — a latent stored-XSS sink alongside a localStorage bearer token. | HTML-escape all five metacharacters **before** the markdown transforms (which only add a fixed safe tag set). **No new dependency** (DOMPurify avoided); blockquote regex adjusted for the escaped `>`. The functions were extracted to `admin/dev/markdown.ts` so the escaping is unit-tested. |
 
-**Implementation footprint:** source changes across 4 services + the web app, mirroring existing idioms (`hasValidCapability`/`issueCapabilityToken`, `req.user` scoping, inline `@aib-iaas/auth` verification, the 404-not-403 IDOR convention). Security-regression tests cover **all five** findings — **19 backend** across `consolidated-api/access-control.test.ts`, `api-gateway/applications.test.ts` and the notification/payment/audit service suites (A1–A4), plus a dedicated **A5 frontend suite** (`admin/dev/__tests__/markdown.test.ts`). Full suite: **1,078/58 passing** (`DATABASE_PATH="$(mktemp -d)/fresh.db" npx vitest run`), `demoSelectors.test.ts` green (no demo hooks moved).
+**Implementation footprint:** source changes across 4 services + the web app, mirroring existing idioms (`hasValidCapability`/`issueCapabilityToken`, `req.user` scoping, inline `@aib-iaas/auth` verification, the 404-not-403 IDOR convention). Security-regression tests cover **all five** findings — **19 backend** across `consolidated-api/access-control.test.ts`, `api-gateway/applications.test.ts` and the notification/payment/audit service suites (A1–A4), plus a dedicated **A5 frontend suite** (`admin/dev/__tests__/markdown.test.ts`). Full suite: **1,084/58 passing** (`DATABASE_PATH="$(mktemp -d)/fresh.db" npx vitest run`), `demoSelectors.test.ts` green (no demo hooks moved).
 
 **Confirmed positives** (see `SECURITY_AUDIT.md` §4): HS256 pinned-alg JWT with mandatory `exp`; bcrypt cost-12 with timing-equalisation; real TOTP (no pre-MFA token); logout session revocation; shared default-deny gate; capability-token IDOR fix (read **and** write); parameterised SQL throughout; strict `default-src 'none'` CSP; scoped auth rate-limiter; OIDC/One-Login mock IdP; no committed secrets; audit actor bound from token, never body.
 
@@ -170,4 +170,4 @@ The full, scored and sequenced backlog is in `ROADMAP_RECOMMENDATIONS.md`.
 
 ## 11. Conclusion
 
-Within the explicit bounds of a synthetic-data POC, IAAS is a disciplined, statute-grounded demonstrator carrying production-shaped controls. This engagement made it **demonstrably more secure** (five findings fixed, 19 regression tests, 1,078/58 passing) and **honest about its own numbers** (every load-bearing figure recounted and reconciled). The remaining work is a well-understood backlog of finishing scaffolded seams and maturing capabilities — the backlog of a platform that is ready to become a product, documented in the five companion deliverables.
+Within the explicit bounds of a synthetic-data POC, IAAS is a disciplined, statute-grounded demonstrator carrying production-shaped controls. This engagement made it **demonstrably more secure** (five findings fixed, 19 regression tests, 1,084/58 passing) and **honest about its own numbers** (every load-bearing figure recounted and reconciled). The remaining work is a well-understood backlog of finishing scaffolded seams and maturing capabilities — the backlog of a platform that is ready to become a product, documented in the five companion deliverables.

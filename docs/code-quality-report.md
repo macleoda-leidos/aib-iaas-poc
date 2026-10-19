@@ -7,7 +7,7 @@
 | Assessment Date | 23 August 2026 |
 | Total Lines of Code | ~25,000+ |
 | Languages | TypeScript (95%), CSS/Tailwind (5%) |
-| Test Count | 1,078 tests across 60 files (751 backend / 327 frontend) |
+| Test Count | 1,084 tests across 60 files (757 backend / 327 frontend) |
 | Estimated Line Coverage | 70-80% (services), 50-60% (frontend) |
 | Workspaces | 2 apps, 14 `services/` dirs (12 logical + consolidated-api + dotnet-api), 8 packages |
 
@@ -32,7 +32,7 @@ The project uses TypeScript across all workspaces but operates in **relaxed mode
 
 ## Test Coverage
 
-- **Total tests:** 1,078 across 60 files (all passing), via `npx vitest run` — 751 backend across 47 files, 327 frontend across 13 files
+- **Total tests:** 1,084 across 60 files (all passing), via `npx vitest run` — 757 backend across 47 files, 327 frontend across 13 files
 - **Unit tests:** Services have 89% coverage (measured via Vitest c8)
 - **Integration tests:** API Gateway endpoint tests cover all routes
 - **E2E tests:** Playwright regression suite covers 47 page routes

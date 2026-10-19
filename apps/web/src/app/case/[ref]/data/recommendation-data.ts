@@ -27,6 +27,17 @@ export interface EnhancedRecommendation {
   }>;
   explanation: string;
   regulatoryDisclaimer: string;
+  // Caseworker override (Phase 4). Present only when a human has overridden the
+  // engine's product; the engine's output above is retained so both are shown.
+  // The live value comes from the recommendations.override_* columns via
+  // PATCH /api/applications/:id/recommendation/override; this optional field lets
+  // the case screen display it without changing the page's data source.
+  override?: {
+    product: string;
+    justification: string;
+    byName: string;
+    at: string;
+  };
 }
 
 const REGULATORY_DISCLAIMER =

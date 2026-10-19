@@ -32,9 +32,12 @@ function callerFromRequest(req: Request): Caller | null {
 }
 
 /** Staff = any authenticated non-applicant. Notifications are per-user; staff may
- *  read/manage any user's notifications, an applicant only their own. */
-function isStaff(caller: Caller | null): caller is Caller {
-  return !!caller && caller.role !== 'debtor';
+ *  read/manage any user's notifications, an applicant only their own. A plain
+ *  boolean predicate (not a type guard): callers already hold a non-null Caller,
+ *  so a `caller is Caller` guard would narrow the negative branch to `never`
+ *  under tsc and break the ownership comparison that follows. */
+function isStaff(caller: Caller): boolean {
+  return caller.role !== 'debtor';
 }
 
 /**
