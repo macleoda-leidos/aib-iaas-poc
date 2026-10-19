@@ -36,4 +36,32 @@ Three independent threads: convert the cheapest mocks to real persistence (wirin
 - Rendered SVG/PNG diagram exports (diagrams are currently Mermaid-only).
 - Requirement docs (use-cases / user-stories / user-journeys) refresh for CFT, OIDC, SLA worker, capability-token IDOR.
 
+---
+
+## Phase 2 addendum — Security hardening, audit & strategic docs
+
+Three further commits land on this branch after the Phase-1 reconciliation above. Full suite now **1,068 pass / 58 files, 0 failures** (741 backend / 45 files, 327 frontend / 13 files).
+
+### Workstream A — five security fixes with tests (`fix(security): close 5 access-control findings`)
+A five-strand audit of the *running code* found five access-control weaknesses; all five are fixed, mirroring existing in-repo idioms, and covered by regression tests.
+
+| ID | Sev | Finding | Fix |
+|----|-----|---------|-----|
+| A1 | High | Notification IDOR — every route trusted `:userId`/`:id`/body | Ownership guard (`req.user` or inline `@aib-iaas/auth`); user routes require owner-or-staff, `/:id` row-lookup, send/send-bulk staff-only; 404 on mismatch |
+| A2 | Med | Payment routes unauthenticated/unscoped | Capability (anonymous `/apply`) or staff on every route; refund staff-only; 404 on mismatch |
+| A3 | Med (demo-critical) | Anonymous application **write** not capability-gated | `enforceAnonymousWrite` requires the capability on PUT/submit; frontend threads `X-Application-Capability` through create→update→submit + the pending-submission retry |
+| A4 | Low | Any authenticated user could POST arbitrary audit events | `POST /api/audit/events` refuses `role=debtor` (staff/service-only) |
+| A5 | Low | Unsanitised markdown → `dangerouslySetInnerHTML` in admin/dev | HTML-escape before transforms; no new dep; functions extracted to `markdown.ts` and unit-tested |
+
+Tests: 19 backend regression tests + a 12-assertion A5 frontend suite.
+
+### Workstream B — count reconciliation (`docs: reconcile verified counts…`)
+Every load-bearing figure recounted against the repo and corrected across CLAUDE.md + the doc set: permissions 20→**28**, roles →**10**, grants 68→**91**, services →**12 logical / 14 dirs**, .NET →**curated-subset parity**, admin →**33 tiles (+5 orphan)**, integrations →**6 mock modules**, packages 6→**8**, tests →**1,068/58**. Keycloak flagged as scaffolding-only; `render.yaml` .NET-parity comment corrected.
+
+### Workstream C — six strategic deliverables (`docs: add six strategic audit deliverables`)
+`IAAS_MASTER_AUDIT.md` (umbrella + implementation summary), `SECURITY_AUDIT.md`, `ARCHITECTURE_REVIEW.md`, `DOCUMENTATION_GAP_ANALYSIS.md`, `ROADMAP_RECOMMENDATIONS.md`, `BENEFITS_INTEGRATION_OPTIONS.md` — each grounded in `file:line` evidence.
+
+### Verification
+`DATABASE_PATH="$(mktemp -d)/fresh.db" npx vitest run --no-file-parallelism` → **1,068 pass / 58 files, 0 failures**. `demoSelectors.test.ts` green (no `data-demo` hooks moved).
+
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
