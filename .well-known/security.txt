@@ -1,0 +1,14 @@
+# Accountant in Bankruptcy — Initial Application Advice Service
+# Proof of Concept. Operates on synthetic data only; no real personal data,
+# payments, or production integrations are present.
+#
+# Note: this is a GitHub Pages *project* site served under the /aib-iaas-poc/
+# sub-path, so the canonical RFC 9116 location at the domain root is not
+# reachable. This file is served under the project sub-path (see Canonical).
+
+Contact: mailto:security@aib.gov.uk
+Contact: https://www.aib.gov.uk/contact-us
+Expires: 2027-10-01T00:00:00.000Z
+Preferred-Languages: en
+Policy: https://www.aib.gov.uk/privacy-notice
+Canonical: https://macleoda-leidos.github.io/aib-iaas-poc/.well-known/security.txt
