@@ -8,7 +8,9 @@
 
 ---
 
-## Phase 3 — Integrity & CI hygiene (Quick Wins)
+## Phase 3 — Integrity & CI hygiene (Quick Wins) — ✅ DELIVERED (19 Oct 2026)
+
+**Delivered:** PG index parity (10→24; +14 indexes in `pg-schema.ts`) with a source-diff parity test (`packages/database/src/__tests__/schema-index-parity.test.ts`); axios floor raised to `^1.7.0` across all direct deps; non-blocking `npm audit --audit-level=high` step added to CI; canonical `openapi.json` (OpenAPI 3.1, 20 paths, both security schemes) committed at repo root, referenced from `api-first-design.md`, guarded by `packages/validation/src/__tests__/openapi-contract.test.ts`. Suite **1,078/60** passing.
 
 **Goal:** close the two self-contained integrity gaps and the OpenAPI gap. Lowest risk, unblocks later work, no external dependency.
 

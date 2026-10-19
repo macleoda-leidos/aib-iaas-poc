@@ -35,6 +35,26 @@ export async function initPgSchema(pool: Pool): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_audit_app ON audit_events(application_id);
     CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON audit_events(timestamp);
     CREATE INDEX IF NOT EXISTS idx_sla_events_app ON sla_events(application_id);
+    -- Index parity with SQLite (schema.ts). PostgreSQL previously carried only the
+    -- ten indexes above, leaving these fourteen application_id FK joins, the
+    -- session-token lookup (hit on every authenticated request) and the user/org
+    -- filters doing sequential scans once the data outgrew the planner's happy
+    -- path. SQLite's idx_applications_reference and PG's idx_applications_ref are
+    -- the same index under different names, so it is not repeated here.
+    CREATE INDEX IF NOT EXISTS idx_applicants_app ON applicants(application_id);
+    CREATE INDEX IF NOT EXISTS idx_addresses_app ON addresses(application_id);
+    CREATE INDEX IF NOT EXISTS idx_debts_app ON debts(application_id);
+    CREATE INDEX IF NOT EXISTS idx_assets_app ON assets(application_id);
+    CREATE INDEX IF NOT EXISTS idx_documents_app ON documents(application_id);
+    CREATE INDEX IF NOT EXISTS idx_payments_app ON payments(application_id);
+    CREATE INDEX IF NOT EXISTS idx_claims_org ON claims(creditor_org_id);
+    CREATE INDEX IF NOT EXISTS idx_notif_read ON notifications(user_id, read);
+    CREATE INDEX IF NOT EXISTS idx_audit_action ON audit_events(action);
+    CREATE INDEX IF NOT EXISTS idx_users_role ON users(role_id);
+    CREATE INDEX IF NOT EXISTS idx_users_org ON users(organisation_id);
+    CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token);
+    CREATE INDEX IF NOT EXISTS idx_organisations_type ON organisations(type);
+    CREATE INDEX IF NOT EXISTS idx_organisations_parent ON organisations(parent_id);
   `);
-  console.log('[PostgreSQL] Schema initialized (21 tables + 10 indexes)');
+  console.log('[PostgreSQL] Schema initialized (21 tables + 24 indexes)');
 }

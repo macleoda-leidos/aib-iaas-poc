@@ -1,5 +1,14 @@
 # API-First Design
 
+> **Canonical contract.** The machine-readable OpenAPI 3.1 contract for the core
+> API surface is committed at [`/openapi.json`](../openapi.json) (repo root). It is
+> the source of truth for this document and is maintained alongside the code —
+> it defines the response envelope, the two security schemes (the HS256 bearer
+> token and the application-scoped `X-Application-Capability`), and the lifecycle
+> endpoints. The in-app `/api-docs/openapi` page is a human-facing view of the
+> same surface. A validity test lives at
+> `packages/validation/src/__tests__/openapi-contract.test.ts`.
+
 ## Principles
 
 1. **Contract-first** — API contracts are defined before implementation

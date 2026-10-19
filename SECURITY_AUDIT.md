@@ -21,7 +21,7 @@ A five-agent discovery pass audited the **actual implementation** — the source
 
 Each fix is described below with its evidence (`file:line`), its exploit path, and a precise account of the remediation that landed. The audit also records the controls that were **already correct** (Section 4) and the residual risks that remain **open and acknowledged** (Section 5), in keeping with a POC-honest posture that does not overclaim.
 
-The regression suite grew by **19 security-focused tests** as part of this work; the full test count is now **1,068 across 58 files** (Section 7).
+The regression suite grew by **19 security-focused tests** as part of this work; the full test count is now **1,078 across 60 files** (Section 7).
 
 ---
 
@@ -246,7 +246,7 @@ The hardening added security-regression tests across all five findings — **19 
 - **`services/audit-service/src/__tests__/audit.test.ts`** — a debtor POST to the audit trail is refused (`403`, `:65`), and the actor is derived from the token, ignoring the body (`:71`).
 - **`apps/web/src/app/admin/dev/__tests__/markdown.test.ts`** — the **A5** suite. `renderMarkdown`/`escapeHtml` were extracted to `markdown.ts` so they are unit-testable. It asserts a `<script>` and an `<img onerror=...>` payload are neutralised to escaped text (never live elements), HTML inside a code span is escaped, event handlers do not survive, and the five metacharacters escape in the correct order — while legitimate markdown (headings, bold, code, lists, safe links) still renders.
 
-**Total test count after Phase 2: 1,068 across 58 files** (741 backend across 45 files, 327 frontend across 13 files), from a full `npx vitest run` — up from 1,037/722 before the security-regression tests landed (19 backend across A1–A4, plus the A5 frontend markdown suite).
+**Total test count after Phase 2: 1,078 across 60 files** (751 backend across 47 files, 327 frontend across 13 files), from a full `npx vitest run` — up from 1,037/722 before the security-regression tests landed (19 backend across A1–A4, plus the A5 frontend markdown suite).
 
 ---
 

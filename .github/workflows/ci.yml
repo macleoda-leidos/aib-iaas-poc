@@ -22,6 +22,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # Dependency hygiene (Phase 3). Non-blocking for now: it surfaces advisories
+      # on every run so they are visible and tracked, without failing the build on
+      # the current backlog of transitive findings. Promote to a hard gate (drop
+      # continue-on-error, raise --audit-level) once the backlog is cleared.
+      - name: Dependency audit (advisory)
+        run: npm audit --audit-level=high
+        continue-on-error: true
+
       - name: Run unit & integration tests with coverage
         run: npx vitest run --coverage
 
