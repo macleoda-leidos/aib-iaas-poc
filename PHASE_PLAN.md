@@ -26,7 +26,13 @@
 
 ---
 
-## Phase 4 — Recommendation traceability & override capture (Near-Term)
+## Phase 4 — Recommendation traceability & override capture (Near-Term) — ✅ DELIVERED (19 Oct 2026)
+
+**Delivered:** `PATCH /api/applications/:id/recommendation/override` — staff-gated (`applications.update`), mandatory justification (≥10 chars, `recommendationOverrideSchema`), product constrained to the engine's own menu, preserves the engine's original output, and writes a `recommendation_overridden` audit event capturing the divergence. New `recommendations.applyOverride()` repo method + nullable `override_*` columns on the `recommendations` table (SQLite **and** PG). The engine already emits `factors[]`/`reasoning[]`/`alternativeProducts[]`, which `/case/[ref]/recommendation` renders; an additive override banner surfaces the human decision when present (`data-demo="recommendation-override"`). 6 new backend tests (gating 403, mandatory-justification 400, off-menu 400, no-recommendation 404, success+audit, anonymous 401). Suite **1,084/60**.
+
+> **Note:** the case recommendation page reads static demo data (`recommendation-data.ts`), so the override banner is wired to an optional view-model field rather than the live API — fully API-backing that page is deferred to the admin-portal/case-screen work (ROADMAP §3.6), not Phase 4.
+
+> **Confidence calibration** (needs real outcome data) remains deferred — not available in the POC.
 
 **Goal:** make the deterministic recommendation engine *demonstrably* explainable and auditable, and let a caseworker override with recorded justification — human-in-the-loop by construction.
 

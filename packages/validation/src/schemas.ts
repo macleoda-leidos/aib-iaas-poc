@@ -200,6 +200,26 @@ export const messageCreateSchema = z
   })
   .strict();
 
+// ─── Recommendation override (Phase 4) ──
+// A caseworker may override the engine's recommended product, but only WITH a
+// justification — the whole point of the human-in-the-loop control is that the
+// reason is recorded. The product must be one the engine itself can emit, so an
+// override cannot invent an off-menu outcome.
+export const recommendationOverrideSchema = z
+  .object({
+    product: z.enum([
+      'debt_arrangement_scheme',
+      'debt_payment_programme',
+      'minimal_asset_process',
+      'protected_trust_deed',
+      'bankruptcy',
+      'moratorium',
+      'signposting_advice',
+    ]),
+    justification: z.string().min(10, 'A justification of at least 10 characters is required').max(2000),
+  })
+  .strict();
+
 export type DebtorDetailsInput = z.infer<typeof debtorDetailsSchema>;
 export type ApplicationSubmissionInput = z.infer<typeof applicationSubmissionSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;

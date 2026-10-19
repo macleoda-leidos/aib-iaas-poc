@@ -173,6 +173,33 @@ export default function RecommendationContent() {
         </div>
       </div>
 
+      {/* ─── Caseworker override (Phase 4) ─── */}
+      {/* Shown only when a human has overridden the engine. The engine's result
+          above is deliberately kept visible, so the screen presents both the
+          automated advice and the human decision with its recorded rationale. */}
+      {data.override && (
+        <section className="mb-8" data-demo="recommendation-override">
+          <div className="border-l-4 border-amber-400 bg-amber-50 dark:bg-amber-950 rounded-r-lg p-4">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-lg">⚖️</span>
+              <h2 className="text-base font-bold text-amber-900 dark:text-amber-200">
+                Caseworker override — human decision differs from the engine
+              </h2>
+            </div>
+            <p className="text-sm text-amber-900 dark:text-amber-200 mb-2">
+              A reviewer substituted <strong>{data.override.product}</strong> for the engine&apos;s{' '}
+              <strong>{data.productShort}</strong>. The engine&apos;s assessment is retained below for transparency.
+            </p>
+            <blockquote className="border-l-2 border-amber-300 pl-3 text-sm italic text-amber-800 dark:text-amber-300 mb-2">
+              {data.override.justification}
+            </blockquote>
+            <p className="text-xs text-amber-700 dark:text-amber-400">
+              Overridden by {data.override.byName} · {data.override.at} · recorded on the audit trail
+            </p>
+          </div>
+        </section>
+      )}
+
       {/* ─── Decision Factors ─── */}
       <section className="mb-8">
         <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-4">

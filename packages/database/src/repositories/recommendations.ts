@@ -14,6 +14,21 @@ export interface Recommendation {
   alternatives: any;
   engineVersion: string;
   generatedAt: string;
+  // Caseworker override (Phase 4). Null until a human overrides the engine's
+  // product; when set, `product` above still carries the ENGINE's output so both
+  // are visible, and `overrideProduct` is the human decision.
+  overrideProduct: string | null;
+  overrideJustification: string | null;
+  overrideBy: string | null;
+  overrideByName: string | null;
+  overriddenAt: string | null;
+}
+
+export interface ApplyOverrideInput {
+  product: string;
+  justification: string;
+  overrideBy: string;
+  overrideByName: string;
 }
 
 export interface CreateRecommendationInput {
@@ -45,6 +60,11 @@ export class RecommendationRepository {
       alternatives: JSON.parse(row.alternatives),
       engineVersion: row.engine_version,
       generatedAt: row.generated_at,
+      overrideProduct: row.override_product ?? null,
+      overrideJustification: row.override_justification ?? null,
+      overrideBy: row.override_by ?? null,
+      overrideByName: row.override_by_name ?? null,
+      overriddenAt: row.overridden_at ?? null,
     };
   }
 
@@ -82,7 +102,32 @@ export class RecommendationRepository {
       alternatives: input.alternatives,
       engineVersion: input.engineVersion,
       generatedAt,
+      overrideProduct: null,
+      overrideJustification: null,
+      overrideBy: null,
+      overrideByName: null,
+      overriddenAt: null,
     };
+  }
+
+  /**
+   * Record a caseworker override of the engine's recommendation (Phase 4). The
+   * engine's original output (product/confidence/factors/reasoning) is left
+   * untouched; only the override_* columns are set, so the case screen shows both
+   * the engine's answer and the human decision. Returns the updated row, or null
+   * if no recommendation exists for the application. The justification is required
+   * by the caller (the route rejects an empty one) — this layer stores whatever it
+   * is given.
+   */
+  applyOverride(applicationId: string, input: ApplyOverrideInput): Recommendation | null {
+    const result = this.db.prepare(`
+      UPDATE recommendations
+         SET override_product = ?, override_justification = ?, override_by = ?, override_by_name = ?, overridden_at = ?
+       WHERE application_id = ?
+    `).run(input.product, input.justification, input.overrideBy, input.overrideByName, new Date().toISOString(), applicationId);
+
+    if (result.changes === 0) return null;
+    return this.findByApplication(applicationId);
   }
 
   findByApplication(applicationId: string): Recommendation | null {

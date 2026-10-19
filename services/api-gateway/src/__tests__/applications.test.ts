@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { signToken, buildClaims } from '@aib-iaas/auth';
 import { app } from '../index';
-import { audit, notifications } from '../db';
+import { audit, notifications, recommendations } from '../db';
 import http from 'http';
 
 // Integration tests for the API Gateway application endpoints
@@ -417,6 +417,88 @@ describe('API Gateway - Applications', () => {
       const statusEvent = audit.findByApplication(id).find((e: any) => e.action === 'status_changed_to_under_review');
       expect(statusEvent?.actorName).toBe('senior@aib.example');
       expect(statusEvent?.actorName).not.toBe('aib_staff');
+    });
+  });
+
+  describe('recommendation override (Phase 4)', () => {
+    // Seed an engine recommendation for an application, returning its id.
+    async function appWithRecommendation(product = 'debt_arrangement_scheme'): Promise<string> {
+      const create = await request('POST', '/api/applications', { applicant: { firstName: 'Rec', lastName: 'Override' } });
+      const id = create.data.data.id;
+      recommendations.create({
+        applicationId: id,
+        product,
+        confidence: 'high',
+        confidencePct: 86,
+        reasoning: ['engine reasoning'],
+        factors: [{ factor: 'Total Debt', value: '£12,000', impact: 'neutral' }],
+        alternatives: ['protected_trust_deed'],
+        engineVersion: 'test-1.0',
+      });
+      return id;
+    }
+
+    it('overrides the engine product with a justification, preserves the engine output, and audits the divergence', async () => {
+      const id = await appWithRecommendation('debt_arrangement_scheme');
+
+      const res = await request('PATCH', `/api/applications/${id}/recommendation/override`,
+        { product: 'protected_trust_deed', justification: 'Asset position favours a trust deed on review.' },
+        { Authorization: `Bearer ${staffToken()}` });
+
+      expect(res.status).toBe(200);
+      expect(res.data.data.product).toBe('debt_arrangement_scheme'); // engine output preserved
+      expect(res.data.data.overrideProduct).toBe('protected_trust_deed');
+      expect(res.data.data.overrideByName).toBe('officer@aib.example');
+      expect(res.data.data.overriddenAt).toBeTruthy();
+
+      const event = audit.findByApplication(id).find((e: any) => e.action === 'recommendation_overridden');
+      expect(event).toBeTruthy();
+      expect(event.details.enginesProduct).toBe('debt_arrangement_scheme');
+      expect(event.details.overrideProduct).toBe('protected_trust_deed');
+    });
+
+    it('rejects an override with no (or too-short) justification → 400', async () => {
+      const id = await appWithRecommendation();
+      const res = await request('PATCH', `/api/applications/${id}/recommendation/override`,
+        { product: 'bankruptcy', justification: 'too short' },
+        { Authorization: `Bearer ${staffToken()}` });
+      expect(res.status).toBe(400);
+    });
+
+    it('rejects an off-menu product → 400', async () => {
+      const id = await appWithRecommendation();
+      const res = await request('PATCH', `/api/applications/${id}/recommendation/override`,
+        { product: 'free_money', justification: 'This is a long enough justification string.' },
+        { Authorization: `Bearer ${staffToken()}` });
+      expect(res.status).toBe(400);
+    });
+
+    it('rejects an override from a token without applications.update → 403', async () => {
+      const id = await appWithRecommendation();
+      const weak = signToken(buildClaims({ id: 'ro-ovr', email: 'ro@x.example', roleName: 'aib_readonly', roleLevel: 20 }, ['applications.read']));
+      const res = await request('PATCH', `/api/applications/${id}/recommendation/override`,
+        { product: 'bankruptcy', justification: 'A sufficiently long justification string here.' },
+        { Authorization: `Bearer ${weak}` });
+      expect(res.status).toBe(403);
+    });
+
+    it('returns 404 when the application has no recommendation to override', async () => {
+      const create = await request('POST', '/api/applications', { applicant: { firstName: 'No', lastName: 'Rec' } });
+      const id = create.data.data.id;
+      const res = await request('PATCH', `/api/applications/${id}/recommendation/override`,
+        { product: 'bankruptcy', justification: 'A sufficiently long justification string here.' },
+        { Authorization: `Bearer ${staffToken()}` });
+      expect(res.status).toBe(404);
+      expect(res.data.error.code).toBe('NO_RECOMMENDATION');
+    });
+
+    it('is refused anonymously by the global default-deny posture (401)', async () => {
+      // Note: the standalone gateway has no global gate, but the route itself
+      // requires req.user — so an anonymous caller is rejected either way.
+      const id = await appWithRecommendation();
+      const res = await request('PATCH', `/api/applications/${id}/recommendation/override`,
+        { product: 'bankruptcy', justification: 'A sufficiently long justification string here.' });
+      expect(res.status).toBe(401);
     });
   });
 });
