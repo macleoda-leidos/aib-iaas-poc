@@ -44,6 +44,28 @@ async function runToCode(): Promise<{ state: string; code: string }> {
   return { state: cbUrl.searchParams.get('state')!, code: cbUrl.searchParams.get('code')! };
 }
 
+/**
+ * Drive the whole flow for a chosen account (picker selection), returning the
+ * final frontend redirect Location (the one carrying #token=…&user=…). When `sub`
+ * is omitted the default subject (Case Officer) is used.
+ */
+async function runToFinalRedirect(sub?: string): Promise<string> {
+  const start = await get(`/api/auth/oidc/start?redirect=${encodeURIComponent(REDIRECT)}`);
+  const authorizeUrl = new URL(start.headers.location as string, baseUrl);
+  if (sub) authorizeUrl.searchParams.set('sub', sub);
+  const authorize = await get(authorizeUrl.pathname + authorizeUrl.search);
+  expect(authorize.status).toBe(302);
+  const cbUrl = new URL(authorize.headers.location as string, baseUrl);
+  const callback = await get(cbUrl.pathname + cbUrl.search);
+  expect(callback.status).toBe(302);
+  return callback.headers.location as string;
+}
+
+function fragmentOf(finalLoc: string): URLSearchParams {
+  expect(finalLoc.startsWith(`${REDIRECT}#`)).toBe(true);
+  return new URLSearchParams(finalLoc.slice(finalLoc.indexOf('#') + 1));
+}
+
 describe('API Gateway - OIDC federation (mock GOV.UK One Login)', () => {
   beforeAll(async () => {
     await new Promise<void>(r => {
@@ -141,5 +163,53 @@ describe('API Gateway - OIDC federation (mock GOV.UK One Login)', () => {
     expect(doc.id_token_signing_alg_values_supported).toContain('RS256');
     expect(doc.code_challenge_methods_supported).toContain('S256');
     expect(doc.jwks_uri).toContain('/api/auth/oidc/idp/jwks.json');
+  });
+
+  // ─── GAP-007 (mock): account picker + first-login provisioning ───
+
+  it('leaves the default subject (Case Officer) unchanged when none is selected', async () => {
+    const frag = fragmentOf(await runToFinalRedirect());
+    const claims = verifyToken<AccessTokenClaims>(decodeURIComponent(frag.get('token')!));
+    expect(claims.email).toBe('demo@example.com');
+    expect(claims.role).toBe('aib_officer');
+  });
+
+  it('shows the account picker when prompt=select_account is requested', async () => {
+    const start = await get(`/api/auth/oidc/start?redirect=${encodeURIComponent(REDIRECT)}&select=1`);
+    const authorizeUrl = new URL(start.headers.location as string, baseUrl);
+    expect(authorizeUrl.searchParams.get('prompt')).toBe('select_account');
+
+    const picker = await get(authorizeUrl.pathname + authorizeUrl.search);
+    expect(picker.status).toBe(200);
+    expect(picker.headers['content-type']).toContain('text/html');
+    expect(picker.body).toContain('Case Officer');
+    expect(picker.body).toContain('New citizen');
+    expect(picker.body).toContain('sub=');
+  });
+
+  it('routes a picker selection to the chosen subject (admin)', async () => {
+    const frag = fragmentOf(await runToFinalRedirect('urn:fdc:gov.uk:2022:mock-aib-sysadmin'));
+    const claims = verifyToken<AccessTokenClaims>(decodeURIComponent(frag.get('token')!));
+    expect(claims.email).toBe('admin@aib-poc.example.com');
+  });
+
+  it('provisions a local account on first federated login for an unseen email', async () => {
+    const frag = fragmentOf(await runToFinalRedirect('urn:fdc:gov.uk:2022:mock-new-citizen'));
+    const claims = verifyToken<AccessTokenClaims>(decodeURIComponent(frag.get('token')!));
+    expect(claims.email).toBe('new.citizen@example.com');
+    // Provisioned at the low-privilege applicant/debtor level.
+    expect(claims.role).toBe('debtor');
+
+    const user = JSON.parse(decodeURIComponent(frag.get('user')!));
+    expect(user.email).toBe('new.citizen@example.com');
+  });
+
+  it('rejects an unknown subject selection → 400', async () => {
+    const start = await get(`/api/auth/oidc/start?redirect=${encodeURIComponent(REDIRECT)}`);
+    const authorizeUrl = new URL(start.headers.location as string, baseUrl);
+    authorizeUrl.searchParams.set('sub', 'urn:fdc:gov.uk:2022:not-a-real-subject');
+    const res = await get(authorizeUrl.pathname + authorizeUrl.search);
+    expect(res.status).toBe(400);
+    expect(JSON.parse(res.body).error.code).toBe('UNKNOWN_SUBJECT');
   });
 });

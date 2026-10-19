@@ -1,11 +1,21 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { signToken, buildClaims } from '@aib-iaas/auth';
 import { app } from '../index';
 import http from 'http';
 
 let server: http.Server;
 let baseUrl: string;
 
-function request(method: string, path: string, body?: any): Promise<{ status: number; data: any }> {
+// Notifications are now access-controlled (A1): send/send-bulk are staff-only,
+// and the per-user routes require the caller to own :userId or be staff. A staff
+// token covers every case these tests exercise (they operate across many userIds).
+const STAFF = () => ({
+  Authorization: `Bearer ${signToken(
+    buildClaims({ id: 'USR-OFFICER', email: 'officer@aib.example', roleName: 'aib_officer', roleLevel: 60 }, ['applications.read'])
+  )}`,
+});
+
+function request(method: string, path: string, body?: any, headers: Record<string, string> = STAFF()): Promise<{ status: number; data: any }> {
   return new Promise((resolve, reject) => {
     const url = new URL(path, baseUrl);
     const opts = {
@@ -13,7 +23,7 @@ function request(method: string, path: string, body?: any): Promise<{ status: nu
       port: url.port,
       path: url.pathname + url.search,
       method,
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...headers },
     };
     const req = http.request(opts, (res) => {
       let d = '';
@@ -40,6 +50,43 @@ describe('Notification Service - /api/notifications', () => {
   });
 
   afterAll(() => { server?.close(); });
+
+  describe('access control (A1)', () => {
+    const debtorToken = (id: string) =>
+      `Bearer ${signToken(buildClaims({ id, email: `${id}@debtor.example`, roleName: 'debtor', roleLevel: 10 }, ['applications.read']))}`;
+
+    it('rejects an anonymous send with 401', async () => {
+      const res = await request('POST', '/api/notifications/send', { userId: 'u', subject: 's', body: 'b' }, { 'Content-Type': 'application/json' });
+      expect(res.status).toBe(401);
+    });
+
+    it('rejects a debtor sending a notification (staff-only) with 403', async () => {
+      const res = await request('POST', '/api/notifications/send', { userId: 'u', subject: 's', body: 'b' }, { Authorization: debtorToken('debtor-send') });
+      expect(res.status).toBe(403);
+    });
+
+    it("a debtor cannot read another user's notifications (404)", async () => {
+      // Staff seeds a notification for debtor-A.
+      await request('POST', '/api/notifications/send', { userId: 'debtor-A', channel: 'in_app', subject: 'Yours', body: 'private' });
+      // debtor-B asking for debtor-A's feed is refused as 404 (never confirms the id).
+      const asB = await request('GET', '/api/notifications/user/debtor-A', undefined, { Authorization: debtorToken('debtor-B') });
+      expect(asB.status).toBe(404);
+    });
+
+    it('a debtor CAN read their own notifications (200)', async () => {
+      await request('POST', '/api/notifications/send', { userId: 'debtor-self', channel: 'in_app', subject: 'Yours', body: 'ok' });
+      const asSelf = await request('GET', '/api/notifications/user/debtor-self', undefined, { Authorization: debtorToken('debtor-self') });
+      expect(asSelf.status).toBe(200);
+      expect(asSelf.data.data.notifications.length).toBeGreaterThan(0);
+    });
+
+    it('refuses to mark another user\'s notification read (404)', async () => {
+      const created = await request('POST', '/api/notifications/send', { userId: 'owner-x', channel: 'in_app', subject: 'x', body: 'x' });
+      const notifId = created.data.data.id;
+      const asOther = await request('PATCH', `/api/notifications/${notifId}/read`, undefined, { Authorization: debtorToken('not-owner') });
+      expect(asOther.status).toBe(404);
+    });
+  });
 
   describe('POST /api/notifications/send', () => {
     it('creates a notification with valid data', async () => {

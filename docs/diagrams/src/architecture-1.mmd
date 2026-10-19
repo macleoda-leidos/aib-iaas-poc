@@ -1,0 +1,40 @@
+C4Context
+    title IAAS System Context Diagram
+
+    Person(citizen, "Citizens / Debtors", "Individuals seeking debt advice and applying for statutory solutions")
+    Person(adviser, "Money Advisers", "Approved professionals assisting debtors with applications")
+    Person(staff, "AiB Staff", "Officers reviewing, processing, and approving applications")
+    Person(creditor, "Creditors / Trustees", "Organisations owed money, receiving notifications and dividend information")
+
+    System(iaas, "IAAS Platform", "Unified applications gateway for Scottish statutory debt solutions")
+
+    System_Ext(basys, "BASYS", "Bankruptcy Administration System — sequestration case records")
+    System_Ext(astra, "ASTRA", "AiB internal case management and workflow system")
+    System_Ext(eden, "eDEN / DASH", "DAS electronic system and payment distribution hub")
+    System_Ext(das, "DAS Register", "Debt Arrangement Scheme programme records")
+    System_Ext(cft, "CFT", "Creditor, Trustee and Provider registry")
+    System_Ext(roi, "RoI", "Register of Insolvencies — public register of all Scottish insolvency cases")
+    System_Ext(moratorium, "Moratorium Register", "Breathing space registrations — 6-week protection from diligence")
+
+    System_Ext(scotaccount, "ScotAccount", "Scottish Government single sign-on identity provider (SAML 2.0)")
+    System_Ext(govuk, "GOV.UK Login", "UK Government identity verification service (OpenID Connect)")
+    System_Ext(experian, "Experian / Equifax", "Credit Reference Agencies — credit score, defaults, CCJs")
+    System_Ext(payment, "Payment Provider", "Card/Apple Pay/Google Pay gateway for application fees")
+
+    Rel(citizen, iaas, "Applies for debt solutions", "HTTPS")
+    Rel(adviser, iaas, "Submits applications on behalf of debtors", "HTTPS")
+    Rel(staff, iaas, "Reviews and processes applications", "HTTPS")
+    Rel(creditor, iaas, "Views case information and dividends", "HTTPS")
+
+    Rel(iaas, basys, "Checks existing sequestration cases", "REST/mTLS")
+    Rel(iaas, astra, "Submits processed applications for case creation", "REST/mTLS")
+    Rel(iaas, eden, "Checks DAS arrangements and payment status", "REST/mTLS")
+    Rel(iaas, das, "Checks DAS programmes and applications", "REST/mTLS")
+    Rel(iaas, cft, "Validates registered providers and trustees", "REST/mTLS")
+    Rel(iaas, roi, "Searches public insolvency register", "REST/mTLS")
+    Rel(iaas, moratorium, "Checks and registers moratoriums", "REST/mTLS")
+
+    Rel(iaas, scotaccount, "Authenticates Scottish citizens", "SAML 2.0")
+    Rel(iaas, govuk, "Verifies identity claims", "OpenID Connect")
+    Rel(iaas, experian, "Runs credit checks with consent", "REST/API Key + mTLS")
+    Rel(iaas, payment, "Processes application fees", "PCI-DSS REST")

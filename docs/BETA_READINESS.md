@@ -1,18 +1,22 @@
 # IAAS Beta Platform — Readiness Assessment
 
-> ## ⚠️ STATUS: POC ON SYNTHETIC DATA — SECURITY CONTROLS ARE TARGET STATE
+> ## ⚠️ STATUS: POC ON SYNTHETIC DATA — PHASE 1 SECURITY BACKBONE DELIVERED
 >
 > **This assessment describes a proof of concept operating exclusively on synthetic data.** The
-> controls referenced in the "Security Posture" section are predominantly target state —
-> designed, but not implemented in the POC codebase.
+> **Phase 1 security backbone (October 2026)** has implemented the controls the "Security
+> Posture" section previously listed as target-only: signed-token verification, default-deny
+> authentication and authorisation, password verification, fail-closed malware scanning,
+> resource ownership checks, authenticated audit attribution, brute-force limits, wired-in input
+> validation and server-side session revocation.
 >
-> An internal static code review on 24 August 2026 identified **three Critical and four High**
-> findings in the deployed source, including forgeable authentication tokens, no authentication
-> on any deployed API route, and a login flow that accepts any password. **The platform is not
-> ready for Beta with real users or real data.**
+> An internal static code review (24 August 2026) had identified three Critical and four High
+> findings in the deployed source; `docs/security-known-gaps.md` now records GAP-001…GAP-010 as
+> **Remediated (Phase 1)** and GAP-011 residual #1/#2/#4 delivered. **The platform is still not
+> ready for Beta with real users or real data**: real-IdP federation (full GAP-007), an ITHC
+> against the deployed build, encryption at rest and HSTS on the frontend host remain open.
 >
 > See **`docs/security-known-gaps.md`** for the full findings register. No real personal data is
-> exposed today because the POC holds none; the findings are blockers for any environment
+> exposed today because the POC holds none; the remaining items are blockers for any environment
 > holding real debtor data.
 
 ## Current State
@@ -22,16 +26,16 @@
 | UI Pages | 57+ |
 | Admin Features | 32 |
 | AI Capabilities | 12+ |
-| Automated Tests | 648 |
+| Automated Tests | 1,068 vitest tests across 58 files (see `docs/testing.md`) |
 | Documentation | 36+ files |
 | Live API | https://iaas-api.onrender.com |
 | Live Frontend | https://macleoda-leidos.github.io/aib-iaas-poc/ |
-| Sprints Delivered | 14 |
+| Sprints Delivered | 30 (see `docs/roadmap.md`) |
 | Monthly Cost | £0 |
 
 ## What's Production-Ready
 
-**Functionally complete** (feature-complete for demonstration; none is security-hardened — see banner):
+**Functionally complete** (feature-complete for demonstration; the Phase 1 security backbone is now applied to the deployed API — see Security Posture):
 
 - ✅ Citizen self-service application journey (9 steps)
 - ✅ Recommendation engine (rules-based, 7 products)
@@ -45,15 +49,15 @@
 - 🎯 **TARGET** Creditor portal (`/creditor-portal`) — **Not implemented.** Hardcoded synthetic cases, dividends and proposals; no API calls. The claim form is self-labelled a placeholder and the Accept/Reject voting controls are disabled. No `claims` resource or permission exists in `packages/database/src/seed-data/permissions.json`.
 - 🎯 **TARGET** Money adviser workspace (`/adviser-workspace`) — **Not implemented.** Hardcoded synthetic clients, appointments and activity; no API calls. "Submit on Behalf" links to the standard citizen wizard with no client context or authority declaration; "New Client" is disabled. See UC-09 / US-011 for the specified behaviour.
 
-**Designed but not production-ready:**
+**Security backbone now applied (Phase 1):**
 
-- ⚠️ Role-based access control (10 roles) — the role model and permission matrix are defined and the enforcing middleware is written and unit-tested, but it is **not applied to any route on the deployed service** (GAP-002). Functionally the UI respects roles; the API does not enforce them.
-- ⚠️ Comprehensive audit trail — events are recorded with good detail, but ingestion is unauthenticated and the actor is taken from the request body, so entries are forgeable (GAP-006).
+- ✅ Role-based access control (10 roles) — the enforcing middleware is now applied to the deployed service with **default-deny** and per-resource permissions (GAP-002 remediated); the UI and API both respect roles. Residual: the scoping qualifiers "own"/"assigned"/"relevant" (GAP-011 #3) are not yet modelled as permissions.
+- ✅ Comprehensive audit trail — ingestion is authenticated and the actor is derived from the **verified token**, not the request body, so entries are no longer forgeable (GAP-006 remediated). Append-only storage + hash chaining remain target state.
 
 ## Remaining Production Work
 
 ### Must Have (Alpha)
-0. **Security remediation — blocks all real-data use.** Close the 3 Critical and 4 High findings in `docs/security-known-gaps.md`: signed token verification (GAP-001), authentication and authorisation on all deployed routes (GAP-002), real password verification (GAP-003), fail-closed malware scanning (GAP-004), resource ownership checks (GAP-005), authenticated audit attribution (GAP-006), MFA (GAP-007). Items 1 and 6 below are dependent on this work.
+0. **Security remediation — delivered in the POC (Phase 1).** The 3 Critical and 4 High findings in `docs/security-known-gaps.md` are remediated: signed token verification (GAP-001), authentication and authorisation on all deployed routes (GAP-002), real password verification (GAP-003), fail-closed malware scanning (GAP-004), resource ownership checks (GAP-005), authenticated audit attribution (GAP-006) and real server-side TOTP (GAP-007 — partial; real-IdP federation outstanding). **Still blocking real-data use:** a static re-review plus an ITHC against the deployed build. Items 1 and 6 below remain.
 1. Real ScotAccount/GOV.UK Login identity federation (subsumes GAP-001, GAP-003, GAP-007 if delegated to the IdP)
 2. Real credit bureau API (Experian sandbox → live)
 3. Real BASYS/eDEN API connections
@@ -160,10 +164,10 @@ Already defined in `packages/database/prisma/schema.prisma`:
 
 | Risk | Impact | Likelihood | Mitigation |
 |------|--------|------------|------------|
-| **Security remediation not completed before real data introduced** | **Critical** | — | **Materialised as a known gap, not a risk.** 3 Critical and 4 High findings are open (`docs/security-known-gaps.md`). Mitigation: no real data in any POC environment until closed; remediation tracked as Alpha item 0. |
+| **Re-review/ITHC not completed before real data introduced** | **Critical** | — | Phase 1 **remediated** the Critical/High findings in the POC (`docs/security-known-gaps.md`); the residual risk is shipping real data before a static re-review + ITHC against the deployed build. Mitigation: no real data in any environment until that re-review passes (Alpha item 0). |
 | BASYS API unavailable | High | Medium | Mock service fallback, queue-based retry |
-| Identity federation delays | High | Medium | Interim credential login **with real password verification, lockout, and MFA** — note the current interim implementation has none of these (GAP-003, GAP-007, GAP-008) and is not a viable fallback as built |
-| ITHC findings | High | High | Revised from Medium: the internal static review found 3 Critical and 4 High. An accredited ITHC against the remediated build should be expected to find more. Early remediation per Alpha item 0. |
+| Identity federation delays | High | Medium | Interim credential login now has **real password verification, brute-force limits and server-side TOTP** (GAP-003/008 remediated; GAP-007 partial), so it is a viable interim fallback; full real-IdP federation remains the target |
+| ITHC findings | High | High | The internal static review found 3 Critical and 4 High, now **remediated in the POC**. An accredited ITHC against the remediated build should still be expected to find issues. Early remediation per Alpha item 0. |
 | Team scaling | Medium | Medium | Documented architecture, onboarding guides |
 | Budget constraints | High | Low | Phased delivery, cloud cost optimisation |
 
@@ -185,24 +189,26 @@ yet implemented as controls. The table below separates the two honestly. Full ev
 
 | # | Area | Implemented in POC | Target state |
 |---|------|-------------------|--------------|
-| 1 | **Authentication** | ❌ **None.** Login accepts any password (GAP-003); tokens are unsigned base64 JSON and forgeable (GAP-001); no MFA (GAP-007). The "simulated identity" is simulated to the point of accepting anyone. | Identity-provider OIDC federation with enforced MFA and signed tokens verified per request |
-| 2 | **Authorisation** | ❌ **Not enforced.** Role model and middleware are written and unit-tested, but no deployed route applies them (GAP-002); no resource ownership checks (GAP-005). | RBAC with 10 roles enforced at the API layer, default-deny, with ownership constraints |
-| 3 | **Transport** | ✅ HTTPS everywhere (Render.com and GitHub Pages managed TLS). HSTS not set. | AWS Certificate Manager, TLS 1.3, HSTS with preload |
-| 4 | **Input validation** | ❌ **Not wired in.** `packages/validation` has no importers outside its own tests — dead code (GAP-009). **However SQL injection is genuinely and completely prevented** by universal query parameterisation, which does not depend on it. | Schema validation on every endpoint → FluentValidation in .NET |
-| 5 | **Rate limiting** | ⚠️ Global limiter present at 500/15min with correct 429 handling. No authentication-specific limit, no account lockout (GAP-008). | AWS WAF + API Gateway throttling, per-account login limits |
-| 6 | **Audit** | ⚠️ Events recorded with actor, timestamp, action. Ingestion unauthenticated and actor taken from request body, so entries are forgeable (GAP-006). | Server-derived attribution, append-only storage, hash chaining |
-| 7 | **Headers** | ⚠️ Helmet applied (X-Frame-Options, nosniff). CSP explicitly disabled. | CloudFront response headers policy with strict CSP |
+| 1 | **Authentication** | ✅ **Signed tokens.** HS256 tokens via `@aib-iaas/auth`, verified per request (GAP-001); passwords verified against a stored hash (GAP-003); real server-side TOTP enforced for demo accounts, and a working mock OIDC flow with first-login provisioning + account picker (GAP-007 — real IdP outstanding). | Identity-provider OIDC federation with enforced MFA and RS256 tokens verified against the IdP's JWKS |
+| 2 | **Authorisation** | ✅ **Enforced, default-deny.** Every deployed route authenticates and applies per-resource permissions (GAP-002); record-level ownership scoping with approve/reject behind a decision permission (GAP-005). Residual: scoping qualifiers (GAP-011 #3). | RBAC with 10 roles enforced at the API layer, default-deny, with full ownership constraints |
+| 3 | **Transport** | ✅ HTTPS everywhere (Render.com and GitHub Pages managed TLS). HSTS set on the API; the Pages frontend host cannot send it. | AWS Certificate Manager, TLS 1.3, HSTS with preload on all hosts |
+| 4 | **Input validation** | ✅ **Wired in.** `@aib-iaas/validation` Zod schemas are applied as route middleware (GAP-009); handlers consume the validated body. SQL injection remains completely prevented by universal query parameterisation. | Schema validation on every endpoint → FluentValidation in .NET |
+| 5 | **Rate limiting** | ✅ Global limiter (500/15min, correct 429 handling) **plus a dedicated per-account/per-IP limiter on the login + verify-mfa routes** (GAP-008). | AWS WAF + API Gateway throttling, per-account login limits |
+| 6 | **Audit** | ✅ Events recorded with actor, timestamp, action; ingestion authenticated and the actor **derived from the verified token** (GAP-006). Append-only storage + hash chaining remain target state. | Server-derived attribution, append-only storage, hash chaining |
+| 7 | **Headers** | ✅ Helmet applied with a strict JSON-API CSP (`default-src 'none'`), HSTS, nosniff, frame-deny, referrer and permissions policy on the API (1 Oct 2026 remediation). The Pages frontend carries a best-effort `<meta>` CSP. | CloudFront response headers policy with strict CSP on all hosts |
 | 8 | **CORS** | ✅ **Genuine.** Fixed origin allowlist on the deployed service; no wildcard. | Unchanged |
 | 9 | **Data** | ✅ No real PII in the POC — all data synthetic. No encryption at rest (SQLite on attached disk). | Encryption at rest via KMS; UK data residency |
-| 10 | **Malware scanning** | ❌ **Fails open.** No ClamAV in the deployment; the placeholder infers infection from the **filename** without reading contents (GAP-004). Size limits and extension allowlist **are** genuinely enforced. | Real scanning engine, fail-closed, quarantine workflow |
+| 10 | **Malware scanning** | ✅ **Fails closed.** Status is computed from both `scanned` and `infected`; a scan that did not run is `scan_failed`, never clean, and downloads are withheld until confirmed clean (GAP-004). A real ClamAV engine remains a deployment dependency. Size limits and extension allowlist are genuinely enforced. | Real scanning engine, fail-closed, quarantine workflow |
 | 11 | **Secrets & CI/CD** | ✅ **Genuine.** No committed secrets; `DATABASE_URL` injected via `sync: false`. CI uses `pull_request` (not `pull_request_target`), no script-injection sinks, Azure auth via OIDC. | Unchanged, plus secret rotation |
 
 **Genuine security strengths to preserve through migration:** universal query parameterisation
 (no SQL injection vector anywhere), secret hygiene, CI/CD pipeline integrity, CORS restriction,
 upload size and extension limits, and correct NI number validation.
 
-**Blocking security work before Beta with real users:** GAP-001 through GAP-009 in
-`docs/security-known-gaps.md` (3 Critical, 4 High, 2 Medium).
+**Blocking security work before Beta with real users:** real-IdP federation (full GAP-007), a
+static re-review plus an ITHC against the deployed build, encryption at rest, and HSTS on the
+frontend host. GAP-001 through GAP-010 are **remediated in the POC (Phase 1)**; see
+`docs/security-known-gaps.md`.
 
 ## Accessibility Compliance
 
@@ -220,6 +226,6 @@ Current state: GOV.UK Design System patterns followed throughout. Full WCAG 2.1 
 
 The IAAS POC has demonstrated the viability of a unified digital insolvency platform. The architectural decisions (microservices, repository pattern, interface abstraction, static frontend) provide a clear migration path to .NET 9 + PostgreSQL production without rewriting the frontend. The platform is ready for Alpha funding.
 
-The 14 sprints of delivery have produced a comprehensive prototype covering the full citizen journey, staff workflows, creditor access, and AI-assisted decision support. Every integration point is abstracted behind interfaces, making the transition from mock to real systems a configuration change rather than a rewrite.
+The 30 sprints of delivery have produced a comprehensive prototype covering the full citizen journey, staff workflows, creditor access, and AI-assisted decision support. Every integration point is abstracted behind interfaces, making the transition from mock to real systems a configuration change rather than a rewrite.
 
 **Recommendation**: Proceed to Alpha phase with 3.5 FTE team, focusing on identity federation, real system integration, and ITHC security testing. The POC provides sufficient evidence of feasibility and architectural soundness to justify the investment.

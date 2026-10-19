@@ -1,0 +1,22 @@
+graph LR
+    subgraph "Developer Workflow"
+        commit["Git Push to<br/>feature branch"]
+    end
+
+    subgraph "GitHub Actions Pipeline (Current POC)"
+        lint["1. Lint<br/>ESLint + TypeScript"]
+        test["2. Unit + Integration Tests<br/>Vitest (1,068 tests, 58 files)"]
+        build["3. Next.js Build<br/>Static export"]
+        deploy["4. Deploy<br/>GitHub Pages"]
+    end
+
+    subgraph "Production Pipeline (Target)"
+        scan["Security Scan<br/>Trivy + npm audit"]
+        staging["Deploy Staging<br/>ECS rolling update"]
+        e2e["E2E Tests<br/>Playwright"]
+        approve["Manual Approval<br/>Change Advisory Board"]
+        prod["Deploy Production<br/>Blue/Green via CodeDeploy"]
+    end
+
+    commit --> lint --> test --> build --> deploy
+    build --> scan --> staging --> e2e --> approve --> prod

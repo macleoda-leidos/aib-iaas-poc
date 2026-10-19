@@ -1,0 +1,28 @@
+flowchart TD
+    A[Officer opens Correspondence] --> B[View template gallery]
+    B --> C{Which template?}
+    C -->|Acknowledgement| D[Application Acknowledgement]
+    C -->|Info request| E[Request for Additional Information]
+    C -->|Approved| F[Decision - Approved]
+    C -->|Rejected| G[Decision - Rejected]
+    C -->|Referral| H[Referral to Money Adviser]
+    D --> I[Select target case]
+    E --> I
+    F --> I
+    G --> I
+    H --> I
+    I --> J[Auto-populate letter variables]
+    J --> K[Preview populated letter]
+    K --> L{Content correct?}
+    L -->|Yes| M[Select delivery channel]
+    L -->|No| N[Choose different case/template]
+    N --> B
+    M --> O{Channel?}
+    O -->|Email only| P[Send via email]
+    O -->|Post only| Q[Queue for print and post]
+    O -->|Both| R[Email + queue for post]
+    P --> S[Log in sent history]
+    Q --> S
+    R --> S
+    S --> T[Add to case timeline]
+    T --> U[Return to queue]

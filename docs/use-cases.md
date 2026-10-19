@@ -618,6 +618,109 @@
 
 ---
 
+## UC-13: Sign In with GOV.UK One Login (Federated Identity)
+
+| Field | Value |
+|-------|-------|
+| Primary Actor | Citizen (or AiB Staff) |
+| Secondary Actors | API Gateway (OIDC client), Identity Provider (GOV.UK One Login — mocked in the POC) |
+| Preconditions | None (federated sign-in needs no pre-existing local account) |
+| Trigger | User clicks "Sign in with GOV.UK One Login" on the login page |
+| Priority | Should (POC: mock flow delivered; real-IdP cutover blocked on the AiB IdP decision + sandbox credentials) |
+
+### Main Flow
+1. User clicks "Sign in with GOV.UK One Login".
+2. API Gateway builds a signed, short-TTL state token (PKCE verifier, nonce, validated redirect) and 302-redirects to the IdP authorize endpoint with an S256 code challenge.
+3. The IdP authenticates the user and 302-redirects back to the gateway callback with an authorization code bound to the user's subject.
+4. Gateway verifies the state, redeems the code (PKCE binding + RS256 ID-token verification), and reads the verified `email` claim.
+5. Gateway resolves the local user by email.
+6. Gateway mints the same HS256 app session the password path mints and hands it to the frontend in the URL fragment.
+7. User lands authenticated, indistinguishable from a password login thereafter.
+
+### Alternative Flows
+- **AF1: First-login provisioning** — At step 5, if no local account matches the verified email, the gateway provisions a low-privilege applicant/debtor account (`status: active`) and continues, so a genuinely new citizen can sign in without a manual account-creation step.
+- **AF2: Account picker (mock/demo)** — When the flow is started with `prompt=select_account`, the mock IdP presents a picker of seeded demo subjects (Case Officer, an administrator, and a "new citizen" that exercises AF1). The real IdP presents its own login UI, so the local picker falls away for real accounts.
+
+### Exception Flows
+- **EF1: Tampered/expired state** — At step 4, an invalid state token is rejected with 400 `INVALID_STATE`.
+- **EF2: Forged or mismatched code** — A bad code signature or PKCE mismatch is rejected with 401 `OIDC_EXCHANGE_FAILED`.
+- **EF3: Open-redirect attempt** — A post-login redirect outside the CORS allow-list is rejected with 400 `INVALID_REDIRECT`.
+- **EF4: Inactive provisioned account** — If resolution/provisioning yields no active account, the callback returns 401 `OIDC_NO_LOCAL_USER`.
+
+### Post-Conditions
+- A valid HS256 app session exists for the (resolved or newly provisioned) user.
+- The handshake leaves no server-side session state beyond the normal recorded session (stateless state token).
+
+### Business Rules
+- The post-login redirect must be an allow-listed origin.
+- Federated sign-in bypasses the local MFA flag — the IdP has already asserted the identity.
+- Real discovery/JWKS fetch, `kid` rotation, a real back-channel token exchange, and MFA delegation via `acr`/`amr` remain target state (full GAP-007), gated on the AiB IdP decision and sandbox credentials.
+
+---
+
+## UC-14: Assess Debtor Contribution (Common Financial Tool)
+
+| Field | Value |
+|-------|-------|
+| Primary Actor | AiB Staff (Case Officer) |
+| Secondary Actors | API Gateway, Statutory assessment library (`@aib-iaas/statutory`) |
+| Preconditions | Staff member is authenticated and viewing a case that has income and expenditure recorded |
+| Trigger | Staff member opens the case page; the CFT panel loads automatically |
+| Priority | Should |
+
+### Main Flow
+1. Staff member opens a case with recorded income and expenditure.
+2. The case page requests the CFT assessment for the application.
+3. The gateway maps the stored income/expenditure onto the Common Financial Statement shape and runs the reg.15 assessment.
+4. The assessment compares expenditure against trigger figures per category, applies the s.89(3) GMP floor and s.89(4) aliment allowance, and computes the assessed monthly contribution.
+5. The case page shows total income, allowed expenditure, assessed contribution, any categories above their trigger (needing reg.17 evidence), and the statutory citations.
+
+### Alternative Flows
+- **AF1: No financials** — At step 1, a case with no income/expenditure returns 404 `NO_FINANCIALS` and the panel is simply not shown.
+
+### Exception Flows
+- **EF1: Unauthorised reader** — A caller without ownership or a valid capability for the case receives 404 (never a confirmation the case exists).
+
+### Post-Conditions
+- The contribution figure and trigger-excess list are displayed; nothing is persisted (the assessment is computed on read).
+
+### Business Rules
+- The POC uses **indicative** trigger figures, clearly labelled — the real CFS figures are published annually and licensed. The figure is never presented as a production assessment.
+- A deficit yields a zero contribution, never a negative one.
+- Scotland's specified method is the Common Financial Statement (Bankruptcy (Scotland) Regulations 2016 reg.15), not the Standard Financial Statement.
+
+---
+
+## UC-15: Statutory SLA Clock Monitoring (Automated)
+
+| Field | Value |
+|-------|-------|
+| Primary Actor | System (background SLA worker) |
+| Secondary Actors | Case team (recipients of reminders), Audit Service |
+| Preconditions | A case has a recommendation (hence a product), a submission date, and an assignee |
+| Trigger | The SLA worker's periodic tick |
+| Priority | Should |
+
+### Main Flow
+1. The worker walks live, open cases on each tick.
+2. For each case it derives the applicable statutory clock from the recommended product and submission date (the same `@aib-iaas/statutory` logic the case page and the list badge use).
+3. As a deadline approaches, falls due, or breaches, the worker fires a reminder and writes an audit event.
+4. Staff see the live SLA posture as a countdown on the case page and a badge in the work queue.
+
+### Alternative Flows
+- **AF1: Unmodelled product** — A case whose product has no modelled clock (e.g. DPP) carries `sla: null` and shows no badge.
+
+### Exception Flows
+- **EF1: Missing prerequisites** — A case with no recommendation, no submission date, or no assignee is skipped (nothing to clock).
+
+### Post-Conditions
+- Reminder notifications and audit events are emitted as clocks cross thresholds; the three surfaces (worker, case page, queue badge) agree by construction.
+
+### Business Rules
+- The worker is a no-op under `NODE_ENV=test`; a singleton guard prevents double-scheduling across the gateway and the consolidated API.
+
+---
+
 ## Use Case Traceability
 
 | Use Case | Related User Stories | Epic |
@@ -634,6 +737,17 @@
 | UC-10 | US-054 | Administration |
 | UC-11 | US-048 | Dashboards & Analytics |
 | UC-12 | US-018, US-019, US-020 | Document Management |
+| UC-13 | US-001, US-002, US-005 | Authentication & Identity |
+| UC-14 | US-027, US-028, US-029 | Recommendation |
+| UC-15 | US-037, US-038, US-039 | Case Management |
+
+> **Note (14 October 2026).** UC-13–UC-15 record capabilities delivered since the
+> original draft: the mock GOV.UK One Login federation flow with first-login
+> provisioning and account picker (UC-13 / full GAP-007 real-IdP cutover still
+> blocked), the Common Financial Tool contribution assessment surfaced on the case
+> page (UC-14), and the statutory SLA automation worker (UC-15). UC-01's anonymous
+> read-back is now protected by a signed per-application capability token (GAP-005
+> residual: anonymous write-intake remains open by design pending applicant identity).
 
 ---
 

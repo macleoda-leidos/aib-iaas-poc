@@ -38,10 +38,10 @@ The POC implements a complete end-to-end journey: identity verification, multi-s
 | Sprint 12 | Operational Excellence | 78 Playwright E2E tests (501 total), runbooks, load test | ✅ Complete |
 | Sprint 13 | Handover & Scale | ADRs, cost model, vendor assessment, go-live checklist | ✅ Complete |
 | Sprint 14 | Stakeholder Value | Workflow engine, MI reports, 600+ tests. Creditor portal + adviser workspace as interface demonstrations only | ✅ Complete |
-| Phase 14 | Organisation Service | Shared master data, creditor type-ahead, 54 seeded orgs, 648 tests | ✅ Complete |
+| Phase 14 | Organisation Service | Shared master data, creditor type-ahead, 54 seeded orgs | ✅ Complete |
 | Sprint 15 | Quality Assurance | E2E link audit, basePath validation, navigation regression tests | ✅ Complete |
 | Sprint 16 | Documentation Alignment | Sprint logs, roadmap, testing docs, README aligned to current state | ✅ Complete |
-| Sprint 17 | Test Infrastructure | 10 new link audit E2E scenarios, 658+ tests across 48 files | ✅ Complete |
+| Sprint 17 | Test Infrastructure | 10 new link audit E2E scenarios | ✅ Complete |
 | Sprint 18 | .NET Backend | Full .NET 9 API (MediatR + CQS), 11 endpoints, EF Core, Swagger | ✅ Complete |
 | Sprint 19 | Enterprise Persistence | Neon PostgreSQL, pg-schema (14 tables), pg-seed, write-through cache | ✅ Complete |
 | Sprint 20 | Live Deployment | .NET on Render (Docker), URI→ADO.NET, EF Core snake_case mapping | ✅ Complete |
@@ -372,7 +372,7 @@ npm run lint
 | Document | Audience | Description |
 |----------|----------|-------------|
 | [Solution Architecture](docs/architecture.md) | Architects | C4 model, deployment, data architecture, ADRs |
-| [Integrations](docs/integrations.md) | Developers, Architects | 10 integrations with data flows & failure handling |
+| [Integrations](docs/integrations.md) | Developers, Architects | 6 mock-integration modules (BASYS, eDEN, DAS, CFT, Moratorium, RoI) + credit-check, covering the integration points, with data flows & failure handling |
 | [Security Architecture](docs/security.md) | Security Architects | Threat model, RBAC matrix, OWASP, GDPR — **describes target state** |
 | [Security Known Gaps](docs/security-known-gaps.md) | Security Architects, Delivery | **Authoritative record of what the POC actually implements.** 10 findings from internal static review (3 Critical, 4 High). Takes precedence over the security case documents wherever they disagree |
 | [Recommendation Engine](docs/recommendation-engine.md) | Architects, BAs | Rules engine, decision trees, AI governance |

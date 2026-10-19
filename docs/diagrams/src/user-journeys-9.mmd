@@ -1,0 +1,31 @@
+flowchart TD
+    A[Alert triggered on SOC dashboard] --> B[Analyst reviews event]
+    B --> C{Severity level?}
+    C -->|Critical| D[Immediate response]
+    C -->|High| E[Priority investigation]
+    C -->|Medium/Low| F[Queue for review]
+    D --> G[Identify attack vector]
+    E --> G
+    G --> H{Attack type?}
+    H -->|Brute Force| I[Check account lockouts]
+    H -->|SQL Injection/XSS| J[Review WAF logs]
+    H -->|Malware| K[Check Sophos quarantine]
+    H -->|Credential Stuffing| L[Review Keycloak events]
+    I --> M[Containment actions]
+    J --> M
+    K --> M
+    L --> M
+    M --> N[Block source IPs]
+    M --> O[Isolate affected systems]
+    M --> P[Force password resets if needed]
+    N --> Q[Verify attack stopped]
+    O --> Q
+    P --> Q
+    Q --> R{Contained?}
+    R -->|Yes| S[Root cause analysis]
+    R -->|No| T[Escalate to senior team]
+    T --> M
+    S --> U[Document findings]
+    U --> V[Implement preventive measures]
+    V --> W[Close incident]
+    W --> X[Update playbooks]

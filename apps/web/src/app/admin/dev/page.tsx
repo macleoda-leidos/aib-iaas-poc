@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import { renderMarkdown } from './markdown';
 
 const DOCS = [
   { file: 'executive-summary.md', title: 'Executive Summary', category: 'Strategic' },
@@ -62,61 +63,13 @@ const DOCS = [
   { file: 'gds-evidence-pack.md', title: 'GDS Evidence Pack', category: 'Compliance' },
   { file: 'ithc-scope.md', title: 'ITHC Scope', category: 'Compliance' },
   { file: 'IAAS_DOCUMENTATION_REVIEW.md', title: 'Documentation Review & Gap Analysis', category: 'Compliance' },
-  { file: 'admin-portal-guide.md', title: 'Admin Portal Guide (38 Features)', category: 'Functional' },
+  { file: 'admin-portal-guide.md', title: 'Admin Portal Guide (33 Tiles + 5 Orphan Pages)', category: 'Functional' },
   { file: 'release-notes.md', title: 'Release Notes (v0.1–v0.25)', category: 'Delivery' },
 ];
 
 const CATEGORIES = ['Strategic', 'Functional', 'Technical', 'Operations', 'Delivery', 'Compliance'];
 
 const GITHUB_RAW_BASE = 'https://raw.githubusercontent.com/macleoda-leidos/aib-iaas-poc/main/docs/';
-
-// Simple markdown to HTML converter
-function renderMarkdown(md: string): string {
-  let html = md
-    // Code blocks (before other processing) — mermaid diagrams
-    .replace(/```mermaid\s*\n([\s\S]*?)```/g, (_, diagram) => {
-      const cleaned = diagram.trim();
-      return `<div class="diagram-wrapper my-4"><pre class="mermaid">${cleaned}</pre></div>`;
-    })
-    .replace(/```(\w*)\n([\s\S]*?)```/g, '<pre class="bg-gray-100 dark:bg-gray-800 p-4 rounded overflow-x-auto text-xs"><code>$2</code></pre>')
-    // Tables
-    .replace(/\|(.+)\|\n\|[-| :]+\|\n((?:\|.+\|\n)*)/g, (match, header, body) => {
-      const headers = header.split('|').filter(Boolean).map((h: string) => `<th class="px-3 py-2 text-left text-xs font-bold border-b">${h.trim()}</th>`).join('');
-      const rows = body.trim().split('\n').map((row: string) => {
-        const cells = row.split('|').filter(Boolean).map((c: string) => `<td class="px-3 py-2 text-xs border-b">${c.trim()}</td>`).join('');
-        return `<tr>${cells}</tr>`;
-      }).join('');
-      return `<table class="w-full border-collapse mb-4 text-sm"><thead><tr>${headers}</tr></thead><tbody>${rows}</tbody></table>`;
-    })
-    // Headers
-    .replace(/^#### (.+)$/gm, '<h4 class="text-base font-bold mt-4 mb-2">$1</h4>')
-    .replace(/^### (.+)$/gm, '<h3 class="text-lg font-bold mt-5 mb-2">$1</h3>')
-    .replace(/^## (.+)$/gm, '<h2 class="text-xl font-bold mt-6 mb-3 pb-2 border-b">$1</h2>')
-    .replace(/^# (.+)$/gm, '<h1 class="text-2xl font-bold mt-6 mb-4">$1</h1>')
-    // Bold/Italic
-    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*(.+?)\*/g, '<em>$1</em>')
-    // Inline code
-    .replace(/`([^`]+)`/g, '<code class="bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded text-xs">$1</code>')
-    // Links — relative .md links → GitHub view. Path segments may be separated by
-    // slashes because some docs live in subdirectories (e.g. sow-response/01-statement-of-work.md);
-    // the first segment stays dot-free so that `../up-a-level.md` falls through to the generic URL rule
-    // rather than resolving to a wrong docs/ path.
-    .replace(/\[([^\]]+)\]\(\.?\/?([a-zA-Z0-9_-]+(?:\/[a-zA-Z0-9_.-]+)*\.md)\)/g, '<a href="https://github.com/macleoda-leidos/aib-iaas-poc/blob/main/docs/$2" class="text-blue-700 dark:text-blue-400 underline" target="_blank">$1 ↗</a>')
-    // Links — all other URLs
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="text-blue-700 dark:text-blue-400 underline" target="_blank">$1</a>')
-    // Lists
-    .replace(/^- (.+)$/gm, '<li class="ml-4 list-disc text-sm">$1</li>')
-    .replace(/^\d+\. (.+)$/gm, '<li class="ml-4 list-decimal text-sm">$1</li>')
-    // Paragraphs
-    .replace(/^(?!<[hltpud]|<li|<pre|<div|<table|<thead|<tbody|<tr)(.+)$/gm, '<p class="text-sm mb-2">$1</p>')
-    // Horizontal rules
-    .replace(/^---$/gm, '<hr class="my-4 border-gray-300 dark:border-gray-600">')
-    // Blockquotes
-    .replace(/^> (.+)$/gm, '<blockquote class="border-l-4 border-blue-400 pl-4 py-1 italic text-sm text-gray-600 dark:text-gray-400 mb-2">$1</blockquote>');
-
-  return html;
-}
 
 export default function DevDocumentationPage() {
   const [selectedDoc, setSelectedDoc] = useState<string | null>(null);

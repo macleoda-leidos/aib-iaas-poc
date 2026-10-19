@@ -24,11 +24,27 @@ import jwt from 'jsonwebtoken';
 import { createHash } from 'node:crypto';
 import { generateRsaKeyPair, buildJwks, type Jwk } from '@aib-iaas/auth';
 
+// ─── Config (env-driven, mock by default) ──────
+// The real-IdP cutover is a matter of CONFIGURATION, not a code change to the
+// handshake: when these env vars are set they point at the real provider; unset,
+// they default to this in-process mock. router.ts reads the same values. Slotting
+// in ScotAccount / GOV.UK One Login later means populating OIDC_ISSUER +
+// OIDC_TOKEN_ENDPOINT + OIDC_JWKS_URI + client credentials and swapping the
+// in-process exchange for a real back-channel POST (see
+// docs/identity-federation-plan.md "Plan to complete").
+
 // The IdP's identity. Deliberately distinct from the app's ISSUER/AUDIENCE so an
 // ID token can never be confused with — or replayed as — an app session token.
-const IDP_ISSUER = 'https://mock-one-login.aib-iaas.poc';
+export const IDP_ISSUER = process.env.OIDC_ISSUER || 'https://mock-one-login.aib-iaas.poc';
 /** OAuth client_id the gateway registers as. Checked at /idp/authorize. */
-export const CLIENT_ID = 'aib-iaas-poc-client';
+export const CLIENT_ID = process.env.OIDC_CLIENT_ID || 'aib-iaas-poc-client';
+/** Client secret for the real token endpoint (unused by the in-process mock). */
+export const CLIENT_SECRET = process.env.OIDC_CLIENT_SECRET || '';
+/** Real provider endpoints — empty while the mock is authoritative. */
+export const TOKEN_ENDPOINT = process.env.OIDC_TOKEN_ENDPOINT || '';
+export const JWKS_URI = process.env.OIDC_JWKS_URI || '';
+/** True while no real IdP is configured, i.e. the in-process mock is in use. */
+export const USING_MOCK_IDP = !process.env.OIDC_ISSUER;
 /** Key id advertised in the JWKS and stamped on every ID token (`kid`). */
 const IDP_KID = 'mock-one-login-key-1';
 
@@ -43,11 +59,38 @@ const IDP_KID = 'mock-one-login-key-1';
  * only loaded by the full `seedDatabase` on deploy, so a subject pointing at them
  * would resolve in production but 401 in the test suite. Federation legitimately
  * bypasses the account's local MFA flag — the IdP has already asserted the
- * identity. An account picker on the authorize screen is a noted future
- * enhancement; a fixed subject keeps the demo and the test deterministic.
+ * identity. The authorize screen now offers an opt-in account picker
+ * (DEMO_SUBJECTS below); this remains the DEFAULT subject, so the demo and the
+ * test stay deterministic when no selection is made.
  */
 export const DEMO_SUBJECT = 'urn:fdc:gov.uk:2022:mock-aib-case-officer';
 const DEMO_EMAIL = 'demo@example.com';
+
+/**
+ * The identities the mock authorize screen offers (the account picker). Each maps
+ * a stable `sub` to the `email` the ID token asserts:
+ *  - Case Officer — the seeded demo@example.com (role-officer); the default, so the
+ *    scripted demo and oidc.test.ts resolve to it exactly as before.
+ *  - System Administrator — the inline-seeded admin@aib-poc.example.com, present in
+ *    every database (test + deployed), so it resolves without the full JSON seed.
+ *  - New citizen — an email NOT in any seed, so selecting it exercises first-login
+ *    provisioning (a local applicant/debtor account is created on the fly).
+ */
+export interface DemoSubject {
+  sub: string;
+  email: string;
+  label: string;
+}
+export const DEMO_SUBJECTS: DemoSubject[] = [
+  { sub: DEMO_SUBJECT, email: DEMO_EMAIL, label: 'Case Officer — demo@example.com' },
+  { sub: 'urn:fdc:gov.uk:2022:mock-aib-sysadmin', email: 'admin@aib-poc.example.com', label: 'System Administrator — admin@aib-poc.example.com' },
+  { sub: 'urn:fdc:gov.uk:2022:mock-new-citizen', email: 'new.citizen@example.com', label: 'New citizen (first login — provisions a local account)' },
+];
+
+/** Resolve a selected subject to its demo identity, or null if unknown. */
+export function findDemoSubject(sub: string): DemoSubject | null {
+  return DEMO_SUBJECTS.find(s => s.sub === sub) ?? null;
+}
 
 /** Short lifetimes: a code lives only long enough to be redeemed immediately. */
 const CODE_TTL_SECONDS = 2 * 60;
@@ -80,9 +123,12 @@ export function getJwks(): { keys: Jwk[] } {
  * IdP's private key so a forged code (any other signer) fails redemption. The
  * `purpose` claim stops a stray ID token being replayed here.
  */
-export function authorizeRedirectCode(sub: string, nonce: string, codeChallenge: string): string {
+export function authorizeRedirectCode(sub: string, nonce: string, codeChallenge: string, email: string): string {
+  // The chosen identity's email is bound into the signed code so the token
+  // endpoint can issue an ID token for whichever subject the picker selected,
+  // rather than a single hardcoded identity.
   return jwt.sign(
-    { purpose: 'oidc_code', sub, nonce, cc: codeChallenge },
+    { purpose: 'oidc_code', sub, nonce, cc: codeChallenge, email },
     keyPair.privateKey,
     { algorithm: 'RS256', expiresIn: CODE_TTL_SECONDS, keyid: IDP_KID }
   );
@@ -109,8 +155,15 @@ export function exchange(code: string, codeVerifier: string): string {
     throw new Error('PKCE verification failed');
   }
 
+  // Prefer the email bound into the code; fall back to the subject's known demo
+  // email, then the default — so an older/plain code still resolves deterministically.
+  const email =
+    (typeof decoded.email === 'string' && decoded.email) ||
+    findDemoSubject(decoded.sub)?.email ||
+    DEMO_EMAIL;
+
   return jwt.sign(
-    { email: DEMO_EMAIL, email_verified: true, nonce: decoded.nonce },
+    { email, email_verified: true, nonce: decoded.nonce },
     keyPair.privateKey,
     {
       algorithm: 'RS256',

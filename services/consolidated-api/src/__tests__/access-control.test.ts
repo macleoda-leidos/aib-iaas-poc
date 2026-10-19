@@ -3,6 +3,10 @@ import { signToken, buildClaims } from '@aib-iaas/auth';
 import { app } from '../index';
 import http from 'http';
 
+// A valid application-scoped capability (as api-gateway issues at create time).
+const capabilityFor = (applicationId: string) =>
+  signToken({ purpose: 'application-capability', applicationId }, { expiresInSeconds: 3600 });
+
 // Verifies the deployed-shape default-deny posture (C2): every protected route
 // requires a valid token, authorisation is enforced per resource, and only the
 // documented public allow-list is reachable anonymously. The consolidated-api is
@@ -80,6 +84,72 @@ describe('Consolidated API — default-deny access control', () => {
     it('GET /api/users with a token holding users.read → 200', async () => {
       const res = await request('GET', '/api/users', undefined, { Authorization: `Bearer ${adminToken()}` });
       expect(res.status).toBe(200);
+    });
+  });
+
+  // ─── Phase 2 security fixes (A1–A4), proven in the deployed shape ──────────
+  describe('per-resource access control (A1–A4)', () => {
+    const debtorA = () => signToken(buildClaims({ id: 'cad-A', email: 'a@debtor.example', roleName: 'debtor', roleLevel: 10 }, ['applications.read']));
+    const debtorB = () => signToken(buildClaims({ id: 'cad-B', email: 'b@debtor.example', roleName: 'debtor', roleLevel: 10 }, ['applications.read']));
+
+    it('A1: a debtor cannot read another user\'s notifications → 404', async () => {
+      // Staff seeds a notification for one user id...
+      await request('POST', '/api/notifications/send',
+        { userId: 'notif-owner', channel: 'in_app', subject: 'x', body: 'x' },
+        { Authorization: `Bearer ${adminToken()}` });
+      // ...a different debtor asking for it is refused as 404.
+      const res = await request('GET', '/api/notifications/user/notif-owner', undefined, { Authorization: `Bearer ${debtorB()}` });
+      expect(res.status).toBe(404);
+    });
+
+    it('A1: anonymous notification read is refused by the global gate → 401', async () => {
+      const res = await request('GET', '/api/notifications/user/anyone');
+      expect(res.status).toBe(401);
+    });
+
+    it('A2: /api/payments is behind the global gate — anonymous refund → 401', async () => {
+      // In the deployed shape payments are not on the public allow-list, so the
+      // default-deny gate rejects an unauthenticated caller before the handler.
+      const res = await request('POST', '/api/payments/some-payment-id/refund', {});
+      expect(res.status).toBe(401);
+    });
+
+    it('A2: an AUTHENTICATED non-staff (debtor) refund → 403 (refund is staff-only)', async () => {
+      // The debtor passes the global gate, but the per-resource guard rejects a
+      // refund from anyone who is not staff — closing the authenticated-user
+      // payment IDOR in the deployed shape.
+      const res = await request('POST', '/api/payments/some-payment-id/refund', {},
+        { Authorization: `Bearer ${debtorA()}` });
+      expect(res.status).toBe(403);
+    });
+
+    it('A3: anonymous PUT without a capability → 404; create→update→submit WITH it → 200', async () => {
+      const create = await request('POST', '/api/applications', { applicant: { firstName: 'Chain', lastName: 'Caller' } });
+      expect(create.status).toBe(201);
+      const id = create.data.data.id;
+      const cap = create.data.data.capabilityToken;
+      expect(cap).toBeDefined();
+
+      // No capability → 404 (write-IDOR closed).
+      const noCap = await request('PUT', `/api/applications/${id}`, { applicant: { firstName: 'Hijack' } });
+      expect(noCap.status).toBe(404);
+
+      // The full anonymous demo chain works with the capability threaded.
+      const upd = await request('PUT', `/api/applications/${id}`, { applicant: { firstName: 'Legit' } }, { 'X-Application-Capability': cap });
+      expect(upd.status).toBe(200);
+      const sub = await request('POST', `/api/applications/${id}/submit`, {}, { 'X-Application-Capability': cap });
+      expect(sub.status).toBe(200);
+      expect(sub.data.data.status).toBe('submitted');
+    });
+
+    it('A4: a debtor cannot write to the audit trail → 403', async () => {
+      const res = await request('POST', '/api/audit/events', { applicationId: 'app-x', action: 'forged' }, { Authorization: `Bearer ${debtorA()}` });
+      expect(res.status).toBe(403);
+    });
+
+    it('A4: a staff token CAN write to the audit trail → 201', async () => {
+      const res = await request('POST', '/api/audit/events', { applicationId: 'app-x', action: 'reviewed' }, { Authorization: `Bearer ${adminToken()}` });
+      expect(res.status).toBe(201);
     });
   });
 

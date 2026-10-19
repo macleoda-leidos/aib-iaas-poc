@@ -13,6 +13,8 @@ import {
   SystemCheckResult,
   Recommendation,
   CreditCheckResult,
+  getCapabilityToken,
+  storeCapabilityToken,
 } from '../../lib/apiClient';
 import { searchOrganisations, Organisation } from '../../lib/organisations';
 import { onDemoAction, waitForElement, DemoAction } from '../../lib/demoEvents';
@@ -2071,6 +2073,12 @@ function PaymentSection({ formData, updateField, applicationId }: { formData: an
       const retrySubmit = async () => {
         try {
           if (pendingData.applicationId) {
+            // sessionStorage is tab-scoped, so a pending submission reopened in a
+            // fresh tab has lost its capability — restore it from the pending blob
+            // (saved alongside applicationId below) before submitting.
+            if (pendingData.capabilityToken) {
+              storeCapabilityToken(pendingData.applicationId, pendingData.capabilityToken);
+            }
             const response = await applications.submit(pendingData.applicationId);
             localStorage.removeItem('aib_pending_application');
             setSubmitRef(response.data.referenceNumber);
@@ -2115,6 +2123,9 @@ function PaymentSection({ formData, updateField, applicationId }: { formData: an
       // Save to localStorage for later retry
       const pendingSubmission = {
         applicationId,
+        // Carry the capability so a retry from a fresh tab (where tab-scoped
+        // sessionStorage is gone) can still prove write access on submit.
+        capabilityToken: applicationId ? getCapabilityToken(applicationId) : null,
         formData,
         savedAt: new Date().toISOString(),
         referenceNumber: application.referenceNumber,

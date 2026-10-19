@@ -1,0 +1,24 @@
+flowchart TD
+    A[Officer logs in] --> B[View dashboard queue]
+    B --> C[Select case by priority]
+    C --> D[Review financial summary]
+    D --> E[Check integration results]
+    E --> F{Any flags?}
+    F -->|Existing case found| G[Review existing case details]
+    F -->|Credit check failed| H[Review credit report]
+    F -->|All clear| I[Review recommendation]
+    G --> I
+    H --> I
+    I --> J{Agree with recommendation?}
+    J -->|Yes| K[Accept recommendation]
+    J -->|No| L[Override with documented reason]
+    K --> M{Decision?}
+    L --> M
+    M -->|Approve| N[Send approval letter]
+    M -->|Reject| O[Send rejection with reasons]
+    M -->|Need more info| P[Send information request]
+    N --> Q[Case moves to accepted]
+    O --> Q
+    P --> R[Case moves to additional_info_required]
+    Q --> S[Return to queue - next case]
+    R --> S

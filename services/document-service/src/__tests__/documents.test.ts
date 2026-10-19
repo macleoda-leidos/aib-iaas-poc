@@ -4,6 +4,7 @@ process.env.SCANNER_MODE = 'placeholder';
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { app } from '../index';
+import { getDatabase } from '@aib-iaas/database';
 import http from 'http';
 import path from 'path';
 import fs from 'fs';
@@ -89,6 +90,16 @@ function uploadFile(
 
 describe('Document Service - /api/documents', () => {
   beforeAll(async () => {
+    // Document metadata now persists in SQLite and application_id carries a
+    // foreign key to applications(id). Seed the parent rows the uploads below
+    // reference so a supplied, non-null applicationId satisfies the FK (an orphan
+    // upload with no applicationId is stored NULL and needs no parent).
+    const db = getDatabase();
+    const insertApp = db.prepare(
+      "INSERT OR IGNORE INTO applications (id, reference_number, status, created_at, updated_at) VALUES (?, ?, 'draft', datetime('now'), datetime('now'))"
+    );
+    for (const id of ['app-001', 'app-002']) insertApp.run(id, `TEST-${id}`);
+
     await new Promise<void>((resolve) => {
       server = app.listen(0, () => {
         baseUrl = `http://localhost:${(server.address() as any).port}`;
@@ -168,6 +179,48 @@ describe('Document Service - /api/documents', () => {
 
       expect(res.status).toBe(201);
       expect(res.data.data.category).toBe('other');
+    });
+  });
+
+  describe('GET /api/documents/:id (repo-backed metadata)', () => {
+    it('persists and returns the application link and metadata', async () => {
+      const upload = await uploadFile(
+        '/api/documents/upload',
+        'linked-evidence.pdf',
+        Buffer.from('%PDF-1.4 linked'),
+        { applicationId: 'app-001', category: 'income_evidence' }
+      );
+      const docId = upload.data.data.id;
+
+      const res = await request('GET', `/api/documents/${docId}`);
+      expect(res.status).toBe(200);
+      expect(res.data.data.applicationId).toBe('app-001');
+      expect(res.data.data.fileName).toBe('linked-evidence.pdf');
+      expect(res.data.data.category).toBe('income_evidence');
+      expect(res.data.data.status).toBe('uploaded');
+      expect(res.data.data.uploadedAt).toBeDefined();
+      // storage path is internal and must not leak in the metadata response
+      expect(res.data.data.storagePath).toBeUndefined();
+      expect(res.data.data.filePath).toBeUndefined();
+    });
+
+    it('stores an upload with no applicationId as an unlinked (NULL) document', async () => {
+      const upload = await uploadFile(
+        '/api/documents/upload',
+        'orphan-evidence.pdf',
+        Buffer.from('%PDF-1.4 orphan'),
+        { category: 'other' }
+      );
+      expect(upload.status).toBe(201);
+      const res = await request('GET', `/api/documents/${upload.data.data.id}`);
+      expect(res.status).toBe(200);
+      expect(res.data.data.applicationId).toBeNull();
+    });
+
+    it('returns 404 for an unknown document id', async () => {
+      const res = await request('GET', '/api/documents/no-such-doc');
+      expect(res.status).toBe(404);
+      expect(res.data.error.code).toBe('NOT_FOUND');
     });
   });
 

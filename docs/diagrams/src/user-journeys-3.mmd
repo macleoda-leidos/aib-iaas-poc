@@ -1,0 +1,35 @@
+flowchart TD
+    A[Application data complete] --> B[Trigger system checks]
+    B --> C[BASYS lookup]
+    B --> D[eDEN/DASH lookup]
+    B --> E[DAS lookup]
+    B --> F[CFT lookup]
+    B --> G[Moratorium check]
+    B --> H[RoI search]
+    B --> I[Credit check with consent]
+    C --> J[Aggregate results]
+    D --> J
+    E --> J
+    F --> J
+    G --> J
+    H --> J
+    I --> J
+    J --> K{Existing active case?}
+    K -->|Yes| L[Signposting recommendation]
+    K -->|No| M[Rules engine evaluation]
+    M --> N{Debt level + income + assets}
+    N -->|Low debt, positive disposable| O[DAS / DPP]
+    N -->|Low assets, no income| P[MAP]
+    N -->|High debt, some assets| Q[PTD]
+    N -->|High debt, no repayment ability| R[Sequestration]
+    N -->|Immediate protection needed| S[Moratorium]
+    O --> T[Generate explanation]
+    P --> T
+    Q --> T
+    R --> T
+    S --> T
+    L --> T
+    T --> U[Present to applicant]
+    U --> V{Confidence > 85%?}
+    V -->|Yes| W[Auto-proceed]
+    V -->|No| X[Flag for officer review]

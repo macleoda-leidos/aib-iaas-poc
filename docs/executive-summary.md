@@ -64,7 +64,7 @@ IAAS provides three core capabilities:
 
 ## Key Capabilities Demonstrated
 
-The POC demonstrates the following capabilities in working code — **50+ pages, 28 admin features, 12+ AI capabilities, delivered across 10 sprints at £0/month hosting cost** on a live deployment:
+The POC demonstrates the following capabilities in working code — **69 web pages + 10 admin-app pages, 33 admin feature tiles (+5 orphan admin pages), 12+ AI capabilities, at £0/month hosting cost** on a live deployment:
 
 1. **Citizen self-service application journey** — Multi-step form with save/resume, validation, and progress tracking
 2. **Identity verification federation** — ScotAccount, GOV.UK Login, and SAML integration patterns

@@ -36,7 +36,7 @@ This document records what was delivered in each sprint of the AiB IAAS POC deve
 | 28 | Production Polish | ✅ Complete | — | — |
 | 29 | Enterprise Showcase | ✅ Complete | +2 | — |
 
-**Totals: 65+ pages, 50+ features, 658+ tests, 60 docs, 12+ AI capabilities**
+**Totals: 65+ pages, 50+ features, 1,068 tests, 60 docs, 12+ AI capabilities**
 
 ---
 
@@ -47,12 +47,12 @@ This document records what was delivered in each sprint of the AiB IAAS POC deve
 ### Delivered:
 1. PostgreSQL-ready database package (`packages/database`) with repository pattern
 2. 14-table schema (users, roles, applications, applicants, debts, assets, documents, recommendations, audit, payments, etc.)
-3. JSON seed data (5 orgs, 6 users, 9 roles, sample applications)
+3. JSON seed data (5 orgs, 6 users, 10 roles, sample applications)
 4. Integration contracts package (`packages/integration-contracts`) — factory pattern for mock↔real switching
 5. All 4 service db/index.ts files rewritten to use `@aib-iaas/database`
 6. All route handlers rewritten (applications, auth, audit, organisations, users, roles)
 7. Docker Compose with PostgreSQL 16 + Keycloak 25
-8. Keycloak realm-export.json (10 users, 9 roles, 3 clients, MFA policy)
+8. Keycloak realm-export.json (10 users, 10 roles, 3 clients, MFA policy)
 9. Render.com deployment (render.yaml, Dockerfile fix)
 10. Live API at https://iaas-api.onrender.com
 11. CORS configured for GitHub Pages origin
@@ -355,7 +355,7 @@ This document records what was delivered in each sprint of the AiB IAAS POC deve
 6. My-application case link validation
 
 ### Key Metrics:
-- Tests added: 10 (bringing total from 648 to 658+)
+- Tests added: 10 (link audit E2E scenarios)
 - New test file: `tests/e2e/links-audit.spec.ts`
 - Zero broken links confirmed
 
@@ -375,7 +375,7 @@ This document records what was delivered in each sprint of the AiB IAAS POC deve
 ### Key Metrics:
 - Documentation files updated: 4
 - Sprint table rows added: 3
-- Test count aligned: 658+ across 48 files
+- Test count aligned across README/roadmap/testing docs
 
 ---
 
@@ -425,7 +425,7 @@ This document records what was delivered in each sprint of the AiB IAAS POC deve
 ### Delivered:
 1. Neon PostgreSQL integration (free tier, 0.5GB)
 2. pg-schema.ts — 14 tables + 5 indexes created programmatically
-3. pg-seed.ts — 9 roles, 5 orgs, 6 users seeded
+3. pg-seed.ts — 10 roles, 5 orgs, 6 users seeded
 4. pg-connection.ts — Pool singleton with SSL
 5. init-neon.ts script for one-command database setup
 6. Consolidated API syncs to Neon on startup
@@ -623,7 +623,7 @@ Before the numbered sprints, significant foundational work was delivered:
 |--------|-------|
 | Total UI Pages | 50+ |
 | Total Features Documented | 40+ |
-| Total Automated Tests | 658+ |
+| Total Automated Tests | 1,068 |
 | Total Documentation Files | 36+ |
 | AI/ML Capabilities | 12+ |
 | Admin Features | 32 |

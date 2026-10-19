@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { app } from '../index';
+import { getDatabase } from '@aib-iaas/database';
 import http from 'http';
 
 let server: http.Server;
@@ -31,6 +32,13 @@ function request(method: string, path: string, body?: any): Promise<{ status: nu
 
 describe('Recommendation Service - Routes', () => {
   beforeAll(async () => {
+    // The recommend route persists a result when given an applicationId; seed the
+    // parent application the persistence test references so its FK is satisfied.
+    const db = getDatabase();
+    db.prepare(
+      "INSERT OR IGNORE INTO applications (id, reference_number, status, created_at, updated_at) VALUES (?, ?, 'draft', datetime('now'), datetime('now'))"
+    ).run('app-rec-001', 'TEST-app-rec-001');
+
     await new Promise<void>((resolve) => {
       server = app.listen(0, () => {
         baseUrl = `http://localhost:${(server.address() as any).port}`;
@@ -121,6 +129,35 @@ describe('Recommendation Service - Routes', () => {
       });
       expect(res.status).toBe(200);
       expect(res.data.data.recommendedProduct).toBe('protected_trust_deed');
+    });
+
+    it('persists the recommendation when an applicationId is supplied', async () => {
+      const res = await request('POST', '/api/recommend', { ...baseInput, applicationId: 'app-rec-001' });
+      expect(res.status).toBe(200);
+      expect(res.data.data.recommendationId).toBeDefined();
+
+      // The stored row round-trips the engine's product + reasoning.
+      const row = getDatabase()
+        .prepare('SELECT product, reasoning FROM recommendations WHERE application_id = ?')
+        .get('app-rec-001') as any;
+      expect(row).toBeTruthy();
+      expect(row.product).toBe(res.data.data.recommendedProduct);
+      expect(JSON.parse(row.reasoning)).toEqual(res.data.data.reasoning);
+    });
+
+    it('regenerating overwrites the stored recommendation (one-to-one)', async () => {
+      await request('POST', '/api/recommend', { ...baseInput, totalDebt: 15000, applicationId: 'app-rec-001' });
+      await request('POST', '/api/recommend', { ...baseInput, totalDebt: 800, applicationId: 'app-rec-001' });
+      const rows = getDatabase()
+        .prepare('SELECT COUNT(*) as c FROM recommendations WHERE application_id = ?')
+        .get('app-rec-001') as any;
+      expect(rows.c).toBe(1);
+    });
+
+    it('stays stateless when no applicationId is supplied', async () => {
+      const res = await request('POST', '/api/recommend', baseInput);
+      expect(res.status).toBe(200);
+      expect(res.data.data.recommendationId).toBeUndefined();
     });
   });
 

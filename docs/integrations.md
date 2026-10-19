@@ -11,7 +11,7 @@
 
 ## 1. Integration Pattern Overview
 
-IAAS integrates with 10 external systems across four categories: statutory registers (6), identity providers (2), financial services (1), and payment processing (1). In the POC, all integrations are serviced by the Mock Integrations service with synthetic data. This document specifies the contract, behaviour, and production migration path for each integration.
+IAAS is designed to integrate with external systems across four categories: statutory registers, identity providers, financial services, and payment processing. In the POC these are serviced by the **Mock Integrations service**, which ships **6 mock-integration modules** — BASYS, eDEN/DAS Hub, DAS, CFT, Moratorium and RoI — plus a credit-check mock and a health router, all returning synthetic data. (Identity federation is handled separately by the in-process OIDC mock IdP, not by a mock-integration module; payment simulation lives in the Payment Service.) This document specifies the contract, behaviour, and production migration path for each.
 
 ### 1.1 Orchestration Architecture
 
@@ -769,7 +769,7 @@ When one or more integrations fail, IAAS operates in degraded mode:
 
 ### 6.1 Migration Checklist (Per Integration)
 
-For each of the 10 integrations, the following steps transform mock to production:
+For each integration (serviced in the POC by one of the 6 mock-integration modules), the following steps transform mock to production:
 
 | # | Step | Detail |
 |---|------|--------|

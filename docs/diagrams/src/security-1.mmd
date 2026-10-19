@@ -1,0 +1,38 @@
+sequenceDiagram
+    participant User as Citizen/Staff
+    participant App as IAAS Web Portal
+    participant KC as Keycloak (Identity Broker)
+    participant SA as ScotAccount (SAML IdP)
+    participant GUK as GOV.UK Login (OIDC IdP)
+    participant API as API Gateway
+
+    User->>App: Access protected resource
+    App->>KC: Redirect to login (OIDC)
+    KC->>User: Present login options
+    
+    alt ScotAccount Login
+        User->>KC: Select ScotAccount
+        KC->>SA: SAML AuthnRequest
+        SA->>User: ScotAccount login page
+        User->>SA: Credentials + MFA
+        SA->>KC: SAML Response (signed assertion)
+        KC->>KC: Map SAML attributes to JWT claims
+    else GOV.UK Login
+        User->>KC: Select GOV.UK Login
+        KC->>GUK: OIDC Authorization Request
+        GUK->>User: GOV.UK Login page
+        User->>GUK: Credentials + MFA
+        GUK->>KC: Authorization code
+        KC->>GUK: Token exchange
+        KC->>KC: Map OIDC claims to JWT
+    else Direct Login (Staff)
+        User->>KC: Username/password + MFA
+        KC->>KC: Validate credentials
+    end
+
+    KC->>App: Authorization code
+    App->>KC: Token exchange
+    KC->>App: Access token (JWT) + Refresh token
+    App->>API: API request + Bearer token
+    API->>API: Validate JWT signature & claims
+    API->>App: Protected resource

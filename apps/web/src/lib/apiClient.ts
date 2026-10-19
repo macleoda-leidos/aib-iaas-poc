@@ -91,12 +91,49 @@ export class ApiError extends Error {
   }
 }
 
-function getHeaders(): Record<string, string> {
+// ─── Application capability tokens (H2 / GAP-005) ────────────────────────────
+// The anonymous /apply journey has no login, so the backend issues a signed,
+// application-scoped capability token at create time and now requires it on the
+// read-back (GET /:id) AND the writes (PUT /:id, POST /:id/submit). We keep each
+// token keyed by application id so a resume/refresh still carries it, and send it
+// as the X-Application-Capability header on exactly those three calls.
+const CAPABILITY_STORAGE_KEY = 'iaas-app-capabilities';
+
+function readCapabilityMap(): Record<string, string> {
+  if (typeof window === 'undefined') return {};
+  try {
+    return JSON.parse(sessionStorage.getItem(CAPABILITY_STORAGE_KEY) || '{}');
+  } catch {
+    return {};
+  }
+}
+
+export function storeCapabilityToken(applicationId: string, token: string) {
+  if (typeof window === 'undefined' || !applicationId || !token) return;
+  try {
+    const map = readCapabilityMap();
+    map[applicationId] = token;
+    sessionStorage.setItem(CAPABILITY_STORAGE_KEY, JSON.stringify(map));
+  } catch { /* ignore storage errors — the call still works within this tab's module state */ }
+}
+
+export function getCapabilityToken(applicationId: string): string | null {
+  return readCapabilityMap()[applicationId] || null;
+}
+
+function getHeaders(capabilityForApplicationId?: string): Record<string, string> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
   if (authToken) {
     headers['Authorization'] = `Bearer ${authToken}`;
+  }
+  // Attach the application-scoped capability when this call targets a specific
+  // application the anonymous caller created. Harmless when a staff token is also
+  // present — the backend accepts either proof of access.
+  if (capabilityForApplicationId) {
+    const cap = getCapabilityToken(capabilityForApplicationId);
+    if (cap) headers['X-Application-Capability'] = cap;
   }
   return headers;
 }
@@ -209,27 +246,27 @@ function trackCall() {
   } catch { /* ignore storage errors */ }
 }
 
-export async function apiGet<T>(path: string): Promise<ApiResponse<T>> {
+export async function apiGet<T>(path: string, capabilityForApplicationId?: string): Promise<ApiResponse<T>> {
   trackCall();
-  const res = await fetch(`${API_URL}${path}`, { headers: getHeaders() });
+  const res = await fetch(`${API_URL}${path}`, { headers: getHeaders(capabilityForApplicationId) });
   return handleResponse<T>(res);
 }
 
-export async function apiPost<T>(path: string, body?: any): Promise<ApiResponse<T>> {
+export async function apiPost<T>(path: string, body?: any, capabilityForApplicationId?: string): Promise<ApiResponse<T>> {
   trackCall();
   const res = await fetch(`${API_URL}${path}`, {
     method: 'POST',
-    headers: getHeaders(),
+    headers: getHeaders(capabilityForApplicationId),
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
   return handleResponse<T>(res);
 }
 
-export async function apiPut<T>(path: string, body: any): Promise<ApiResponse<T>> {
+export async function apiPut<T>(path: string, body: any, capabilityForApplicationId?: string): Promise<ApiResponse<T>> {
   trackCall();
   const res = await fetch(`${API_URL}${path}`, {
     method: 'PUT',
-    headers: getHeaders(),
+    headers: getHeaders(capabilityForApplicationId),
     body: JSON.stringify(body),
   });
   return handleResponse<T>(res);
@@ -307,20 +344,29 @@ export interface CreateApplicationResponse {
   referenceNumber: string;
   status: string;
   createdAt: string;
+  // Signed, application-scoped read/write capability for the anonymous caller
+  // (H2 / GAP-005). Stored by create() and sent on get/update/submit.
+  capabilityToken?: string;
 }
 
 export const applications = {
-  create: (data?: any) =>
-    apiPost<CreateApplicationResponse>('/api/applications', data || {}),
+  create: async (data?: any) => {
+    const res = await apiPost<CreateApplicationResponse>('/api/applications', data || {});
+    // Persist the capability so refresh/resume still carries write access.
+    if (res.data?.id && res.data?.capabilityToken) {
+      storeCapabilityToken(res.data.id, res.data.capabilityToken);
+    }
+    return res;
+  },
 
   get: (id: string) =>
-    apiGet<ApplicationDetail>(`/api/applications/${id}`),
+    apiGet<ApplicationDetail>(`/api/applications/${id}`, id),
 
   update: (id: string, data: any) =>
-    apiPut<{ id: string; status: string; updatedAt: string }>(`/api/applications/${id}`, data),
+    apiPut<{ id: string; status: string; updatedAt: string }>(`/api/applications/${id}`, data, id),
 
   submit: (id: string) =>
-    apiPost<{ id: string; status: string; submittedAt: string; referenceNumber: string }>(`/api/applications/${id}/submit`),
+    apiPost<{ id: string; status: string; submittedAt: string; referenceNumber: string }>(`/api/applications/${id}/submit`, undefined, id),
 
   list: (params?: { page?: number; pageSize?: number; status?: string; referenceNumber?: string }) => {
     const query = new URLSearchParams();
@@ -343,7 +389,27 @@ export const applications = {
 
   listNotes: (id: string) =>
     apiGet<Array<{ id: string; authorId: string | null; authorName: string | null; noteType: string; content: string; createdAt: string }>>(`/api/applications/${id}/notes`),
+
+  // CFT (Common Financial Tool) contribution assessment. Runs the reg.15 CFS
+  // method server-side against the case's income/expenditure. triggerFiguresSource
+  // flags that the trigger figures are a POC stand-in, not the licensed set.
+  cftAssessment: (id: string) =>
+    apiGet<CftAssessmentResult>(`/api/applications/${id}/cft-assessment`),
 };
+
+export interface CftAssessmentResult {
+  assessment: {
+    totalIncome: number;
+    declaredExpenditure: number;
+    allowedExpenditure: number;
+    contribution: number;
+    triggerExcesses: Array<{ category: string; declared: number; trigger: number; excess: number }>;
+    evidenceRequired: boolean;
+    contingencyAllowance: number;
+    citations: string[];
+  };
+  triggerFiguresSource: string;
+}
 
 // ─── Users (staff directory — used e.g. to populate the case assignment list) ─
 

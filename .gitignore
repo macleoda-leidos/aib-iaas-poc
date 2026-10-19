@@ -38,3 +38,5 @@ services/**/*.js
 packages/shared-types/src/**/*.js
 packages/shared-types/src/**/*.js.map
 .claude/worktrees/
+docs/diagrams/puppeteer.json
+docs/diagrams/.index.json

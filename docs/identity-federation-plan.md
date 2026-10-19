@@ -48,17 +48,30 @@ provider and the client living in the **gateway** (`services/api-gateway/src/oid
   - `GET /start` → builds a signed, short-TTL **state** token (PKCE
     `code_verifier`, `nonce`, validated `redirect`) and 302s to the mock
     authorize with the S256 `code_challenge`.
-  - `GET /idp/authorize` → auto-approves a fixed demo subject (an account picker
-    is a future enhancement) and 302s back with a signed code.
+  - `GET /idp/authorize` → approves the selected subject (default: the Case
+    Officer) and 302s back with a signed code; with `prompt=select_account` it
+    shows a minimal **account picker** (Case Officer, an admin, and a "new citizen"
+    that exercises first-login provisioning). The chosen subject's email is bound
+    into the signed code, so the mock can issue a token for more than one identity.
   - `GET /callback` → verifies state, **redeems the code in-process** (PKCE +
-    RS256 ID-token verification), resolves the local user from the `email` claim,
-    and mints the **same HS256 session the password path mints**
+    RS256 ID-token verification), resolves — or, for an unseen verified email,
+    **provisions** — the local user from the `email` claim, and mints the **same
+    HS256 session the password path mints**
     (`buildClaims` → `signToken` → `recordSession`), handing it to the frontend
     in the URL fragment. Downstream middleware is therefore unchanged — an OIDC
     login is indistinguishable from a password login once complete.
   - `GET /idp/jwks.json` + `GET /idp/.well-known/openid-configuration` — the
     IdP's published key and discovery, for realism and to demonstrate what the
     production path would fetch.
+
+**Also delivered now (October 2026):** (1) **first-login provisioning** — the callback no
+longer 401s on an unseen email; it provisions a low-privilege applicant/debtor account
+(`status: active`) for the IdP-verified identity and mints the session as before; (2) the
+**account picker** above; (3) **env-driven config scaffolding** — `mockIdp.ts`/`router.ts` read
+`OIDC_ISSUER`, `OIDC_JWKS_URI`, `OIDC_TOKEN_ENDPOINT` and `OIDC_CLIENT_ID`/`OIDC_CLIENT_SECRET`,
+defaulting to the in-process mock when unset, so a real provider is slotted in by configuration
+rather than a code change to the handshake. Covered by `oidc.test.ts` (provisioning path,
+picker selection, default subject unchanged, unknown-subject rejection).
 
 Design notes: the token exchange + ID-token verification run **in-process**
 (robust in the single deployed container, no self-HTTP, while still exercising
@@ -93,20 +106,27 @@ federation is largely swapping the in-process mock for the real provider:
    (a `jwks-rsa`-style client, or periodic refresh of `buildJwks` inputs) and
    resolve the signing key per token `kid`. The current flow regenerates one
    per-process key and does not key on `kid` because it is both IdP and client.
+   *Config scaffolding is in place* — `OIDC_ISSUER`/`OIDC_JWKS_URI` are read and
+   default to the mock — so what remains is the real fetch + `kid` rotation.
 2. **Real back-channel**: replace the in-process `mockIdp.exchange` with a real
    HTTPS POST to the provider's `token_endpoint`, and verify the returned ID
    token with `verifyRs256` against the resolved JWKS key (the `iss`/`aud` then
    become the real provider's). `/start`, the signed state, PKCE and `/callback`
    session-minting are unchanged.
-3. **Claim mapping**: the mock maps a fixed subject to one seeded user;
-   generalise to map the real IdP subject + claims to the local user, and
-   **provision on first login** (currently it only resolves an existing account).
+3. **Claim mapping**: ~~the mock maps a fixed subject to one seeded user; generalise
+   to map the real IdP subject + claims to the local user, and **provision on first
+   login** (currently it only resolves an existing account).~~ **First-login
+   provisioning is now delivered** — an unseen, IdP-verified email is provisioned a
+   low-privilege applicant/debtor account. What remains is enriching the mapping
+   from the *real* IdP subject + claim set.
 4. **MFA**: delegate the second factor to the IdP (`acr`/`amr` claims) and drop
    the seeded demo TOTP for federated accounts; keep server TOTP only for any
    remaining local accounts.
-5. **Account picker**: the mock authorize auto-approves one subject; the real IdP
-   presents its own login UI, so this disappears for real accounts (a local
-   picker is only needed if the mock is kept for demos).
+5. **Account picker**: ~~the mock authorize auto-approves one subject;~~ **delivered
+   for the mock** — an opt-in picker (`prompt=select_account`) now lists seeded demo
+   subjects, with the Case Officer as the default. The real IdP presents its own
+   login UI, so this disappears for real accounts (the local picker is only needed
+   while the mock is kept for demos).
 6. **Applicant identity**: once applicants authenticate via the IdP, extend
    ownership enforcement to the write-intake routes (`POST`/`PUT`/submit),
    retiring the anonymous capability-token read-back added as the interim

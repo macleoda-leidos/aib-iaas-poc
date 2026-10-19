@@ -1,0 +1,22 @@
+flowchart TD
+    A[Policy Officer opens simulation] --> B[View current thresholds]
+    B --> C[Select parameter to adjust]
+    C --> D[Move slider to new value]
+    D --> E[System re-runs 80+ historical cases]
+    E --> F[Generate comparison view]
+    F --> G[Current distribution pie chart]
+    F --> H[Proposed distribution pie chart]
+    F --> I[Cases affected count]
+    I --> J{Acceptable impact?}
+    J -->|Yes| K[Document rationale]
+    J -->|No| L[Adjust further or reset]
+    L --> D
+    K --> M[Submit for senior approval]
+    M --> N{Approved?}
+    N -->|Yes| O[Publish to live rules engine]
+    N -->|No| P[Return with feedback]
+    P --> D
+    O --> Q[Monitor outcomes over 4 weeks]
+    Q --> R{Outcomes as expected?}
+    R -->|Yes| S[Confirm change permanent]
+    R -->|No| T[Rollback to previous values]

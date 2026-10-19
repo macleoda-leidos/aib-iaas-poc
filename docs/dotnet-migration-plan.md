@@ -160,7 +160,7 @@ Same JSON contracts, same endpoints, same response shapes.
 ## Risk Mitigation
 
 - Repository interfaces ensure database logic is identical
-- Existing 648 tests validate behaviour (port tests to xUnit)
+- Existing 1,068 tests validate behaviour (port tests to xUnit)
 - Frontend is completely decoupled — no UI changes needed
 - Parallel running eliminates big-bang risk
 - Rollback: revert API_URL to Node.js endpoint (30 seconds)

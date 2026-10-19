@@ -1,0 +1,52 @@
+sequenceDiagram
+    participant Applicant as Applicant (Browser)
+    participant Web as Web Portal
+    participant GW as API Gateway
+    participant DB as Application DB
+    participant IO as Integration Orchestrator
+    participant Mock as Mock Integrations<br/>(BASYS, eDEN, DAS, CFT, Moratorium, RoI)
+    participant CC as Credit Check Service
+    participant RS as Recommendation Service
+    participant AS as Audit Service
+    participant NS as Notification Service
+
+    Applicant->>Web: Submit application (Step 9)
+    Web->>GW: POST /api/applications/:id/submit
+    GW->>GW: authenticate() + requirePermission('application.submit')
+    GW->>DB: UPDATE status = 'submitted', submittedAt = NOW()
+    GW->>AS: POST /api/audit/events {action: 'application.submitted'}
+
+    GW->>IO: POST /api/integrations/check-all {firstName, lastName, DOB, NI, postcode, totalDebt}
+    
+    par Parallel System Checks (5s timeout each)
+        IO->>Mock: POST /api/basys/lookup
+        Mock-->>IO: {found: false}
+        IO->>Mock: POST /api/eden/lookup
+        Mock-->>IO: {found: false}
+        IO->>Mock: POST /api/das/lookup
+        Mock-->>IO: {found: true, programmeReference: 'DPP-2023-001234'}
+        IO->>Mock: POST /api/cft/lookup
+        Mock-->>IO: {found: true, providers: [...]}
+        IO->>Mock: POST /api/moratorium/check
+        Mock-->>IO: {found: false}
+        IO->>Mock: POST /api/roi/search
+        Mock-->>IO: {found: false}
+    end
+
+    IO-->>GW: {results: [...], summary: {totalChecks: 6, casesFound: 1, errors: 0}}
+    GW->>DB: Store existingCaseChecks on application
+
+    GW->>CC: POST /api/credit-check/run {firstName, lastName, DOB, NI, address}
+    CC-->>GW: {creditScore: 520, defaults: 1, scoreBand: 'poor'}
+    GW->>DB: Store creditCheckResult on application
+
+    GW->>RS: POST /api/recommend {totalDebt, creditors, income, expenditure, existingCases, hasMoratorium}
+    RS->>RS: calculateRecommendation() — rules engine evaluation
+    RS-->>GW: {recommendedProduct: 'debt_arrangement_scheme', confidence: 'high', reasoning: [...]}
+    GW->>DB: Store recommendation on application
+    GW->>DB: UPDATE status = 'recommendation_issued'
+
+    GW->>AS: POST /api/audit/events {action: 'recommendation.issued'}
+    GW->>NS: POST /api/notifications/send {type: 'recommendation_ready', userId, applicationId}
+    GW-->>Web: {success: true, recommendation: {...}}
+    Web-->>Applicant: Display recommendation with reasoning

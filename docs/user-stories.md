@@ -784,24 +784,65 @@
 
 ---
 
+### US-067: Sign In with GOV.UK One Login
+**As a** citizen **I want** to sign in with GOV.UK One Login **so that** I don't need a separate IAAS password and my identity is verified by a trusted provider.
+
+**Acceptance Criteria:**
+- Given I click "Sign in with GOV.UK One Login", when the authorization-code + PKCE flow completes, then I land authenticated with the same session a password login would mint.
+- Given my verified email has no local account, when the callback resolves it, then a low-privilege applicant account is provisioned automatically and I continue without a manual sign-up.
+- Given a tampered state, forged code, or an off-allow-list redirect, when presented at the callback, then the request is rejected (400/401) and no session is issued.
+
+**Priority:** Should | **Complexity:** L
+*Delivered against a mock IdP; real-provider cutover (discovery/JWKS, back-channel, MFA delegation) is full GAP-007 and blocked on the AiB IdP decision + sandbox credentials. (UC-13)*
+
+---
+
+### US-068: See the Assessed Contribution (Common Financial Tool)
+**As a** Case Officer **I want** the debtor's assessed monthly contribution computed on the case page **so that** I can see affordability without a manual CFS calculation.
+
+**Acceptance Criteria:**
+- Given a case with recorded income and expenditure, when I open it, then the CFT panel shows total income, allowed expenditure, assessed contribution and the statutory citations.
+- Given expenditure above a category's trigger figure, when the assessment runs, then the panel flags that reg.17 supporting evidence is required.
+- Given the POC trigger figures, when the panel renders, then it is clearly labelled "indicative" rather than the licensed published set.
+
+**Priority:** Should | **Complexity:** M
+*(UC-14)*
+
+---
+
+### US-069: Automated Statutory Deadline Monitoring
+**As a** Case Officer **I want** statutory SLA clocks tracked automatically **so that** approaching and breached deadlines surface without me calculating them.
+
+**Acceptance Criteria:**
+- Given an open case with a recommendation, submission date and assignee, when a statutory clock approaches, falls due or breaches, then a reminder and an audit event are emitted.
+- Given a product with no modelled clock, when the queue renders, then the case carries no SLA badge rather than a misleading one.
+- Given the case page, list badge and worker, when any show an SLA posture, then all three agree (same statutory library).
+
+**Priority:** Should | **Complexity:** M
+*(UC-15)*
+
+---
+
 ## Traceability Matrix Summary
 
 | Epic | Must | Should | Could | Total |
 |------|------|--------|-------|-------|
-| Authentication & Identity | 3 | 0 | 1 | 4 |*
+| Authentication & Identity | 3 | 1 | 1 | 5 |*
 | Application Creation | 4 | 1 | 0 | 5 |*
-| Financial Assessment | 4 | 1 | 0 | 5 |
+| Financial Assessment | 4 | 2 | 0 | 6 |
 | Document Management | 2 | 1 | 0 | 3 |*
 | System Checks | 4 | 1 | 0 | 5 |
 | Recommendation | 2 | 2 | 0 | 4 |*
 | Payment & Submission | 2 | 2 | 0 | 4 |
-| Case Management | 4 | 0 | 0 | 4 |*
+| Case Management | 4 | 1 | 0 | 5 |*
 | Search | 1 | 2 | 0 | 3 |*
 | Dashboards & Analytics | 0 | 3 | 1 | 4 |*
 | Digital Mailroom | 0 | 0 | 4 | 4 |
 | Administration | 1 | 4 | 1 | 6 |
 | Future/Roadmap | 0 | 0 | 7 | 7 |
-| **Total** | **27** | **17** | **14** | **58+** |
+| **Total** | **27** | **20** | **14** | **61+** |
+
+*Added 14 October 2026: US-067 (federated sign-in, UC-13), US-068 (CFT assessment, UC-14), US-069 (SLA monitoring, UC-15) — Should-priority, reflecting capabilities now delivered.*
 
 *Note: Some epics include additional implied stories within acceptance criteria. Full backlog refinement will expand to 80+ stories.*
 

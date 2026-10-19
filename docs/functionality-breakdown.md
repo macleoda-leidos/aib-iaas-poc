@@ -80,7 +80,7 @@ A dark-themed CyberOps monitoring dashboard. Displays: live event stream (authen
 
 ---
 
-## Group 4 — Admin Features (28 Total)
+## Group 4 — Admin Features (33 Hub Tiles + 5 Orphan Pages)
 
 All accessible from the admin hub at `/admin`. Each feature is a self-contained page demonstrating a specific enterprise capability.
 
@@ -96,9 +96,9 @@ All accessible from the admin hub at `/admin`. Each feature is a self-contained 
 | 8 | Security Headers | `/admin/security-headers` | Helmet.js configuration display, CSP policies, HSTS settings |
 | 9 | User Management | `/admin/users` | User listing, role assignment, account status, last login |
 | 10 | Organisation Management | `/admin/organisations` | Organisation registry, associated users, permissions |
-| 11 | Role & Permission Matrix | `/admin/users` | RBAC matrix rendered on the user management page, 10 roles, 20 permissions |
+| 11 | Role & Permission Matrix | `/admin/users` | RBAC matrix rendered on the user management page, 10 roles, 28 permissions |
 | 12 | Audit Logs | `/admin/audit` | System-wide audit trail viewer with filters |
-| 13 | System Health | `/admin/health` | Service status for all 13 microservices, uptime, response times |
+| 13 | System Health | `/admin/health` | Service status across the 12 logical services, uptime, response times |
 | 14 | Feature Flags | `/admin/feature-flags` | Toggle features on/off without deployment |
 | 15 | Email Templates | `/admin/email-templates` | Manage GOV.UK Notify template library |
 | 16 | Notification Centre | `/admin/notifications` | System notification management, broadcast messages |

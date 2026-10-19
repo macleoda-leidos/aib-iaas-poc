@@ -17,6 +17,30 @@
 > future decision starts from the implementation reality rather than the (frequently
 > over-claiming) prose in the wider doc set.
 
+> ## 📌 Phase 1 delivered — addendum (14 October 2026)
+>
+> **This assessment is the honest *pre-remediation* baseline (1 October 2026). Several of the
+> gaps it records below have since been closed; it is retained as the baseline rather than
+> rewritten.** What has landed since:
+>
+> - **Security backbone (Phase 1).** `security-known-gaps.md` now records GAP-001…GAP-010 as
+>   *Remediated* and GAP-011 residual #1/#2/#4 delivered. So the §1/§5/§6 items reading
+>   "no deployed authentication (GAP-002)", "forgeable tokens (GAP-001)", "any password
+>   (GAP-003)", "fail-open scanning (GAP-004)", "IDOR (GAP-005)", "forgeable audit (GAP-006)",
+>   "no brute-force limit (GAP-008)" and "Zod dead code (GAP-009)" are **now closed in the POC**;
+>   re-review + ITHC against the deployed build remain the gate before real data.
+> - **Mock→real conversions (Thread 2).** `document-service` and `payment-service` now persist
+>   through `DocumentRepository`/`PaymentRepository` (the in-memory `Map`s called out in §1 are
+>   gone — core payment state and document metadata/scan-state survive a restart); the generated
+>   recommendation is now persisted via `RecommendationRepository` and read back on the case
+>   view; and a CFT contribution-assessment endpoint now surfaces `@aib-iaas/statutory` on the
+>   case page.
+> - **Identity (Thread 3).** The mock OIDC flow gained first-login provisioning, an account
+>   picker, and env-driven config scaffolding; the real-IdP cutover remains blocked (full
+>   GAP-007), as does the GAP-011 scoping qualifier (#3).
+> - **Test count** standardised to **1,068 across 58 files** (741 backend, 327 frontend),
+>   resolving §5 item 8.
+
 ---
 
 ## 1. Executive reality summary
@@ -195,7 +219,7 @@ numbers concentrate in the marketing/architecture/testing cluster. Priority fixe
 | 5 | feature-catalogue.md:329 | "virus scanning protects infrastructure" | Fail-open filename match (GAP-004) | Soften |
 | 6 | roadmap.md:12 | Sprint 6 "MFA … Complete" | MFA simulated client-side (GAP-007) | "simulated (UI only)" |
 | 7 | ithc-penetration-test-report.md:55-56,693,697 | "No critical or high … FIT FOR CONTROLLED BETA USE" | v1.1 records 3 Crit/4 High; superseded | Strikethrough the retained v1.0 text in situ |
-| 8 | **testing.md:66,90; architecture.md:750,768** | **"904 tests across 50 files"** | Run reports differ; CLAUDE.md says 822/46; docs internally inconsistent (238 vs 289; 38 vs 39 files) | **Re-run `vitest` to lock the real number, then standardise everywhere** |
+| 8 | testing.md; architecture.md | ~~"904 tests across 50 files"~~ | **Resolved (see addendum).** Standardised to **1,068 across 58 files** (741 backend, 327 frontend), from a full `npx vitest run`. | Done — figures reconciled across the doc set and CLAUDE.md |
 | 9 | testing.md:206-216 | Keycloak auth / MFA / RBAC / Zod / virus-scan all "Pass" | None enforced (GAP-001/002/003/004/007/009) | Reflect GAP register |
 | 10 | architecture.md:644,530 | "All 12 services + 2 frontends + … Keycloak … production-grade identity" | Compose defines 10 services, 0 frontends; no code integrates Keycloak | "10 of 12; unused scaffolding" |
 | 11 | api-sdk-guide.md:20; release-notes.md:187 | "JWT Bearer authentication" / "stores JWT" | Unsigned base64, any password | "unsigned base64; JWT is prod target" |
@@ -207,8 +231,8 @@ numbers concentrate in the marketing/architecture/testing cluster. Priority fixe
 **Nuances to carry forward:** (a) Keycloak/ClamAV/Postgres *are* defined in docker-compose, but
 no service code integrates them → frame as "unused scaffolding," not "fabrication." (b) The ITHC
 is already self-correcting; it needs **strikethrough of the retained v1.0 lines**, not a rewrite.
-(c) The **real test count must be re-measured with `npx vitest run`** before editing any figure —
-live docs now say 904, CLAUDE.md says 822, and older docs say 648/658/423/501.
+(c) The test count has since been **standardised to 1,068 across 58 files** (741 backend, 327
+frontend); see `docs/testing.md` and the addendum above.
 
 ---
 

@@ -5,7 +5,7 @@ import { randomUUID } from 'crypto';
 
 export interface Document {
   id: string;
-  applicationId: string;
+  applicationId: string | null;
   filename: string;
   originalName: string;
   mimeType: string;
@@ -18,7 +18,7 @@ export interface Document {
 }
 
 export interface CreateDocumentInput {
-  applicationId: string;
+  applicationId: string | null;
   filename: string;
   originalName: string;
   mimeType: string;

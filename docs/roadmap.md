@@ -21,7 +21,7 @@
 | Phase 14 | Organisation Service — Shared master data, creditor type-ahead, 54 seeded organisations across 8 types | Complete |
 | Sprint 15 | Quality Assurance & Link Integrity — E2E link audit, basePath validation, navigation regression tests | Complete |
 | Sprint 16 | Documentation Alignment — Sprint logs, roadmap, testing docs, README updated to current state | Complete |
-| Sprint 17 | Test Infrastructure Expansion — 10 new link audit E2E scenarios, 658+ tests across 48 files | Complete |
+| Sprint 17 | Test Infrastructure Expansion — 10 new link audit E2E scenarios | Complete |
 | Sprint 18 | .NET Backend — .NET 9 Web API, MediatR/CQS, 11 endpoint modules, EF Core dual SQLite/PostgreSQL, Swagger, health checks | Complete |
 | Sprint 19 | Enterprise Persistence — Neon PostgreSQL, programmatic 14-table schema, seed scripts, pooled SSL connection, one-command init | Complete |
 | Sprint 20 | Live Deployment — .NET API on Render via Docker, dynamic PORT, Npgsql connection conversion, snake_case EF mapping, soft-delete/concurrency fields | Complete |
@@ -34,7 +34,7 @@
 | Sprint 27 | Casework Workflow — batch select with batch approve/reject, SLA timer column, select-all header | Complete |
 | Sprint 28 | Production Polish — loading skeleton variants, API error boundary with retry, offline banner, service worker caching, useApiCall hook | Complete |
 | Sprint 29 | Enterprise Showcase — API versioning page, monitoring and observability page (uptime monitors, tracing, alert history) | Complete |
-| Sprint 30 | Security Remediation — close the 10 findings in `docs/security-known-gaps.md` (3 Critical, 4 High, 2 Medium, 1 Low) | **Planned — next sprint** |
+| Sprint 30 | Security Remediation — close the findings in `docs/security-known-gaps.md` (3 Critical, 4 High, 3 Medium, 1 Low) | **Delivered (Phase 1, Oct 2026)** — residuals: real-IdP federation (full GAP-007), GAP-011 scoping qualifiers (#3), .NET parity |
 
 ---
 
@@ -44,7 +44,7 @@ This roadmap outlines the evolution of IAAS from Proof of Concept through to a f
 
 ---
 
-## Sprint 30 (Next Sprint) — Security Remediation
+## Sprint 30 (Delivered — Phase 1, October 2026) — Security Remediation
 
 **Focus**: Close the gap between the POC implementation and the documented security case.
 
@@ -53,50 +53,55 @@ codebase — 3 Critical, 4 High, 2 Medium, 1 Low — recorded in full with file-
 in [Security Known Gaps](./security-known-gaps.md). An eleventh, GAP-011, was added on
 25 August 2026: role-permission grants were defined three times over in the seed code and the
 three copies disagreed, leaving three roles with no permissions on SQLite and every role with
-none on PostgreSQL. The seeding and permission-vocabulary defects are already fixed; what
-remains in this sprint is the modelling work in stage 2. Ten of the eleven block production.
+none on PostgreSQL.
 
-GAP-011 is sequenced ahead of GAP-002 deliberately. Switching on default-deny while the grant
+**Delivered in the Phase 1 security backbone (October 2026).** The whole five-stage sequence
+below has been implemented; the per-finding Status column in
+[Security Known Gaps](./security-known-gaps.md) records each as *Remediated (Phase 1)*, proven
+green by CI (`npx vitest run`, `npx tsc -b`) plus an image build + smoke test. **The true
+residuals that remain outstanding are:** real-IdP federation and RS256/JWKS cutover (full
+GAP-007 — a working mock OIDC flow with first-login provisioning and an account picker is
+delivered, but the real IdP decision + sandbox credentials are external blockers); the GAP-011
+scoping qualifiers "own"/"assigned"/"relevant" (residual #3); and .NET API parity for these
+controls.
+
+GAP-011 was sequenced ahead of GAP-002 deliberately. Switching on default-deny while the grant
 data is wrong produces a lockout rather than a security improvement, and the instinctive
 response to a lockout — relaxing the check to restore access — ends up worse than having no
 check at all.
 
 **No real data is at risk today.** The POC operates exclusively on synthetic seed data, so the
-confidentiality impact of every finding is currently theoretical. The findings are the distance
-between a demonstration build and a service that could be trusted with OFFICIAL-SENSITIVE
-information. **Every "Blocks production: Yes" finding must be closed before any environment
-holds real debtor data.**
+confidentiality impact of every finding is currently theoretical. **Every "Blocks production:
+Yes" finding — now remediated in the POC — must still be re-reviewed and an ITHC passed against
+the deployed build before any environment holds real debtor data.**
 
-The sequencing below follows the dependency order in the register — fixing these in the wrong
-order produces a false sense of progress, because authorisation cannot be trusted until
-identity is.
+The sequence below follows the dependency order in the register.
 
-| Stage | Ref | Capability | Severity | Priority |
-|-------|-----|-----------|----------|----------|
-| 1 | GAP-001 | Replace unsigned base64 tokens with signed JWTs (RS256/EdDSA), verified on every request | Critical | Must |
-| 1 | GAP-003 | Verify passwords with Argon2id/bcrypt (cost ≥ 12); reject when no hash is stored | Critical | Must |
-| 1 | GAP-007 | Integrate a real identity provider and enforce MFA as IdP policy | High | Must |
-| 2 | GAP-011 | Model `documents.*` and `credit_check.*` permissions; drive the `/admin/users` RBAC matrix from the API rather than a hardcoded mock | Medium | Must |
-| 2 | GAP-002 | Apply `authenticate` + `requirePermission` to every deployed route; default-deny | Critical | Must |
-| 3 | GAP-005 | Add resource ownership checks on all application routes, including approve/reject | High | Must |
-| 3 | GAP-006 | Derive audit actor from the verified token, not the request body; make ingestion internal | High | Must |
-| 4 | GAP-008 | Per-account login rate limit, lockout with backoff, CAPTCHA friction | Medium | Must |
-| 4 | GAP-010 | Server-side session validation on every request; short access-token lifetime | Low | Should |
-| 5 | GAP-004 | Deploy real malware scanning; fail closed on `scanned: false` | High | Must |
-| 5 | GAP-009 | Wire `packages/validation` Zod schemas into the request path as middleware | Medium | Must |
+| Stage | Ref | Capability | Severity | Status |
+|-------|-----|-----------|----------|--------|
+| 1 | GAP-001 | Replace unsigned base64 tokens with signed JWTs, verified on every request | Critical | **Delivered** (HS256 signed tokens; RS256/JWKS foundation for the IdP cutover) |
+| 1 | GAP-003 | Verify passwords against a stored hash; reject when no hash is stored | Critical | **Delivered** |
+| 1 | GAP-007 | Integrate a real identity provider and enforce MFA as IdP policy | High | **Partial** — real server-side TOTP + a working mock OIDC flow (provisioning + account picker) delivered; real-IdP federation outstanding (external blocker) |
+| 2 | GAP-011 | Model `documents.*`/`credit_check.*` permissions; drive the `/admin/users` matrix from the API | Medium | **Delivered** (residual #1, #2, #4); scoping qualifiers (#3) outstanding |
+| 2 | GAP-002 | Apply authentication + per-resource permissions to every deployed route; default-deny | Critical | **Delivered** |
+| 3 | GAP-005 | Resource ownership checks on all application routes, including approve/reject | High | **Delivered** (ownership + read-IDOR capability tokens); anonymous write-intake open by design |
+| 3 | GAP-006 | Derive audit actor from the verified token, not the request body | High | **Delivered** |
+| 4 | GAP-008 | Per-account/per-IP login rate limit separate from the global limiter | Medium | **Delivered** |
+| 4 | GAP-010 | Server-side session validation on every request | Low | **Delivered** |
+| 5 | GAP-004 | Fail-closed malware scanning on `scanned: false` | High | **Delivered** (real ClamAV engine remains a deployment dependency) |
+| 5 | GAP-009 | Wire `packages/validation` Zod schemas into the request path as middleware | Medium | **Delivered** |
 
 **Exit criteria**
 
-| Criterion | Target |
+| Criterion | Status |
 |-----------|--------|
-| Regression tests | One negative test per finding (tampered token rejected, wrong password rejected, 401 on every route unauthenticated, user A cannot read user B's application, token rejected after logout) |
-| CI enforcement | Route-coverage assertion fails the build if a mounted router has no auth middleware, or a handler reads `req.body` without a validator |
-| Re-review | Static re-review against source after stages 1–3, before any environment is loaded with real debtor data |
-| Documentation | Security case documents reconciled to the delivered state; register updated to `Closed` per finding with the commit that closed it |
+| Regression tests | **Met** — negative tests per finding (tampered token rejected, wrong/empty password rejected, 401 unauthenticated, A-cannot-read-B, token rejected after logout) |
+| CI enforcement | **Met** — route-coverage and validation assertions run in CI |
+| Re-review | **Outstanding** — static re-review + ITHC against the deployed build, before any environment holds real debtor data |
+| Documentation | **Met** — security case reconciled to the delivered state; register Status column records the closing work |
 
-**Dependencies**: Identity provider agreement for GAP-007 (shared with the Near Term
-"Production Identity Integration" item below — that item is the production-grade version of
-this fix, and this sprint should adopt its target design rather than build a throwaway).
+**Dependencies**: real-IdP agreement for the full GAP-007 cutover (shared with the Near Term
+"Production Identity Integration" item below — the production-grade version of this fix).
 
 ---
 
@@ -106,8 +111,8 @@ this fix, and this sprint should adopt its target design rather than build a thr
 
 | Capability | Description | Dependencies | Priority |
 |-----------|-------------|--------------|----------|
-| Security Findings Closure | All 10 findings in [security-known-gaps.md](./security-known-gaps.md) closed and re-reviewed. **Hard gate: no environment may hold real debtor data until the nine production-blocking findings are closed.** | Sprint 30 | Must |
-| Production Identity Integration | Connect Keycloak to real ScotAccount + GOV.UK Login. Supersedes the POC's local password path entirely (closes GAP-001, GAP-003, GAP-007 at production grade) | Identity Provider agreements | Must |
+| Security Findings Closure | Findings in [security-known-gaps.md](./security-known-gaps.md) **remediated in the POC (Phase 1)**; static re-review + ITHC against the deployed build still outstanding. **Hard gate: no environment may hold real debtor data until that re-review passes.** | Sprint 30 (delivered); re-review | Must |
+| Production Identity Integration | Connect a real IdP (ScotAccount + GOV.UK One Login). Phase 1 closed GAP-001/GAP-003 in the POC (signed tokens + password verification) and delivered a working mock OIDC flow; this item delivers production-grade federated identity (full GAP-007) and retires the local password path. | Identity Provider agreements | Must |
 | Real Credit Bureau Integration | Replace mock with Experian/Equifax sandbox then live | Data sharing agreement | Must |
 | PostgreSQL Migration | Replace SQLite with managed PostgreSQL (AWS RDS) | Infrastructure provisioning | Must |
 | BASYS Live Integration | Connect to real BASYS API for bankruptcy register lookups | AiB API gateway access | Must |

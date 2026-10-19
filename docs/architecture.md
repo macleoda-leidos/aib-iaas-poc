@@ -527,6 +527,19 @@ This pattern ensures:
 
 ### 8.1 Identity and Access Management
 
+> **Reconciliation note (verified against the running code).** The Keycloak-based
+> topology described in this section is the *target* production design, not the
+> running POC. In the actual implementation: authentication is **real HS256 JWT**
+> (signed, pinned alg/iss/aud/exp) minted by the api-gateway/user-service, with
+> bcrypt cost-12 passwords, real TOTP MFA and logout session-revocation; and
+> federation is demonstrated by an **in-process OIDC/One-Login mock IdP**
+> (RS256/JWKS/PKCE) under `services/api-gateway/src/oidc` — *that* is the live
+> federation path (GAP-007). A Keycloak `realm-export.json` exists as
+> **scaffolding only**; Keycloak is **not wired** into the running system, and
+> there is **no root `docker-compose.yml`** — the compose file lives at
+> `infra/docker/docker-compose.yml` and does not run Keycloak as the live broker.
+> Treat the Keycloak references below as the production migration target.
+
 IAAS implements a federated identity model supporting multiple identity providers through Keycloak 25.0 as the central identity broker. In the POC, Keycloak runs in Docker Compose with a pre-configured `aib-iaas` realm containing 10 users across 10 roles, MFA enforcement, and SAML/OIDC federation placeholders for ScotAccount and GOV.UK Login. Admin console available at `localhost:8080` (credentials: admin/admin).
 
 ```mermaid
@@ -578,7 +591,7 @@ Levels and permission grants below are the seeded values, from
 
 | Role | Level | Scope | Seeded Permissions |
 |------|-------|-------|---------------------|
-| `system_admin` | 100 | Full system | All 20 permissions |
+| `system_admin` | 100 | Full system | All 28 permissions |
 | `aib_senior_officer` | 80 | All applications | `applications.read`, `.update`, `.approve`, `.reject`, `.assign`, `.export`, `users.create`, `.read`, `.update`, `organisations.read`, `audit.read`, `.export`, `reports.read`, `.export` |
 | `cyberops_analyst` | 70 | Security monitoring | `users.read`, `organisations.read`, `audit.read`, `.export`, `reports.read` |
 | `aib_officer` | 60 | Assigned applications | `applications.read`, `.update`, `.assign`, `users.read`, `organisations.read`, `audit.read`, `reports.read` |
@@ -641,7 +654,7 @@ Levels and permission grants below are the seeded values, from
 The POC operates in three modes to serve different stakeholder needs:
 
 1. **Static Demo (GitHub Pages):** Next.js static export deployed via GitHub Actions CI/CD (`.github/workflows/deploy-pages.yml`); pre-rendered pages for stakeholder review, calling the hosted API at `NEXT_PUBLIC_API_URL`
-2. **Full Stack (Docker Compose):** All 12 services + 2 frontends + PostgreSQL + Keycloak 25.0 + ClamAV orchestrated via Docker Compose; complete feature demonstration with production-grade identity and persistence
+2. **Full Stack (Docker Compose):** the compose file at `infra/docker/docker-compose.yml` (there is **no root `docker-compose.yml`**) orchestrates the services, frontends and PostgreSQL. **Keycloak is scaffolding, not a running broker** — the live federation path is the in-process OIDC mock IdP (see the reconciliation note in §8.1); treat "Keycloak 25.0" here as the production target rather than a service this mode starts.
 3. **Hosted API (Render free tier):** `render.yaml` deploys two web services — `iaas-api` (Node, Docker, 1GB persistent disk at `/data` for SQLite) and `iaas-dotnet-api` (.NET 9). The Node service runs `services/consolidated-api`, which mounts the routers from all 12 logical services into a single Express app on port 3001
 
 **Logical decomposition vs deployed topology.** The container diagram in §3 is the *logical* view: 12 independently deployable services, each with its own port, tests and `package.json`, all runnable separately via `npm run dev:services`. The hosted POC deliberately collapses them into one container because Render's free plan spins an idle service down after 15 minutes — twelve free services would mean twelve independent cold starts during a demo, and always-on would cost 12 × the Starter plan. `services/consolidated-api` contains no business logic (it is excluded from coverage in `vitest.config.ts` for that reason); splitting back out means deleting that file and pointing the gateway at service URLs. The production target in §9.2 does exactly that: one ECS Fargate service per logical service.
@@ -747,7 +760,7 @@ graph LR
 
     subgraph "GitHub Actions Pipeline (Current POC)"
         lint["1. Lint<br/>ESLint + TypeScript"]
-        test["2. Unit + Integration Tests<br/>Vitest (904 tests, 50 files)"]
+        test["2. Unit + Integration Tests<br/>Vitest (1,068 tests, 58 files)"]
         build["3. Next.js Build<br/>Static export"]
         deploy["4. Deploy<br/>GitHub Pages"]
     end
@@ -765,7 +778,7 @@ graph LR
 ```
 
 **POC Deployment (Current):**
-- GitHub Actions runs Vitest (904 tests across 50 files — 615 backend under node, 289 frontend under jsdom)
+- GitHub Actions runs Vitest (1,068 tests across 58 files — 741 backend under node, 327 frontend under jsdom)
 - Next.js static export builds the web frontend
 - Deploys to GitHub Pages for stakeholder review
 - Full stack available via `docker-compose up` (PostgreSQL + Keycloak + ClamAV + all services)

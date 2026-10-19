@@ -1,0 +1,82 @@
+graph TB
+    subgraph "Internet"
+        users["Citizens / Advisers / Staff"]
+    end
+
+    subgraph "AWS Edge Services"
+        route53["Route 53<br/>DNS + Health Checks"]
+        cf["CloudFront CDN<br/>Static assets, TLS termination"]
+        waf["AWS WAF<br/>OWASP Top 10, rate limiting,<br/>geo-blocking, bot detection"]
+    end
+
+    subgraph "VPC: 10.0.0.0/16 — eu-west-2 (London)"
+        subgraph "Public Subnets (AZ-a: 10.0.1.0/24, AZ-b: 10.0.2.0/24)"
+            alb["Application Load Balancer<br/>TLS 1.3, path-based routing"]
+            nat["NAT Gateway<br/>Outbound internet for services"]
+        end
+
+        subgraph "Private App Subnets (AZ-a: 10.0.10.0/24, AZ-b: 10.0.11.0/24)"
+            subgraph "ECS Fargate Cluster"
+                web_task["Web Portal<br/>2x tasks, 512MB, port 3000"]
+                admin_task["Admin Portal<br/>2x tasks, 512MB, port 3010"]
+                gw_task["API Gateway<br/>3x tasks, 1GB, port 3001"]
+                rec_task["Recommendation Service<br/>2x tasks, 512MB, port 3002"]
+                doc_task["Document Service<br/>2x tasks, 1GB, port 3003"]
+                orch_task["Integration Orchestrator<br/>2x tasks, 512MB, port 3004"]
+                pay_task["Payment Service<br/>2x tasks, 512MB, port 3006"]
+                audit_task["Audit Service<br/>2x tasks, 512MB, port 3007"]
+                credit_task["Credit Check Service<br/>2x tasks, 512MB, port 3008"]
+                org_task["Organisation Service<br/>2x tasks, 512MB, port 3009"]
+                user_task["User Service<br/>2x tasks, 512MB, port 3011"]
+                notif_task["Notification Service<br/>2x tasks, 512MB, port 3012"]
+                id_task["Identity Service<br/>2x tasks, 512MB, port 3013"]
+            end
+            keycloak["Keycloak<br/>2x tasks, 1GB"]
+        end
+
+        subgraph "Private Data Subnets (AZ-a: 10.0.20.0/24, AZ-b: 10.0.21.0/24)"
+            rds["RDS PostgreSQL 15<br/>Multi-AZ, db.r6g.large<br/>Encrypted (KMS), automated backups"]
+            elasticache["ElastiCache Redis 7<br/>Session cache, rate limit state<br/>Encrypted in-transit"]
+            s3["S3 Bucket<br/>Documents (SSE-KMS encrypted)<br/>Versioning enabled, lifecycle policies"]
+        end
+
+        subgraph "Security Services"
+            secrets["AWS Secrets Manager<br/>API keys, DB credentials, certificates"]
+            kms["AWS KMS<br/>Encryption keys (CMK)"]
+            guardduty["GuardDuty<br/>Threat detection"]
+        end
+    end
+
+    subgraph "Observability"
+        cloudwatch["CloudWatch<br/>Logs (30d) + Metrics + Alarms"]
+        xray["X-Ray<br/>Distributed tracing"]
+        sns["SNS → PagerDuty<br/>Incident alerts"]
+    end
+
+    users --> route53
+    route53 --> cf
+    cf --> waf
+    waf --> alb
+    alb --> web_task
+    alb --> admin_task
+    alb --> gw_task
+    gw_task --> rec_task
+    gw_task --> doc_task
+    gw_task --> orch_task
+    gw_task --> pay_task
+    gw_task --> audit_task
+    gw_task --> credit_task
+    gw_task --> org_task
+    gw_task --> user_task
+    gw_task --> notif_task
+    gw_task --> id_task
+    user_task --> keycloak
+
+    gw_task --> rds
+    audit_task --> rds
+    user_task --> rds
+    user_task --> elasticache
+    doc_task --> s3
+
+    gw_task --> cloudwatch
+    cloudwatch --> sns

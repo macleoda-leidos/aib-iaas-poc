@@ -77,7 +77,7 @@ whatever data the system holds, and they compound: an attacker needs only one of
 | GAP-008 | No brute-force protection or account lockout on login | Medium | Yes | Remediated (Phase 1) |
 | GAP-009 | Schema validation package is dead code with no importers | Medium | Yes | Remediated (Phase 1) |
 | GAP-010 | Session tokens are not invalidated server-side on logout | Low | No | Remediated (Phase 1) |
-| GAP-011 | Role-permission grants were defined three times and the copies disagreed | Medium | Yes — seeding fixed, residual items open | Residual #1 fixed (Phase 1); residual #2–#4 open |
+| GAP-011 | Role-permission grants were defined three times and the copies disagreed | Medium | Yes — seeding fixed, one residual open | Residual #1, #2, #4 delivered (Phase 1); residual #3 (scoping qualifiers) open |
 
 Counts: 3 Critical, 4 High, 3 Medium, 1 Low. Ten of eleven findings block production.
 
@@ -90,10 +90,11 @@ remain open and gate the correct closure of GAP-002.
 > green by CI (`npx vitest run`, `npx tsc -b`) and an image build + smoke test rather than on the
 > authoring host, which has no Node runtime. Per-finding detail is in
 > `docs/security-hardening-log.md` §"Phase 1 — Security Backbone". Residual, explicitly out-of-scope
-> items — real IdP federation and RS256/JWKS (full GAP-007), applicant read-IDOR pending applicant
-> identity (GAP-005 note), the `/admin/users` RBAC matrix driven by live data and the scoping
-> qualifiers (GAP-011 residual #2–#4), and .NET API parity for these controls — remain open and
-> are tracked as follow-on work.
+> items — real IdP federation and RS256/JWKS (full GAP-007), applicant write-intake IDOR pending
+> applicant identity (GAP-005 note), the permission scoping qualifiers "own"/"assigned"/"relevant"
+> (GAP-011 residual #3), and .NET API parity for these controls — remain open and are tracked as
+> follow-on work. (The `/admin/users` matrix and the persistent-volume permission purge — GAP-011
+> residual #2 and #4 — have since been delivered; see that finding.)
 
 ---
 
@@ -581,7 +582,7 @@ injection vector.
 | **CWE** | CWE-1188 — Insecure Default Initialization of Resource |
 | **OWASP Category** | A01:2021 — Broken Access Control |
 | **Blocks production** | Yes — GAP-002 cannot be closed correctly on top of it |
-| **Status** | **Seeding and vocabulary fixed** (Sprint 30). Residual items below remain open. |
+| **Status** | **Seeding and vocabulary fixed** (Sprint 30); **residual #1, #2 and #4 delivered** (Phase 1). Residual #3 (scoping qualifiers) remains open. |
 
 **Finding.** The `role_permissions` table was populated by three independent hardcoded lists
 that had drifted apart, so the grants a role received depended on which code path created the
@@ -614,8 +615,8 @@ repo that applied `requirePermission` asked for `reports.view`, a code absent fr
 included. Corrected to `reports.read`.
 
 **Fix applied.** `packages/database/src/rbac.ts` is now the single definition, reading
-`seed-data/roles.json` (10 roles), `permissions.json` (20 permissions) and
-`role-permissions.json` (68 grants), and exposing one seeding function per backend. `schema.ts`,
+`seed-data/roles.json` (10 roles), `permissions.json` (28 permissions) and
+`role-permissions.json` (91 grants), and exposing one seeding function per backend. `schema.ts`,
 `seed.ts` and `pg-seed.ts` all call it; the two missing PostgreSQL tables were added to
 `pg-schema.ts`. `pg-seed.ts` now seeds RBAC *before* its "already seeded" guard, because that
 guard counted `roles` — the one thing it did insert — so any database created before permissions
@@ -635,20 +636,23 @@ matches `roles.json`.
    extended to assert the new codes exist and are granted as intended. (The
    `services/user-service/src/__tests__/rbac.test.ts` helper test still exercises the shared-types
    permission functions with illustrative arrays; it does not assert against the seeded grant set.)
-2. The RBAC matrix on `/admin/users` is a separate hardcoded illustration (9 role tiers × 11
+2. ~~The RBAC matrix on `/admin/users` is a separate hardcoded illustration (9 role tiers × 11
    capability groups) with no relationship to the seeded data. It should be driven by the API
-   before it is used to evidence an access-control claim.
+   before it is used to evidence an access-control claim.~~ **Fixed (Phase 1, commit `07f049a`).**
+   `/admin/users` now drives the role-permission matrix from the live API — the seeded grant set —
+   rather than a hardcoded illustration, so the screen evidences the real access-control data.
 3. The permission matrix in `docs/security.md` §4 carries scoping qualifiers ("own", "assigned",
-   "relevant") that no seeded permission expresses — the same gap as GAP-005.
-4. **Existing databases are not migrated.** Seeding uses `INSERT OR IGNORE` (SQLite) and
+   "relevant") that no seeded permission expresses — the same gap as GAP-005. **This is the sole
+   remaining GAP-011 residual.**
+4. ~~**Existing databases are not migrated.** Seeding uses `INSERT OR IGNORE` (SQLite) and
    `ON CONFLICT DO NOTHING` (PostgreSQL), which add missing rows but never delete obsolete ones.
    A database created before this fix therefore retains the withdrawn permission codes and the
-   grants built on them; the fix corrects what a *new* database receives, not what an old one
-   holds. This was observed in practice: a local `data/iaas.db` predating the fix still contained
-   `application.read.all` and `audit.view` and failed a permission assertion that passes against
-   a clean database. Any environment with a persistent volume needs a migration that removes
+   grants built on them … Any environment with a persistent volume needs a migration that removes
    codes no longer in `permissions.json`, and that migration must run before default-deny is
-   switched on.
+   switched on.~~ **Fixed (Phase 1, commit `262d5eb`).** A startup step now purges permission codes
+   no longer present in `permissions.json` (and the grants built on them) from persistent volumes,
+   so a database predating the vocabulary fix no longer retains withdrawn codes such as
+   `application.read.all`.
 
 ---
 

@@ -9,10 +9,13 @@
  *
  * Flow (see docs/identity-federation-plan.md):
  *   GET /start           → 302 to /idp/authorize with PKCE S256 + state + nonce
- *   GET /idp/authorize   → auto-approve demo subject, 302 to /callback?code&state
+ *                          (?select=1 opts into the account picker)
+ *   GET /idp/authorize   → approve the selected subject (default: Case Officer),
+ *                          or show the account picker when prompt=select_account;
+ *                          302 to /callback?code&state
  *   GET /callback        → verify state, redeem code in-process (PKCE + RS256 ID
- *                          token), resolve local user, mint HS256 session, 302
- *                          to the frontend redirect with #token=…&user=…
+ *                          token), resolve-or-provision local user, mint HS256
+ *                          session, 302 to the frontend redirect with #token=…&user=…
  *   GET /idp/jwks.json                           → the IdP's public JWKS
  *   GET /idp/.well-known/openid-configuration    → discovery document
  *
@@ -88,6 +91,60 @@ function issueAppSession(userWithRole: UserWithRole): { token: string; permissio
   return { token, permissions };
 }
 
+/**
+ * Provision a local account for an IdP-asserted identity on first login. The IdP
+ * has already verified the email, so an unseen one is a new citizen rather than an
+ * error: create a low-privilege applicant/debtor account (active) so they can
+ * proceed. Real-IdP claim mapping would enrich name/claims from the ID token; the
+ * POC derives a display name from the email local-part. Returns null only if the
+ * debtor role is somehow absent (it is always seeded).
+ */
+function provisionFederatedUser(email: string) {
+  const role = users.findRoleByName('debtor');
+  if (!role) return null;
+  const local = email.split('@')[0] || 'citizen';
+  const firstName = local.charAt(0).toUpperCase() + local.slice(1);
+  return users.create({
+    email,
+    firstName,
+    lastName: 'Federated',
+    roleId: role.id,
+    status: 'active',
+  });
+}
+
+/** Minimal HTML escape for the static picker labels (defence in depth). */
+function escapeHtml(s: string): string {
+  return s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
+}
+
+/**
+ * The mock account picker, modelling the GOV.UK One Login account-selection screen.
+ * Each option re-enters /idp/authorize carrying the SAME OIDC parameters plus the
+ * chosen `sub`, so selecting one continues the exact same handshake.
+ */
+function renderPicker(q: Record<string, string | undefined>): string {
+  const base = new URLSearchParams({
+    response_type: 'code',
+    scope: 'openid email',
+    client_id: q.client_id!,
+    redirect_uri: q.redirect_uri!,
+    code_challenge: q.code_challenge!,
+    code_challenge_method: 'S256',
+    state: q.state!,
+    nonce: q.nonce!,
+  });
+  const items = mockIdp.DEMO_SUBJECTS.map(s => {
+    const p = new URLSearchParams(base);
+    p.set('sub', s.sub);
+    return `<li><a href="/api/auth/oidc/idp/authorize?${p.toString()}">${escapeHtml(s.label)}</a></li>`;
+  }).join('');
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Mock GOV.UK One Login — choose account</title></head>`
+    + `<body><h1>Mock GOV.UK One Login</h1>`
+    + `<p>POC mock of the One Login account picker. Choose a demo identity to continue.</p>`
+    + `<ul>${items}</ul></body></html>`;
+}
+
 /** Same user payload shape the password path returns (routes/auth.ts). */
 function userPayload(userWithRole: UserWithRole, permissions: string[]) {
   return {
@@ -140,13 +197,18 @@ oidcRouter.get('/start', (req: Request, res: Response) => {
     state,
     nonce,
   });
+  // Opt-in account picker for interactive demos (e.g. the "Sign in with GOV.UK One
+  // Login" button via ?select=1). Omitted by default so programmatic clients and
+  // oidc.test.ts get the deterministic Case Officer auto-approve.
+  if (String(req.query.select ?? '') === '1') params.set('prompt', 'select_account');
   res.redirect(`/api/auth/oidc/idp/authorize?${params.toString()}`);
 });
 
 // ─── 2. Mock IdP authorize endpoint ────────────
-// The browser lands here as if at GOV.UK One Login. We auto-approve the fixed
-// demo subject (an account picker is a future enhancement) and bounce back to
-// the client callback with a signed code.
+// The browser lands here as if at GOV.UK One Login. With an explicit
+// prompt=select_account (and no subject yet) we present a minimal account picker;
+// otherwise we approve the selected subject — defaulting to the Case Officer — and
+// bounce back to the client callback with a signed code bound to that identity.
 oidcRouter.get('/idp/authorize', (req: Request, res: Response) => {
   const q = req.query as Record<string, string | undefined>;
   if (
@@ -164,7 +226,25 @@ oidcRouter.get('/idp/authorize', (req: Request, res: Response) => {
     return;
   }
 
-  const code = mockIdp.authorizeRedirectCode(mockIdp.DEMO_SUBJECT, q.nonce, q.code_challenge);
+  // Account picker — only when explicitly requested and no subject chosen yet, so
+  // the default handshake (and oidc.test.ts, which sets neither) is unchanged.
+  if (q.prompt === 'select_account' && !q.sub) {
+    res.set('Content-Type', 'text/html; charset=utf-8').send(renderPicker(q));
+    return;
+  }
+
+  // Resolve the selected identity. No selection → the Case Officer (the default);
+  // an unknown sub is rejected rather than silently defaulted.
+  const chosen = mockIdp.findDemoSubject(q.sub || mockIdp.DEMO_SUBJECT);
+  if (!chosen) {
+    res.status(400).json({
+      success: false,
+      error: { code: 'UNKNOWN_SUBJECT', message: 'Unknown account selection.' },
+    });
+    return;
+  }
+
+  const code = mockIdp.authorizeRedirectCode(chosen.sub, q.nonce, q.code_challenge, chosen.email);
   const params = new URLSearchParams({ code, state: q.state });
   res.redirect(`${q.redirect_uri}?${params.toString()}`);
 });
@@ -199,12 +279,17 @@ oidcRouter.get('/callback', (req: Request, res: Response) => {
     return;
   }
 
-  // (c) Resolve the local user from the verified email claim. The fixed demo
-  // subject maps to a seeded staff account; provisioning on first login is a
-  // documented future step (identity-federation-plan.md).
-  const user = email ? users.findByEmail(email) : null;
+  // (c) Resolve the local user from the verified email claim. A seeded identity
+  // maps to its existing account; an unseen (IdP-verified) email is provisioned a
+  // low-privilege applicant/debtor account on first login, rather than being
+  // rejected — the identity-federation "provision on first login" step.
+  let user = email ? users.findByEmail(email) : null;
+  if (!user && email) {
+    user = provisionFederatedUser(email);
+  }
   const userWithRole = user ? users.findByIdWithRole(user.id) : null;
   if (!userWithRole || userWithRole.status !== 'active') {
+    // Reached only when the email claim was empty or provisioning failed.
     res.status(401).json({ success: false, error: { code: 'OIDC_NO_LOCAL_USER', message: 'Federated identity has no active local account.' } });
     return;
   }

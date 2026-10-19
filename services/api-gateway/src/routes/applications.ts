@@ -1,9 +1,32 @@
 import { Router, Response } from 'express';
 import { applications, audit, notes, users, notifications, claims, messages, recommendations } from '../db';
 import { summariseCase } from '../sla/engine';
+import { assessContribution, INDICATIVE_TRIGGER_FIGURES, type CftIncome, type CftExpenditure } from '@aib-iaas/statutory';
 import { optionalAuth, type AuthenticatedRequest } from '../middleware/rbac';
 import { signToken, verifyToken } from '@aib-iaas/auth';
 import { validate, applicationNotesSchema, applicationAssignSchema, claimCreateSchema, messageCreateSchema } from '@aib-iaas/validation';
+
+// ─── CFT (Common Financial Tool) mapping ───────
+// Map a stored income/expenditure record (flexible Record<string, number>) onto
+// the fixed CftIncome/CftExpenditure shapes the statutory assessment expects. Any
+// key not in the named set is folded into `other` so the declared total is
+// preserved rather than silently dropped.
+const CFT_INCOME_KEYS: Array<keyof CftIncome> = ['wages', 'benefits', 'pension', 'other'];
+const CFT_EXPENDITURE_KEYS: Array<keyof CftExpenditure> = [
+  'rent', 'councilTax', 'utilities', 'food', 'transport', 'insurance', 'childcare', 'other',
+];
+
+function foldToShape<K extends string>(record: Record<string, number>, keys: readonly K[]): Record<K, number> {
+  const named = new Set<string>(keys as readonly string[]);
+  const out = {} as Record<K, number>;
+  for (const k of keys) out[k] = Number(record[k]) || 0;
+  // Fold unknown categories into `other` so the total is not lost.
+  const extra = Object.entries(record)
+    .filter(([k]) => !named.has(k))
+    .reduce((sum, [, v]) => sum + (Number(v) || 0), 0);
+  if ('other' in out) (out as any).other += extra;
+  return out;
+}
 
 // A read capability for a single application. Issued (signed) at create time and
 // returned to the creator; required to read an application back anonymously, so a
@@ -74,6 +97,23 @@ function enforceOwnership(req: AuthenticatedRequest, res: Response, ownerUserId:
     return false;
   }
   return true;
+}
+
+/**
+ * Enforce write access to a draft for an ANONYMOUS caller (H2 / GAP-005 write
+ * half). GET /:id already requires a capability token when anonymous; the write
+ * surface (PUT /:id, POST /:id/submit) must too, or a caller who guesses an id
+ * can edit or submit another applicant's draft. An authenticated caller is left
+ * to enforceOwnership (staff allowed, debtor owner-scoped). Returns true when
+ * allowed; otherwise sends a 404 (not 403, so a bad/absent capability never
+ * confirms the id exists) and returns false. Checks the resolved application's
+ * own id, so it holds whether the URL carried the id or the reference number.
+ */
+function enforceAnonymousWrite(req: AuthenticatedRequest, res: Response, applicationId: string): boolean {
+  if (req.user) return true; // authenticated callers go through enforceOwnership
+  if (hasValidCapability(req, applicationId)) return true;
+  res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Application not found' } });
+  return false;
 }
 
 /**
@@ -288,7 +328,60 @@ applicationsRouter.get('/:id', (req: AuthenticatedRequest, res: Response) => {
       return;
     }
 
-    res.json({ success: true, data: app });
+    // Attach the stored recommendation (persisted by the recommend route on
+    // generation) so a case reload shows the saved result rather than regenerating.
+    const recommendation = recommendations.findByApplication(base!.id);
+    res.json({ success: true, data: { ...app, recommendation } });
+  } catch (error: any) {
+    console.error('[Applications]', error);
+    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: process.env.NODE_ENV === 'production' ? 'An unexpected error occurred' : error.message } });
+  }
+});
+
+// CFT (Common Financial Tool) contribution assessment for a case. The reg.15 CFS
+// logic lives in @aib-iaas/statutory but was previously reachable from no route;
+// this thin endpoint runs it against the application's income/expenditure. The
+// trigger figures are INDICATIVE_TRIGGER_FIGURES — a POC stand-in, because the
+// real CFS figures are published annually and licensed — so the response labels
+// their source and the case page shows the same caveat; the figure is never
+// presented as a production assessment. Same ownership/capability guard as GET /:id.
+applicationsRouter.get('/:id/cft-assessment', (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const base = resolveApplication(id);
+    const app = base ? applications.getWithRelations(base.id) : null;
+
+    if (!app) {
+      res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Application not found' } });
+      return;
+    }
+
+    if (req.user) {
+      if (!enforceOwnership(req, res, app.ownerUserId)) return;
+    } else if (!hasValidCapability(req, id)) {
+      res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Application not found' } });
+      return;
+    }
+
+    const ie = app.incomeExpenditure;
+    if (!ie) {
+      res.status(404).json({ success: false, error: { code: 'NO_FINANCIALS', message: 'Application has no income and expenditure to assess.' } });
+      return;
+    }
+
+    const assessment = assessContribution({
+      income: foldToShape(ie.income, CFT_INCOME_KEYS) as unknown as CftIncome,
+      expenditure: foldToShape(ie.expenditure, CFT_EXPENDITURE_KEYS) as unknown as CftExpenditure,
+      triggerFigures: INDICATIVE_TRIGGER_FIGURES,
+    });
+
+    res.json({
+      success: true,
+      data: {
+        assessment,
+        triggerFiguresSource: 'INDICATIVE (POC stand-in — not the licensed published CFS figures)',
+      },
+    });
   } catch (error: any) {
     console.error('[Applications]', error);
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: process.env.NODE_ENV === 'production' ? 'An unexpected error occurred' : error.message } });
@@ -306,6 +399,7 @@ applicationsRouter.put('/:id', (req: AuthenticatedRequest, res: Response) => {
       return;
     }
 
+    if (!enforceAnonymousWrite(req, res, existing.id)) return;
     if (!enforceOwnership(req, res, existing.ownerUserId)) return;
 
     if (existing.status !== 'draft' && existing.status !== 'additional_info_required') {
@@ -353,6 +447,7 @@ applicationsRouter.post('/:id/submit', (req: AuthenticatedRequest, res: Response
       return;
     }
 
+    if (!enforceAnonymousWrite(req, res, existing.id)) return;
     if (!enforceOwnership(req, res, existing.ownerUserId)) return;
 
     applications.updateStatus(existing.id, 'submitted');

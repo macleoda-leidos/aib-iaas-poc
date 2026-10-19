@@ -11,7 +11,7 @@ import EmailLog from './components/EmailLog';
 import StatutoryDeadlines from './components/StatutoryDeadlines';
 import { auditRepo } from '../../../lib/persistence';
 import { seedApplications } from '../../../lib/seedData';
-import { applications as applicationsApi, audit as auditApi, users as usersApi, messages as messagesApi, type DirectoryUser, type Message } from '../../../lib/apiClient';
+import { applications as applicationsApi, audit as auditApi, users as usersApi, messages as messagesApi, type DirectoryUser, type Message, type CftAssessmentResult } from '../../../lib/apiClient';
 
 // ─── Feature 7: Predictive Processing Time ─────────────────────────────────────
 const PROCESSING_TIMES: Record<string, string> = {
@@ -241,6 +241,11 @@ function SeedCaseView({ seedApp, caseRef }: { seedApp: any; caseRef: string }) {
   const [msgText, setMsgText] = useState('');
   const [msgSending, setMsgSending] = useState(false);
 
+  // CFT (Common Financial Tool) contribution assessment, computed server-side from
+  // the case's income/expenditure. Null until it loads; the panel renders only on
+  // success, so cases with no financials (or an offline API) simply omit it.
+  const [cft, setCft] = useState<CftAssessmentResult | null>(null);
+
   const refreshTimeline = () => {
     auditApi.getForApplication(seedApp.id || caseRef)
       .then(a => { if (Array.isArray(a.data)) setTimeline(a.data as any); })
@@ -299,6 +304,17 @@ function SeedCaseView({ seedApp, caseRef }: { seedApp: any; caseRef: string }) {
         })));
       })
       .catch(() => { /* offline / no session — leave notes empty */ });
+    return () => { cancelled = true; };
+  }, [seedApp.id, caseRef]);
+
+  // Load the CFT contribution assessment. Resolves by id or reference server-side;
+  // degrades silently (panel hidden) when a case has no income/expenditure or the
+  // API is unreachable, so the scripted demo is unaffected.
+  useEffect(() => {
+    let cancelled = false;
+    applicationsApi.cftAssessment(seedApp.id || caseRef)
+      .then(res => { if (!cancelled && res.data?.assessment) setCft(res.data); })
+      .catch(() => { /* no financials / offline — leave the panel hidden */ });
     return () => { cancelled = true; };
   }, [seedApp.id, caseRef]);
 
@@ -434,6 +450,37 @@ function SeedCaseView({ seedApp, caseRef }: { seedApp: any; caseRef: string }) {
             </div>
           </div>
         </div>
+
+        {/* CFT contribution assessment — computed server-side (reg.15 CFS method).
+            Rendered only when the case has income/expenditure to assess. */}
+        {cft && (
+          <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+            <div className="p-4 bg-gray-50 dark:bg-gray-800 font-bold text-sm">⚖️ CFT Contribution Assessment</div>
+            <div className="p-4 space-y-3 text-sm">
+              <div className="grid md:grid-cols-3 gap-3">
+                <div className="text-center p-3 rounded bg-gray-50 dark:bg-gray-800">
+                  <p className="text-xs text-gray-500">Total income</p>
+                  <p className="text-lg font-bold">£{cft.assessment.totalIncome.toLocaleString()}</p>
+                </div>
+                <div className="text-center p-3 rounded bg-gray-50 dark:bg-gray-800">
+                  <p className="text-xs text-gray-500">Allowed expenditure</p>
+                  <p className="text-lg font-bold">£{cft.assessment.allowedExpenditure.toLocaleString()}</p>
+                </div>
+                <div className="text-center p-3 rounded bg-blue-50 dark:bg-blue-950">
+                  <p className="text-xs text-gray-500">Assessed contribution</p>
+                  <p className="text-lg font-bold text-blue-800 dark:text-blue-300">£{cft.assessment.contribution.toLocaleString()}/mo</p>
+                </div>
+              </div>
+              {cft.assessment.evidenceRequired && (
+                <p className="text-amber-700 dark:text-amber-400">
+                  {cft.assessment.triggerExcesses.length} categor{cft.assessment.triggerExcesses.length === 1 ? 'y' : 'ies'} above the trigger figure — reg.17 supporting evidence required.
+                </p>
+              )}
+              <p className="text-xs text-gray-500">Basis: {cft.assessment.citations.join('; ')}</p>
+              <p className="text-xs text-gray-400 italic">Trigger figures: {cft.triggerFiguresSource}</p>
+            </div>
+          </div>
+        )}
 
         {/* Staff Notes — persisted via API */}
         <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">

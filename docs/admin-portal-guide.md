@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Administration Portal provides 38 features for platform management. Access via `/admin` after logging in with a staff role (System Admin, Senior Officer, or Case Officer).
+The Administration Portal surfaces **33 feature tiles** on the admin hub (`/admin`), plus **5 further admin pages** reachable by direct URL that have no hub tile — **38 admin pages in total**. The 33 tiles are the `ADMIN_FEATURES` array in `apps/web/src/app/admin/page.tsx` (the source of truth for the tile count); the 5 orphan pages are catalogued in `DOCUMENTATION_GAP_ANALYSIS.md`. Access via `/admin` after logging in with a staff role (System Admin, Senior Officer, or Case Officer).
 
 ## Navigation
 
@@ -82,7 +82,7 @@ All features accessible from the Admin hub page (`/admin`) as tiles. Each tile s
 
 | Role | Access Level |
 |------|-------------|
-| System Administrator | Full access to all 38 features |
+| System Administrator | Full access to all 38 admin pages (33 tiles + 5 orphan) |
 | AiB Senior Officer | All except API Keys, Webhooks |
 | AiB Case Officer | Reports, Export, Activity, Knowledge Hub, Digital Mailroom |
 | Money Adviser | Read-only on Reports, Knowledge Hub |

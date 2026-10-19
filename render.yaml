@@ -37,7 +37,8 @@ services:
       mountPath: /data
       sizeGB: 1
 
-  # .NET 9 API (MediatR + CQS, full endpoint parity)
+  # .NET 9 API (MediatR + CQS, curated-subset endpoint parity — 17 business + 3
+  # metadata endpoints across 11 feature modules, not the full Node surface)
   - type: web
     name: iaas-dotnet-api
     runtime: docker
