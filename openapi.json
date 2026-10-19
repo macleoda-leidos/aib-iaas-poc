@@ -1,0 +1,283 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "AiB IAAS API",
+    "version": "0.1.0",
+    "description": "Accountant in Bankruptcy — Initial Application Advice Service API. Proof of Concept on synthetic data: no real integrations, payments, or personal data. This document is the canonical, machine-readable contract for the core API surface; it is maintained alongside the code and is the source of truth referenced by docs/api-first-design.md. The deployed Node service (services/consolidated-api) mounts the routers from all 12 logical services behind a single Express app; the .NET service (services/dotnet-api) implements a curated subset of this surface.",
+    "contact": { "name": "AiB IAAS", "url": "https://macleoda-leidos.github.io/aib-iaas-poc/" },
+    "license": { "name": "OFFICIAL — POC" }
+  },
+  "servers": [
+    { "url": "https://iaas-api.onrender.com", "description": "Node consolidated API (Render)" },
+    { "url": "https://iaas-dotnet-api.onrender.com", "description": ".NET 9 API (curated-subset parity)" },
+    { "url": "http://localhost:3001", "description": "Local api-gateway / consolidated-api" }
+  ],
+  "tags": [
+    { "name": "System", "description": "Service metadata and health (public)" },
+    { "name": "Auth", "description": "Authentication, MFA and OIDC federation" },
+    { "name": "Applications", "description": "The application lifecycle — anonymous intake through staff decision" },
+    { "name": "Recommendations", "description": "Deterministic statute-backed product recommendation" },
+    { "name": "Payments", "description": "Payment simulation (sandbox only)" },
+    { "name": "Notifications", "description": "Per-user in-app/email/SMS notifications" },
+    { "name": "Audit", "description": "Immutable audit trail" },
+    { "name": "Users", "description": "User and role administration" },
+    { "name": "Organisations", "description": "Organisation hierarchy" }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "HS256 JWT with pinned alg/iss/aud and a mandatory numeric exp, minted at login (and after MFA). Required for every route outside the public allow-list (default-deny gate)."
+      },
+      "applicationCapability": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-Application-Capability",
+        "description": "Signed, application-scoped capability token issued at application-create time. Lets an anonymous /apply caller read AND write (update/submit) only their own application without a login, closing the applicant IDOR on both read and write."
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean", "const": false },
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": { "type": "string", "example": "NOT_FOUND" },
+              "message": { "type": "string" },
+              "details": {}
+            },
+            "required": ["code", "message"]
+          }
+        },
+        "required": ["success", "error"]
+      },
+      "Application": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "referenceNumber": { "type": "string", "example": "IAAS-2026-00042" },
+          "status": {
+            "type": "string",
+            "enum": ["draft", "submitted", "under_review", "additional_info_required", "recommendation_issued", "approved", "rejected"]
+          },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" },
+          "submittedAt": { "type": "string", "format": "date-time", "nullable": true }
+        }
+      },
+      "CreateApplicationResponse": {
+        "allOf": [
+          { "$ref": "#/components/schemas/Application" },
+          {
+            "type": "object",
+            "properties": {
+              "capabilityToken": {
+                "type": "string",
+                "description": "Returned once, at create. Store it and send it as X-Application-Capability on subsequent get/update/submit for anonymous callers."
+              }
+            }
+          }
+        ]
+      },
+      "Recommendation": {
+        "type": "object",
+        "properties": {
+          "product": { "type": "string", "enum": ["DAS", "MAP", "PTD", "Sequestration", "DPP", "Signposting"] },
+          "confidence": { "type": "string", "enum": ["high", "medium", "low"] },
+          "reasoning": { "type": "array", "items": { "type": "string" } },
+          "factors": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "factor": { "type": "string" },
+                "value": { "type": "string" },
+                "impact": { "type": "string", "enum": ["positive", "negative", "neutral"] }
+              }
+            }
+          },
+          "alternativeProducts": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    }
+  },
+  "security": [{ "bearerAuth": [] }],
+  "paths": {
+    "/api/health": {
+      "get": {
+        "tags": ["System"], "summary": "Health check", "security": [],
+        "responses": { "200": { "description": "Service healthy" } }
+      }
+    },
+    "/api/smoke-test": {
+      "get": {
+        "tags": ["System"], "summary": "Smoke test (DB-connected row counts)", "security": [],
+        "responses": { "200": { "description": "Counts returned" } }
+      }
+    },
+    "/api/auth/login": {
+      "post": {
+        "tags": ["Auth"], "summary": "Authenticate (step 1 — may require MFA)", "security": [],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": {
+            "type": "object", "properties": { "email": { "type": "string" }, "password": { "type": "string" } }, "required": ["email", "password"]
+          } } }
+        },
+        "responses": {
+          "200": { "description": "Authenticated (token) or MFA challenge issued" },
+          "401": { "description": "Invalid credentials", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "429": { "description": "Rate limited (brute-force protection)" }
+        }
+      }
+    },
+    "/api/auth/verify-mfa": {
+      "post": {
+        "tags": ["Auth"], "summary": "Verify TOTP second factor; mint the session token", "security": [],
+        "responses": { "200": { "description": "Session token issued" }, "401": { "description": "Bad or expired code" } }
+      }
+    },
+    "/api/auth/me": {
+      "get": {
+        "tags": ["Auth"], "summary": "Current authenticated user",
+        "responses": { "200": { "description": "User context" }, "401": { "description": "Unauthenticated or revoked" } }
+      }
+    },
+    "/api/auth/logout": {
+      "post": {
+        "tags": ["Auth"], "summary": "Revoke the current session (jti)",
+        "responses": { "200": { "description": "Session revoked" } }
+      }
+    },
+    "/api/auth/oidc/start": {
+      "get": {
+        "tags": ["Auth"], "summary": "Begin the OIDC / GOV.UK One Login authorization-code flow (PKCE)", "security": [],
+        "responses": { "302": { "description": "Redirect to the IdP authorize endpoint" } }
+      }
+    },
+    "/api/applications": {
+      "get": {
+        "tags": ["Applications"], "summary": "List applications (staff queue; debtor sees only their own)",
+        "parameters": [
+          { "name": "page", "in": "query", "schema": { "type": "integer" } },
+          { "name": "pageSize", "in": "query", "schema": { "type": "integer" } },
+          { "name": "status", "in": "query", "schema": { "type": "string" } },
+          { "name": "assignedTo", "in": "query", "schema": { "type": "string" }, "description": "A user id, 'me', or 'unassigned'" }
+        ],
+        "responses": { "200": { "description": "Paginated list with SLA posture" }, "401": { "description": "Unauthenticated" } }
+      },
+      "post": {
+        "tags": ["Applications"], "summary": "Create an application (anonymous intake allowed; returns the capability token)", "security": [],
+        "responses": {
+          "201": { "description": "Created", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateApplicationResponse" } } } },
+          "400": { "description": "Validation error", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+        }
+      }
+    },
+    "/api/applications/{id}": {
+      "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" }, "description": "Application id or reference number" }],
+      "get": {
+        "tags": ["Applications"], "summary": "Get one application",
+        "description": "Staff and the owning debtor may read; an anonymous caller must present a valid X-Application-Capability for this id. A bad/absent capability returns 404 (never confirms the id exists).",
+        "security": [{ "bearerAuth": [] }, { "applicationCapability": [] }],
+        "responses": { "200": { "description": "Application with relations and stored recommendation" }, "404": { "description": "Not found or not authorised" } }
+      },
+      "put": {
+        "tags": ["Applications"], "summary": "Update a draft",
+        "description": "Anonymous callers must present a valid X-Application-Capability for this id (write-IDOR closed in Phase 2). Only draft / additional_info_required may be edited.",
+        "security": [{ "bearerAuth": [] }, { "applicationCapability": [] }],
+        "responses": { "200": { "description": "Updated" }, "400": { "description": "Invalid state or validation error" }, "404": { "description": "Not found or not authorised" } }
+      }
+    },
+    "/api/applications/{id}/submit": {
+      "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+      "post": {
+        "tags": ["Applications"], "summary": "Submit an application",
+        "description": "Anonymous callers must present a valid X-Application-Capability for this id.",
+        "security": [{ "bearerAuth": [] }, { "applicationCapability": [] }],
+        "responses": { "200": { "description": "Submitted" }, "404": { "description": "Not found or not authorised" } }
+      }
+    },
+    "/api/applications/{id}/status": {
+      "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+      "patch": {
+        "tags": ["Applications"], "summary": "Change status (staff decision)",
+        "description": "Gated by the matching permission: applications.approve / applications.reject / applications.update. Actor is bound from the verified token.",
+        "responses": { "200": { "description": "Transitioned" }, "403": { "description": "Missing permission" }, "400": { "description": "Invalid transition" } }
+      }
+    },
+    "/api/applications/{id}/cft-assessment": {
+      "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+      "get": {
+        "tags": ["Applications"], "summary": "CFT (Common Financial Tool) contribution assessment",
+        "description": "Runs the reg.15 CFS logic against the application's income/expenditure. Trigger figures are INDICATIVE_TRIGGER_FIGURES — a labelled POC stand-in, not the licensed published set. Same ownership/capability guard as GET /{id}.",
+        "security": [{ "bearerAuth": [] }, { "applicationCapability": [] }],
+        "responses": { "200": { "description": "Assessment with statutory citations" }, "404": { "description": "Not found or no financials" } }
+      }
+    },
+    "/api/recommend": {
+      "post": {
+        "tags": ["Recommendations"], "summary": "Generate a product recommendation", "security": [],
+        "responses": { "200": { "description": "Recommendation", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Recommendation" } } } } }
+      }
+    },
+    "/api/payments/initiate": {
+      "post": {
+        "tags": ["Payments"], "summary": "Initiate a payment session (sandbox)",
+        "description": "Anonymous /apply callers must present a valid X-Application-Capability tying the payment to their application; staff may always initiate.",
+        "security": [{ "bearerAuth": [] }, { "applicationCapability": [] }],
+        "responses": { "201": { "description": "Payment created (pending)" }, "404": { "description": "Not authorised for this application" } }
+      }
+    },
+    "/api/payments/{id}/status": {
+      "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+      "get": {
+        "tags": ["Payments"], "summary": "Get payment status",
+        "security": [{ "bearerAuth": [] }, { "applicationCapability": [] }],
+        "responses": { "200": { "description": "Payment record" }, "404": { "description": "Not found or not authorised" } }
+      }
+    },
+    "/api/payments/{id}/refund": {
+      "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+      "post": {
+        "tags": ["Payments"], "summary": "Refund a completed payment (staff only)",
+        "responses": { "200": { "description": "Refunded" }, "403": { "description": "Non-staff caller" }, "400": { "description": "Not in a refundable state" } }
+      }
+    },
+    "/api/notifications/user/{userId}": {
+      "parameters": [{ "name": "userId", "in": "path", "required": true, "schema": { "type": "string" } }],
+      "get": {
+        "tags": ["Notifications"], "summary": "List a user's notifications",
+        "description": "Caller must own :userId or be staff; a mismatch returns 404.",
+        "responses": { "200": { "description": "Notifications and unread count" }, "401": { "description": "Unauthenticated" }, "404": { "description": "Not authorised" } }
+      }
+    },
+    "/api/audit/events": {
+      "get": {
+        "tags": ["Audit"], "summary": "Search the audit trail (requires audit.read)",
+        "responses": { "200": { "description": "Events" }, "403": { "description": "Missing audit.read" } }
+      },
+      "post": {
+        "tags": ["Audit"], "summary": "Record an audit event (staff/service only)",
+        "description": "Refuses role=debtor. Actor is derived from the verified token, never the body.",
+        "responses": { "201": { "description": "Event recorded" }, "403": { "description": "Applicant caller" } }
+      }
+    },
+    "/api/users": {
+      "get": {
+        "tags": ["Users"], "summary": "List users (requires users.read)",
+        "responses": { "200": { "description": "Directory" }, "403": { "description": "Missing users.read" } }
+      }
+    },
+    "/api/organisations": {
+      "get": {
+        "tags": ["Organisations"], "summary": "List organisations (requires organisations.read)",
+        "responses": { "200": { "description": "Organisation hierarchy" }, "403": { "description": "Missing organisations.read" } }
+      }
+    }
+  }
+}

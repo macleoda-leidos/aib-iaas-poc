@@ -61,9 +61,9 @@ deliverable documents must use; where a doc still disagrees, §3 records it.
 | Web `page.tsx` files | **69** | `apps/web/src/app/**` |
 | Admin-app `page.tsx` files | **10** | `apps/admin/src/app/**` |
 | Mock-integration modules | **6** | BASYS, eDEN/DAS-hub, DAS, CFT, Moratorium, RoI (+ a credit-check mock + a health router) |
-| Automated tests | **1,068 across 58 files** | `npx vitest run`: 741 backend / 45 files + 327 frontend / 13 files |
+| Automated tests | **1,078 across 60 files** | `npx vitest run`: 751 backend / 47 files + 327 frontend / 13 files |
 
-**Note on the test count.** 1,068 is the current figure. It was **1,037 / 722 backend** before
+**Note on the test count.** 1,078 is the current figure. It was **1,037 / 722 backend** before
 Phase 2 added 19 security-regression tests. Any doc still quoting 1,037, 904, 648/658 or 423 is
 stale (423 was the legitimate Sprint 11 total and survives correctly in *historical* sprint
 records; see §3 and §4).
@@ -137,15 +137,15 @@ artefact still carries the old one, that is called out in the Notes column and t
 | **Carried wrong figure** | `README.md` integration row/body (now `README.md:12` "6 AiB databases", `:195`, `:375` "6 mock-integration modules"); `docs/integrations.md:760,770,772` ("All 6 systems"). |
 | **Status** | **Reconciled** — `README.md:375`, `integrations.md:14`, `functionality-breakdown.md:124` ("6 legacy systems") and the admin tile `integration-monitor` ("all 6 AiB system connections", `admin/page.tsx:252`) all state 6. |
 
-### 3.7 Test count — "423" / "904" / "1,037" → **1,068 across 58 files**
+### 3.7 Test count — "423" / "904" / "1,037" → **1,078 across 60 files**
 
 | | |
 |---|---|
 | **Claim** | 648/658 (Vitest conflated with Playwright), 904, then 1,037. |
-| **Truth** | **1,068 across 58 files** (741 backend / 45 files + 327 frontend / 13 files), from a full `npx vitest run`. Backend rose from 722 after Phase 2 added 19 security-regression tests. |
+| **Truth** | **1,078 across 60 files** (751 backend / 47 files + 327 frontend / 13 files), from a full `npx vitest run`. Backend rose from 722 after Phase 2 added 19 security-regression tests. |
 | **Source of truth** | `npx vitest run`; methodology at `docs/testing.md` §3.1 (`:90`); `docs/code-quality-report.md:10,35`. |
 | **Carried wrong figure** | `docs/testing.md`, `docs/architecture.md:763,781`, `docs/BETA_READINESS.md:29`, `docs/CURRENT_STATE_ASSESSMENT.md:222`, `docs/dotnet-migration-plan.md:163`, `docs/code-quality-report.md`, `CLAUDE.md:124` — all previously carried 904 or 1,037. |
-| **Status** | **Reconciled** — every doc above now states 1,068/58 (741/327), and the diagram source `docs/diagrams/src/architecture-9.mmd:8` was updated to match. The **rendered** `docs/diagrams/svg/architecture-9.svg` still bakes in the old figure until the next `npm run generate:pdf` / diagram render — see §4. Historical sprint rows quoting 423 (`sprint-delivery-log.md:254,263,274`, `roadmap.md:17`, `release-notes.md:125`, `README.md:37`) are legitimate point-in-time records for Sprint 11 and should stay. |
+| **Status** | **Reconciled** — every doc above now states 1,078/58 (751/327), and the diagram source `docs/diagrams/src/architecture-9.mmd:8` was updated to match. The **rendered** `docs/diagrams/svg/architecture-9.svg` still bakes in the old figure until the next `npm run generate:pdf` / diagram render — see §4. Historical sprint rows quoting 423 (`sprint-delivery-log.md:254,263,274`, `roadmap.md:17`, `release-notes.md:125`, `README.md:37`) are legitimate point-in-time records for Sprint 11 and should stay. |
 
 ### 3.8 testing.md internal conflict — backend "38" vs "45" files → **45**
 
@@ -184,7 +184,7 @@ artefact still carries the old one, that is called out in the Notes column and t
 These are not blocking, but they will re-introduce drift if regenerated or quoted out of context.
 
 - **Rendered diagram SVGs still bake in the old 1,037 count.** The source
-  `docs/diagrams/src/architecture-9.mmd:8` has been updated to `Vitest (1,068 tests, 58 files)`,
+  `docs/diagrams/src/architecture-9.mmd:8` has been updated to `Vitest (1,078 tests, 60 files)`,
   but the rendered `docs/diagrams/svg/architecture-9.svg` (and any PNG) is a downstream build
   artefact and still carries the old figure. **Action: regenerate on the next
   `npm run generate:pdf` / diagram render** so the SVG/PNG set matches the source.
@@ -203,7 +203,7 @@ These are not blocking, but they will re-introduce drift if regenerated or quote
   tree holds 67 markdown files); and the "20 permissions" operational quick-refs (`runbook.md:87`,
   `sow-delivery-notes.md:49`, `functionality-breakdown.md:99`, `architecture.md:594`) → **28**.
 - **Historical test figures (423) in sprint/release records** are correct-as-history and should
-  *not* be "fixed" to 1,068 — doing so would falsify the sprint record. They are listed here only
+  *not* be "fixed" to 1,078 — doing so would falsify the sprint record. They are listed here only
   so a future reconciliation does not mistake them for drift.
 
 ---
@@ -278,7 +278,7 @@ produced the 33-vs-38 confusion in the first place.
    build if any drifts from `VERIFIED_FACTS.md`. This converts "doc drift" from a manual-review
    problem into a red build. The test count is the easiest to assert (`vitest run` already emits
    it); the array counts are a one-line `node -e` each.
-3. **Regenerate the diagram set.** Edit `docs/diagrams/src/architecture-9.mmd:8` to 1,068, re-run
+3. **Regenerate the diagram set.** Edit `docs/diagrams/src/architecture-9.mmd:8` to 1,078, re-run
    the diagram render (`generate:pdf` pipeline), and commit the refreshed SVG/PNG so the visual
    artefacts stop contradicting the prose (§4).
 4. **Close the small copy residuals** flagged in §4 in one pass: `feature-catalogue.md`

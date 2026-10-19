@@ -81,7 +81,7 @@ npm workspaces monorepo with three workspace directories (`apps/*`, `services/*`
 
 ## Testing
 
-`npx vitest run` from the repo root runs everything: **1068 tests across 58 files** (741 backend across 45 files, 327 frontend across 13 files). The backend count rose from 722 after Phase 2 added 19 security-regression tests (notification IDOR, payment ownership, anonymous-write capability gating, audit-write authority).
+`npx vitest run` from the repo root runs everything: **1078 tests across 60 files** (751 backend across 47 files, 327 frontend across 13 files). The backend count rose from 722 to 741 when Phase 2 added 19 security-regression tests (notification IDOR, payment ownership, anonymous-write capability gating, audit-write authority), and to 751 when Phase 3 added the SQLite/PostgreSQL index-parity and OpenAPI-contract tests.
 
 Note: the jsdom frontend suites require **Node ≥ 20.19** (or ≥ 22.12) — jsdom 29 pulls in an ESM-only transitive dep (`@exodus/bytes`, via `html-encoding-sniffer`) that older Node reaches through `require()`. On Node 20.18 and earlier the frontend files fail to load with `ERR_REQUIRE_ESM`; the backend suites are unaffected. CI's `node-version: 20` resolves to a 20.19+ runtime, so this only bites local runs on an older Node.
 
@@ -121,4 +121,4 @@ If a run fails with `EBUSY: resource busy or locked` in the temp SSR cache on Wi
 
 - British English in all user-facing copy and docs ("organisation", "customise").
 - Comments explain *why*, not *what* — see `vitest.config.ts` and `DemoChoreographer.tsx` for the expected density.
-- Every stated number must be verifiable against the repo. The test count is standardised at **1068 across 58 files** (741 backend / 327 frontend), from a full `npx vitest run`; the earlier "648/658/904/1037" figures (which conflated Vitest with Playwright, or predated recent sprints) have been reconciled across the doc set. `docs/testing.md` §3.1 records the methodology. Other verified baselines: 10 roles · 28 permissions · 91 role-permission grants · 8 packages · 14 `services/` dirs (12 logical + consolidated-api + dotnet-api) · 21 DB tables · 47 shared-types · 21 Zod schemas · 33 admin tiles · 6 mock-integration modules.
+- Every stated number must be verifiable against the repo. The test count is standardised at **1078 across 60 files** (751 backend / 327 frontend), from a full `npx vitest run`; the earlier "648/658/904/1037" figures (which conflated Vitest with Playwright, or predated recent sprints) have been reconciled across the doc set. `docs/testing.md` §3.1 records the methodology. Other verified baselines: 10 roles · 28 permissions · 91 role-permission grants · 8 packages · 14 `services/` dirs (12 logical + consolidated-api + dotnet-api) · 21 DB tables · 47 shared-types · 21 Zod schemas · 33 admin tiles · 6 mock-integration modules.
